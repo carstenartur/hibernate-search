@@ -34,6 +34,7 @@ public abstract class PojoImplicitReindexingResolverNode<T, S> implements AutoCl
 	 * taking into account the given "dirtiness state".
 	 *
 	 * @param collector A collector for entities that should be reindexed.
+	 * @param runtimeIntrospector
 	 * @param dirty A value that is dirty to some extent.
 	 * @param dirtinessState The set of dirty paths in the object passed to the root reindexing resolver
 	 * (resolvers may delegate to other resolvers, but they will always pass the same dirtiness state to delegates).

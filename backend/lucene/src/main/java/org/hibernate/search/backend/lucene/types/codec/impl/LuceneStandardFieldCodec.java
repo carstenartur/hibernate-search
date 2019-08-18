@@ -18,6 +18,7 @@ public interface LuceneStandardFieldCodec<F, E> extends LuceneFieldCodec<F> {
 	 * Useful for predicates and sorts in particular.
 	 *
 	 * @param value The value to encode.
+	 * @return 
 	 */
 	E encode(F value);
 

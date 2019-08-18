@@ -115,6 +115,7 @@ public class LuceneWriteWorkProcessorTest extends EasyMockSupport {
 
 	/**
 	 * Test that there is no workset commit after a failure, even if the commit strategy is FORCE.
+	 * @throws java.io.IOException
 	 */
 	@Test
 	public void error_workExecute_commitForce() throws IOException {

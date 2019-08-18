@@ -9,8 +9,9 @@ package org.hibernate.search.engine.search.projection.spi;
 import org.hibernate.search.engine.search.SearchProjection;
 
 /**
- * A search projection builder, i.e. an object responsible for collecting parameters
- * and then building a search projection.
+ * A search projection builder, i.e.an object responsible for collecting parameters
+ and then building a search projection.
+ * @param <T>
  */
 public interface SearchProjectionBuilder<T> {
 

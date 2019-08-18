@@ -475,6 +475,7 @@ public class ElasticsearchExtensionIT {
 	/**
 	 * Check that the projection on source includes all fields,
 	 * even if there is a field projection, which would usually trigger source filtering.
+	 * @throws org.json.JSONException
 	 */
 	@Test
 	public void projection_documentAndField() throws JSONException {

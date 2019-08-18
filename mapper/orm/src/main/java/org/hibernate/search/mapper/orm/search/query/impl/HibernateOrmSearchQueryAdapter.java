@@ -163,8 +163,8 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 	//-------------------------------------------------------------
 
 	/**
-	 * Return an iterator on the results.
-	 * Retrieve the object one by one (initialize it during the next() operation)
+	 * Return an iterator on the results.Retrieve the object one by one (initialize it during the next() operation)
+	 * @return
 	 */
 	@Override
 	public Iterator<R> iterate() {

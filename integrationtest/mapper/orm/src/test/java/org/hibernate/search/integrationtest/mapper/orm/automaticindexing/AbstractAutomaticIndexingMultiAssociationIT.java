@@ -16,6 +16,11 @@ import org.junit.Test;
  * and involving a multi-valued association.
  * <p>
  * See {@link AbstractAutomaticIndexingAssociationIT} for more details on how this test is designed.
+ * @param <TIndexed>
+ * @param <TContainingAssociation>
+ * @param <TContaining>
+ * @param <TContainedAssociation>
+ * @param <TContained>
  */
 public abstract class AbstractAutomaticIndexingMultiAssociationIT<
 		TIndexed extends TContaining, TContaining, TContained,

@@ -33,6 +33,7 @@ import org.junit.runners.Parameterized;
 /**
  * Test cache lookup as part of entity loading when executing a search query
  * when only a single type is involved.
+ * @param <T>
  */
 @RunWith(Parameterized.class)
 public class SearchQueryEntityLoadingCacheLookupIT<T> extends AbstractSearchQueryEntityLoadingSingleTypeIT<T> {

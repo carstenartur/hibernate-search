@@ -64,6 +64,8 @@ public class BoundPojoModelPathValueNode<T, P, V> extends BoundPojoModelPath {
 	}
 
 	/**
+	 * @param <U>
+	 * @param typeModel
 	 * @return A child path node representing values represented by this node, casted to the given type.
 	 */
 	public <U> BoundPojoModelPathCastedTypeNode<V, U> castedType(PojoRawTypeModel<U> typeModel) {

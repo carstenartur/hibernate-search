@@ -16,6 +16,7 @@ import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.MarkerBinder
  * A binder for markers that mark a property as the latitude or longitude
  * for a {@link GeoPointBinder GeoPoint bridge}.
  *
+ * @param <A>
  * @see Latitude
  * @see Longitude
  * @see GeoPointBinder#latitude()

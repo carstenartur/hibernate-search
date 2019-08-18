@@ -59,6 +59,12 @@ public interface LuceneSearchProjection<E, P> extends SearchProjection<P>, Lucen
 	 * Transform the extracted data and cast it to the right type.
 	 * <p>
 	 * This should be used with care as it's unsafe.
+	 * @param <Z>
+	 * @param projection
+	 * @param context
+	 * @param loadingResult
+	 * @param extractedData
+	 * @return 
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	static <Z> Z transformUnsafe(LuceneSearchProjection<?, Z> projection, LoadingResult<?> loadingResult,

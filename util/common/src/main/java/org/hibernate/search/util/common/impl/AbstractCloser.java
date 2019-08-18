@@ -9,6 +9,7 @@ package org.hibernate.search.util.common.impl;
 /**
  * A base class implementing the logic behind {@link Closer} and {@link SuppressingCloser}.
  *
+ * @param <S>
  * @param <E> The supertype of exceptions this object can catch.
  *
  */
@@ -20,6 +21,7 @@ public abstract class AbstractCloser<S, E extends Exception> {
 	 * swallowing any throwable in order to
 	 * {@link Throwable#addSuppressed(Throwable) add it as suppressed} to a previously caught throwable,
 	 * or to re-throw it later.
+	 * @param <T>
 	 * @param operator An operator to close {@code objectToClose}. Accepts lambdas
 	 * such as {@code MyType::close}.
 	 * @param objectToClose An object to close.
@@ -42,6 +44,7 @@ public abstract class AbstractCloser<S, E extends Exception> {
 	 * each element of the given iterable, swallowing any throwable in order to
 	 * {@link Throwable#addSuppressed(Throwable) add it as suppressed} to a previously caught throwable,
 	 * or to re-throw it later.
+	 * @param <T>
 	 * @param operator An operator to close each element in {@code objectsToClose}. Accepts lambdas
 	 * such as {@code MyType::close}.
 	 * @param objectsToClose An iterable of objects to close.
@@ -59,6 +62,7 @@ public abstract class AbstractCloser<S, E extends Exception> {
 	 * each element of the given array, swallowing any throwable in order to
 	 * {@link Throwable#addSuppressed(Throwable) add it as suppressed} to a previously caught throwable,
 	 * or to re-throw it later.
+	 * @param <T>
 	 * @param operator An operator to close each element in {@code objectsToClose}. Accepts lambdas
 	 * such as {@code MyType::close}.
 	 * @param objectsToClose An array of objects to close.

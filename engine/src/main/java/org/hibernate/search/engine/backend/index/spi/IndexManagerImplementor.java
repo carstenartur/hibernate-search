@@ -23,6 +23,7 @@ import org.hibernate.search.engine.mapper.session.context.spi.SessionContextImpl
  * The object responsible for applying works and searches to a full-text index.
  * <p>
  * This is the interface implemented by backends and provided to the engine.
+ * @param <D>
  */
 public interface IndexManagerImplementor<D extends DocumentElement> extends AutoCloseable {
 

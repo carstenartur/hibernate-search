@@ -8,6 +8,7 @@ package org.hibernate.search.engine.search.dsl.projection;
 
 /**
  * The initial and final step in a composite projection definition, where optional parameters can be set.
+ * @param <T>
  */
 public interface CompositeProjectionOptionsStep<T> extends ProjectionFinalStep<T> {
 

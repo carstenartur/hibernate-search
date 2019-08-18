@@ -85,6 +85,9 @@ import org.junit.Test;
  *         (i.e. included in the @IndexedEmbedded.includePath) or not.
  *     </li>
  * </ul>
+ * @param <TIndexed>
+ * @param <TContained>
+ * @param <TContaining>
  */
 public abstract class AbstractAutomaticIndexingAssociationIT<
 		TIndexed extends TContaining, TContaining, TContained

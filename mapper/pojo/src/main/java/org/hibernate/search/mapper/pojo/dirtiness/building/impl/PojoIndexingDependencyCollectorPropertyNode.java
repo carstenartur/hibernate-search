@@ -14,6 +14,7 @@ import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPathProper
 /**
  * A node representing a property in a dependency collector.
  *
+ * @param <T>
  * @see PojoIndexingDependencyCollectorValueNode
  *
  * @param <P> The property type

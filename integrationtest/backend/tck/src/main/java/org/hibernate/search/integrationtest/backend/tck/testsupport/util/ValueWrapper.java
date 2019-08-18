@@ -18,6 +18,7 @@ import org.hibernate.search.engine.backend.types.dsl.IndexFieldTypeConverterStep
  * A value wrapper used when testing
  * {@link IndexFieldTypeConverterStep#dslConverter(ToDocumentFieldValueConverter) DSL converters}
  * and {@link IndexFieldTypeConverterStep#projectionConverter(FromDocumentFieldValueConverter) projection converters}.
+ * @param <T>
  */
 public final class ValueWrapper<T> {
 	public static <T> ToDocumentFieldValueConverter<ValueWrapper<T>, T> toIndexFieldConverter() {

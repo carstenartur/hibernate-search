@@ -42,6 +42,7 @@ import org.easymock.Capture;
 
 /**
  * Test default identifier bridges for the {@code @DocumentId} annotation.
+ * @param <I>
  */
 @RunWith(Parameterized.class)
 public class DocumentIdDefaultBridgeIT<I> {

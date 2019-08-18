@@ -8,6 +8,7 @@ package org.hibernate.search.engine.search.dsl.projection;
 
 /**
  * The initial and final step in a "field" projection definition, where optional parameters can be set.
+ * @param <T>
  */
 public interface FieldProjectionOptionsStep<T> extends ProjectionFinalStep<T> {
 

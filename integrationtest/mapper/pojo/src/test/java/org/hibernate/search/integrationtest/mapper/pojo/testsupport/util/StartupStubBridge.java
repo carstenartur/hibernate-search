@@ -44,6 +44,7 @@ import org.hibernate.search.util.impl.test.rule.StaticCounters;
  * Any runtime use of this bridge will simply increment a counter and throw an exception.
  * <p>
  * For our own convenience, all bridge types are implemented in the same class.
+ * @param <T>
  */
 public class StartupStubBridge<T>
 		implements TypeBridge, PropertyBridge, ValueBridge<T, String>,

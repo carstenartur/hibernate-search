@@ -57,6 +57,8 @@ public final class ReusableDocumentStoredFieldVisitor extends StoredFieldVisitor
 
 	/**
 	 * Create a visitor that collects only some specified fields.
+	 * @param fieldsToLoad
+	 * @param nestedDocumentPaths
 	 */
 	public ReusableDocumentStoredFieldVisitor(Set<String> fieldsToLoad, Set<String> nestedDocumentPaths) {
 		FieldAcceptor previous = NOT_ACCEPT;

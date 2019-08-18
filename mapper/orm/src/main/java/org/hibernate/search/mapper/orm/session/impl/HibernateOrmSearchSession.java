@@ -56,6 +56,7 @@ public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 		implements SearchSession, HibernateOrmScopeSessionContext, ReferenceHitMapper<EntityReference> {
 
 	/**
+	 * @param context
 	 * @param sessionImplementor A Hibernate session
 	 *
 	 * @return The {@link HibernateOrmSearchSession} to use within the context of the given session.

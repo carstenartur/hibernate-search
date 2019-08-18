@@ -18,6 +18,7 @@ import org.hibernate.search.mapper.orm.search.loading.EntityLoadingCacheLookupSt
  * The initial step in a query definition, where the type of query hits can be set,
  * or where the predicate can be set directly, assuming that query hits are returned as entities.
  *
+ * @param <E>
  * @see SearchQueryHitTypeStep
  */
 public interface HibernateOrmSearchQueryHitTypeStep<E>

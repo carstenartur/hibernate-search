@@ -34,6 +34,7 @@ public class LuceneLocalFileSystemDirectoryIT extends AbstractBuiltInDirectoryIT
 
 	/**
 	 * Test that the index is created in the configured root.
+	 * @throws java.io.IOException
 	 */
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3440")

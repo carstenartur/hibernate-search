@@ -8,6 +8,7 @@ package org.hibernate.search.engine.search.dsl.projection;
 
 /**
  * The initial and final step in an "entity" projection definition, where optional parameters can be set.
+ * @param <E>
  */
 public interface EntityProjectionOptionsStep<E> extends ProjectionFinalStep<E> {
 

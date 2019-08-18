@@ -39,7 +39,8 @@ public interface IndexWriterDelegator {
 	void forceMerge() throws IOException;
 
 	/**
-	 * Forces release of Directory lock. Should be used only to cleanup as error recovery.
+	 * Forces release of Directory lock.Should be used only to cleanup as error recovery.
+	 * @throws java.io.IOException
 	 */
 	void forceLockRelease() throws IOException;
 

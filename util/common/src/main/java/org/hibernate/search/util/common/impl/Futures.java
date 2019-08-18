@@ -31,6 +31,7 @@ public final class Futures {
 	 * creation the same way as errors thrown during post-processing operations
 	 * (for instance operations passed to {@link CompletableFuture#thenApply(Function)}).
 	 *
+	 * @param <T>
 	 * @param initiator A supplier that will initiate (synchronously) the asynchronous operation.
 	 * @return A {@link CompletableFuture} wrapping the result of both the initiation and execution of the operation.
 	 */
@@ -44,6 +45,7 @@ public final class Futures {
 	 * <p>
 	 * This method is meant to be used in conjunction with {@link CompletableFuture#exceptionally(Function)}.
 	 *
+	 * @param <T>
 	 * @param delegate The exception function to delegate to
 	 * @return The new, delegating exception function.
 	 */
@@ -63,6 +65,8 @@ public final class Futures {
 	 * <p>
 	 * This method is meant to be used in conjunction with {@link CompletableFuture#handle(BiFunction)}.
 	 *
+	 * @param <T>
+	 * @param <R>
 	 * @param delegate The handler to delegate to
 	 * @return The new, delegating handler.
 	 */
@@ -81,6 +85,7 @@ public final class Futures {
 	 * <p>
 	 * This method is meant to be used in conjunction with {@link CompletableFuture#whenComplete(BiConsumer)}.
 	 *
+	 * @param <T>
 	 * @param delegate The handler to delegate to
 	 * @return The new, delegating handler.
 	 */
@@ -99,6 +104,7 @@ public final class Futures {
 	 * <p>
 	 * This method is meant to be used in conjunction with {@link CompletableFuture#whenComplete(BiConsumer)}.
 	 *
+	 * @param <T>
 	 * @param copyFuture The future to copy to
 	 * @return the copy handler
 	 */
@@ -121,6 +127,8 @@ public final class Futures {
 	 * It is useful in particular when you want to apply the same error handling to the composition
 	 * function and to the resulting future.
 	 *
+	 * @param <T>
+	 * @param <R>
 	 * @param delegate The composition function to delegate to.
 	 * @return The new, delegating composition function .
 	 */
@@ -143,6 +151,7 @@ public final class Futures {
 	 * will take errors of both parent futures into account
 	 * (using {@link Throwable#addSuppressed(Throwable)} if need be).
 	 *
+	 * @param <T>
 	 * @param self The future to wait for before launching the next one
 	 * @param action the composition consumer
 	 * @return A completable future that will be complete once {@code self} finished executing and

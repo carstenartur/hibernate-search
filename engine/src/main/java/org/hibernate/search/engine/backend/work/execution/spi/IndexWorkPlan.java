@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
  * <p>
  * Implementations may not be thread-safe.
  *
+ * @param <D>
  */
 public interface IndexWorkPlan<D> {
 

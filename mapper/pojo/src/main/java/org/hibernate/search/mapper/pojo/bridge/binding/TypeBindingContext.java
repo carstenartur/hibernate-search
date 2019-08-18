@@ -31,9 +31,7 @@ public interface TypeBindingContext extends BindingContext {
 	/**
 	 * Sets the bridge implementing the type/index binding.
 	 *
-	 * @param bridgeHolder A {@link BeanHolder} containing
-	 * the bridge to use at runtime to convert between the type and the index field value.
-	 * Use {@link BeanHolder#of(Object)} if you don't need any particular closing behavior.
+	 * @param arg0
 	 */
 	// FIXME also require the caller to pass the expected raw type here, and validate it.
 	//  We'll need to add generic type parameters to TypeBridge, however.

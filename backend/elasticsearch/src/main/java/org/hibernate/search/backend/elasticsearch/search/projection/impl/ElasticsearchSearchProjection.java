@@ -59,6 +59,12 @@ public interface ElasticsearchSearchProjection<E, P> extends SearchProjection<P>
 	 * Transform the extracted data and cast it to the right type.
 	 * <p>
 	 * This should be used with care as it's unsafe.
+	 * @param <Z>
+	 * @param projection
+	 * @param context
+	 * @param loadingResult
+	 * @param extractedData
+	 * @return 
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	static <Z> Z transformUnsafe(ElasticsearchSearchProjection<?, Z> projection, LoadingResult<?> loadingResult,

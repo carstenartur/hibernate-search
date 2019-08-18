@@ -18,6 +18,8 @@ import org.hibernate.search.util.impl.integrationtest.common.stub.StubSessionCon
 /**
  * A wrapper around {@link MappedIndexScope} providing some syntactic sugar,
  * such as methods that do not force to provide a session context.
+ * @param <R>
+ * @param <E>
  */
 public class GenericStubMappingScope<R, E> {
 

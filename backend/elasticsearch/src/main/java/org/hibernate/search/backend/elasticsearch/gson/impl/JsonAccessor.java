@@ -15,6 +15,7 @@ import com.google.gson.JsonObject;
 /**
  * An interface that abstracts the ways of accessing values in a JSON tree.
  *
+ * @param <T>
  * @see #root()
  * @see JsonObjectAccessor
  * @see JsonArrayAccessor

@@ -27,6 +27,7 @@ public final class JavaBeanMappingSetupHelper
 	 * to be passed to mapping builders created by {@link SetupContext#setup(Class[])} or {@link SetupContext#setup()}
 	 * so that the javabean mapper will be able to inspect classes defined in the test methods.
 	 * @param backendMock A backend mock.
+	 * @return 
 	 */
 	public static JavaBeanMappingSetupHelper withBackendMock(MethodHandles.Lookup lookup, BackendMock backendMock) {
 		return new JavaBeanMappingSetupHelper( lookup, BackendSetupStrategy.withBackendMocks( backendMock ) );

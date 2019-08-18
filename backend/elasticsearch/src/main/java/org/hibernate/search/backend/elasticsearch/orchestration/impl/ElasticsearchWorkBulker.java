@@ -20,6 +20,7 @@ import org.hibernate.search.backend.elasticsearch.work.impl.BulkableElasticsearc
 public interface ElasticsearchWorkBulker {
 
 	/**
+	 * @param <T>
 	 * @param work A work to add to the current bulk
 	 * @return A future that will ultimately contain the result of executing the work, or an exception.
 	 */

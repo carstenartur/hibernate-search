@@ -123,8 +123,9 @@ public class ElasticsearchContentLengthIT {
 	}
 
 	/**
-	 * When the request is big and is not post-processed (i.e. no AWS integration),
-	 * we can "stream" it to the remote cluster, and avoid storing it entirely in memory.
+	 * When the request is big and is not post-processed (i.e.no AWS integration),
+ we can "stream" it to the remote cluster, and avoid storing it entirely in memory.
+	 * @throws java.lang.Exception
 	 */
 	@Test
 	@Category(RequiresNoRequestPostProcessing.class)
@@ -147,8 +148,9 @@ public class ElasticsearchContentLengthIT {
 	}
 
 	/**
-	 * When the request is post-processed (e.g. with the AWS integration),
-	 * we have to store it entirely in memory, so chunked transfer does not make sense.
+	 * When the request is post-processed (e.g.with the AWS integration),
+ we have to store it entirely in memory, so chunked transfer does not make sense.
+	 * @throws java.lang.Exception
 	 */
 	@Test
 	@Category(RequiresRequestPostProcessing.class)

@@ -51,6 +51,7 @@ public class IndexAccessor implements AutoCloseable {
 	 * the IndexWriter, if any writer is open, or null if no IndexWriter is open.
 	 * @param applyDeletes Applying deletes is expensive, say no if you can deal with stale hits during queries
 	 * @return a new NRT IndexReader if an IndexWriter is available, or <code>null</code> otherwise
+	 * @throws java.io.IOException
 	 */
 	public DirectoryReader openNRTIndexReader(boolean applyDeletes) throws IOException {
 		final IndexWriter indexWriter = indexWriterDelegator.getIndexWriterOrNull();
@@ -65,6 +66,8 @@ public class IndexAccessor implements AutoCloseable {
 
 	/**
 	 * Opens an IndexReader from the Directory (not using the IndexWriter)
+	 * @return 
+	 * @throws java.io.IOException 
 	 */
 	public DirectoryReader openDirectoryIndexReader() throws IOException {
 		return DirectoryReader.open( directoryHolder.get() );

@@ -20,6 +20,7 @@ import org.hibernate.search.util.common.impl.Throwables;
 
 /**
  * @author Gunnar Morling
+ * @param <R>
  */
 public abstract class AbstractSimpleElasticsearchWork<R> implements ElasticsearchWork<R> {
 

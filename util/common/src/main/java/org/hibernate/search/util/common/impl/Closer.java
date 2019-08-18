@@ -82,6 +82,7 @@ public final class Closer<E extends Exception> extends AbstractCloser<Closer<E>,
 	}
 
 	/**
+	 * @param <E2>
 	 * @return A closer sharing the same state as {@code this}, allowing to handle
 	 * multiple exception types.
 	 * @see <a href="#splitting">splitting</a>

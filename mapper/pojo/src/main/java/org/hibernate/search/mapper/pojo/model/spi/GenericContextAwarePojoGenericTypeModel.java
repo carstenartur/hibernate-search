@@ -43,6 +43,7 @@ import org.hibernate.search.util.common.reflect.impl.ReflectionUtils;
  *
  * This will also be true for more deeply nested references to a type variable,
  * for instance the type of property {@code B.propertyOfA.propertyOfGenericType} will correctly be inferred as D.
+ * @param <T>
  */
 public final class GenericContextAwarePojoGenericTypeModel<T> implements PojoGenericTypeModel<T> {
 

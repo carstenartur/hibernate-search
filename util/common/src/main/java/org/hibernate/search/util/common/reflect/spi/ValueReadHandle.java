@@ -17,6 +17,7 @@ public interface ValueReadHandle<T> {
 	T get(Object thiz);
 
 	/**
+	 * @param obj
 	 * @return {@code true} if {@code obj} is a {@link ValueReadHandle} referencing the exact same
 	 * value accessor: same API (java.lang.invoke or java.lang.reflect),
 	 * same element (same field or method), ...

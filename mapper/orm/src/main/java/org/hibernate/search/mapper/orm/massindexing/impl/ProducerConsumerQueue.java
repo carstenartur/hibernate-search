@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * that the task is finished.
  *
  * @author Sanne Grinovero
+ * @param <T>
  */
 public class ProducerConsumerQueue<T> {
 

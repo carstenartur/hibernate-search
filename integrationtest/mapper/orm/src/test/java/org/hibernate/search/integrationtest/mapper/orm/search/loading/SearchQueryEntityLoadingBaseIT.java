@@ -20,6 +20,7 @@ import org.junit.runners.Parameterized;
 /**
  * Basic tests of entity loading when executing a search query
  * when only a single type is involved.
+ * @param <T>
  */
 @RunWith(Parameterized.class)
 public class SearchQueryEntityLoadingBaseIT<T> extends AbstractSearchQueryEntityLoadingSingleTypeIT<T> {

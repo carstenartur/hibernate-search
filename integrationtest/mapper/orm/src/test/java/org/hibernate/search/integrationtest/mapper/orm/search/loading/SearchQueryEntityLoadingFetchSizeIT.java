@@ -23,6 +23,7 @@ import org.junit.runners.Parameterized;
 /**
  * Test fetch size of entity loading when executing a search query
  * when only a single type is involved.
+ * @param <T>
  */
 @RunWith(Parameterized.class)
 public class SearchQueryEntityLoadingFetchSizeIT<T> extends AbstractSearchQueryEntityLoadingSingleTypeIT<T> {

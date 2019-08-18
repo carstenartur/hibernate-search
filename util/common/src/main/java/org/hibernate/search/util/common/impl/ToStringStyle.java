@@ -34,6 +34,10 @@ public class ToStringStyle {
 	}
 
 	/**
+	 * @param nameValueSeparator
+	 * @param indentInListNoBulletPoint
+	 * @param indentInObject
+	 * @param indentInListBulletPoint
 	 * @return A multi-line format relying on indenting and bullet points to display the structure (YAML-style).
 	 * Object and array delimiters are not shown.
 	 */

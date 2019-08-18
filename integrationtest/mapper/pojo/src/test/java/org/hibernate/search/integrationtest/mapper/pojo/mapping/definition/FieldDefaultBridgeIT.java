@@ -47,6 +47,8 @@ import org.easymock.Capture;
 
 /**
  * Test default value bridges for the {@code @GenericField} annotation.
+ * @param <V>
+ * @param <F>
  */
 @RunWith(Parameterized.class)
 public class FieldDefaultBridgeIT<V, F> {

@@ -22,6 +22,7 @@ import org.hibernate.search.engine.mapper.session.context.spi.SessionContextImpl
  * The object responsible for applying works and searches to a full-text index.
  * <p>
  * This is the interface provided to mappers to access the index manager.
+ * @param <D>
  */
 public interface MappedIndexManager<D extends DocumentElement> {
 

@@ -11,7 +11,8 @@ import java.lang.reflect.Type;
 
 /**
  * A type capture used when the captured type cannot be used as a type argument to an anonymous type,
- * e.g. the capture type is a wildcard type.
+ * e.g.the capture type is a wildcard type.
+ * @param <T>
  */
 public abstract class WildcardTypeCapture<T extends WildcardTypeCapture.Of<?>> extends TypeCapture<T> {
 	@Override

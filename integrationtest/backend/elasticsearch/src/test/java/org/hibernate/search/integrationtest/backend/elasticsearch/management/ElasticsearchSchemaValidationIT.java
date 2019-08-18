@@ -213,6 +213,7 @@ public class ElasticsearchSchemaValidationIT {
 
 	/**
 	 * Tests that mappings that are more powerful than requested will pass validation.
+	 * @throws java.lang.Exception
 	 */
 	@Test
 	public void property_attribute_leniency() throws Exception {
@@ -251,6 +252,7 @@ public class ElasticsearchSchemaValidationIT {
 
 	/**
 	 * Tests that properties within properties are correctly represented in the failure report.
+	 * @throws java.lang.Exception
 	 */
 	@Test
 	public void nestedProperty_attribute_invalid() throws Exception {

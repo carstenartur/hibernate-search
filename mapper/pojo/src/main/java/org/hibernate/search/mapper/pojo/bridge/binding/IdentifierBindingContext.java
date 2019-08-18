@@ -31,11 +31,8 @@ public interface IdentifierBindingContext<I> extends BindingContext {
 	/**
 	 * Sets the bridge implementing the value/index binding.
 	 *
-	 * @param expectedIdentifierType The type of values expected by the given bridge.
-	 * Hibernate Search will check that these expectations are met, and throw an exception if they are not.
-	 * @param bridgeHolder A {@link BeanHolder} containing
-	 * the bridge to use at runtime to convert between the POJO property value and the index field value.
-	 * Use {@link BeanHolder#of(Object)} if you don't need any particular closing behavior.
+	 * @param arg0
+	 * @param arg1
 	 * @param <I2> The type of identifiers expected by the given bridge.
 	 */
 	<I2> void setBridge(Class<I2> expectedIdentifierType, BeanHolder<? extends IdentifierBridge<I2>> bridgeHolder);

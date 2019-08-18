@@ -21,6 +21,8 @@ import org.hibernate.search.engine.search.sort.spi.SearchSortBuilderFactory;
  * either when calling {@link MappedIndexScope#sort()} from a search scope
  * or when calling {@link SearchQueryOptionsStep#sort(Function)} to build the sort using a lambda
  * (in which case the lambda may retrieve the resulting {@link SearchSort} object and cache it).
+ * @param <F>
+ * @param <B>
  */
 public final class SearchSortDslContextImpl<F extends SearchSortBuilderFactory<?, B>, B>
 		implements SearchSortDslContext<F, B> {

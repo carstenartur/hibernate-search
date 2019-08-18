@@ -9,6 +9,7 @@ package org.hibernate.search.mapper.pojo.model;
 /**
  * A model element representing a value bound to a bridge.
  *
+ * @param <T>
  * @see org.hibernate.search.mapper.pojo.bridge.ValueBridge
  * @hsearch.experimental This type is under active development.
  *    Usual compatibility policies do not apply: incompatible changes may be introduced in any future release.

@@ -41,6 +41,7 @@ public interface MappableTypeModel {
 	String toString();
 
 	/**
+	 * @param obj
 	 * @return {@code true} if {@code obj} is a {@link MappableTypeModel} referencing the exact same type
 	 * with the exact same exposed metadata.
 	 */

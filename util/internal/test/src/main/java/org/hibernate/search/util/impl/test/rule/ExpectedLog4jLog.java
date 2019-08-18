@@ -34,6 +34,7 @@ public class ExpectedLog4jLog implements TestRule {
 	/**
 	 * Returns a {@linkplain TestRule rule} that does not mandate any particular log to be produced (identical to
 	 * behavior without this rule).
+	 * @return 
 	 */
 	public static ExpectedLog4jLog create() {
 		return new ExpectedLog4jLog();
@@ -54,6 +55,8 @@ public class ExpectedLog4jLog implements TestRule {
 	 * Expect a logging event matching the given matcher.
 	 * <p>
 	 * Defaults to expecting the event once or more.
+	 * @param matcher
+	 * @return 
 	 */
 	public LogExpectation expectEvent(Matcher<? extends LoggingEvent> matcher) {
 		LogExpectation expectation = new LogExpectation( matcher );
@@ -68,6 +71,10 @@ public class ExpectedLog4jLog implements TestRule {
 	 * Expect a logging event matching the given level or higher,
 	 * <p>
 	 * Defaults to expecting the event once or more.
+	 * @param level
+	 * @param otherContainedStrings
+	 * @param throwableMatcher
+	 * @param containedString
 	 */
 	public void expectEvent(Level level,
 			Matcher<? super Throwable> throwableMatcher,
@@ -80,6 +87,7 @@ public class ExpectedLog4jLog implements TestRule {
 	}
 
 	/**
+	 * @param matcher
 	 * @deprecated Use {@code expectEvent( matcher ).never() }
 	 */
 	@Deprecated
@@ -91,12 +99,15 @@ public class ExpectedLog4jLog implements TestRule {
 	 * Expect a logging event matching the given level or higher.
 	 * <p>
 	 * Defaults to expecting the event once or more.
+	 * @param level
+	 * @return 
 	 */
 	public LogExpectation expectLevel(Level level) {
 		return expectEvent( eventLevelMatcher( level ) );
 	}
 
 	/**
+	 * @param level
 	 * @deprecated Use {@code expectLevel( level ).never() }
 	 */
 	@Deprecated
@@ -108,12 +119,15 @@ public class ExpectedLog4jLog implements TestRule {
 	 * Expect a log message containing the given string.
 	 * <p>
 	 * Defaults to expecting the event once or more.
+	 * @param containedString
+	 * @return 
 	 */
 	public LogExpectation expectMessage(String containedString) {
 		return expectMessage( CoreMatchers.containsString( containedString ) );
 	}
 
 	/**
+	 * @param containedString
 	 * @deprecated Use {@code expectMessage( containedString ).never() }
 	 */
 	@Deprecated
@@ -125,12 +139,17 @@ public class ExpectedLog4jLog implements TestRule {
 	 * Expect a log message containing all of the given string.
 	 * <p>
 	 * Defaults to expecting the event once or more.
+	 * @param containedString
+	 * @param otherContainedStrings
+	 * @return 
 	 */
 	public LogExpectation expectMessage(String containedString, String... otherContainedStrings) {
 		return expectMessage( containsAllStrings( containedString, otherContainedStrings ) );
 	}
 
 	/**
+	 * @param containedString
+	 * @param otherContainedStrings
 	 * @deprecated Use {@code expectMessage( matcher ).never() }
 	 */
 	@Deprecated
@@ -142,12 +161,15 @@ public class ExpectedLog4jLog implements TestRule {
 	 * Expect a log message matches the given Hamcrest matcher.
 	 * <p>
 	 * Defaults to expecting the event once or more.
+	 * @param matcher
+	 * @return 
 	 */
 	public LogExpectation expectMessage(Matcher<String> matcher) {
 		return expectEvent( eventMessageMatcher( matcher ) );
 	}
 
 	/**
+	 * @param matcher
 	 * @deprecated Use {@code expectMessage( matcher ).never() }
 	 */
 	@Deprecated

@@ -84,6 +84,7 @@ public class StubMappingIndexManager {
 	}
 
 	/**
+	 * @param others
 	 * @return A scope containing this index and the given other indexes.
 	 */
 	public StubMappingScope createScope(StubMappingIndexManager... others) {
@@ -96,6 +97,9 @@ public class StubMappingIndexManager {
 	}
 
 	/**
+	 * @param <R>
+	 * @param <E>
+	 * @param others
 	 * @return A scope containing this index and the given other indexes.
 	 */
 	public <R, E> GenericStubMappingScope<R, E> createGenericScope(StubMappingIndexManager... others) {

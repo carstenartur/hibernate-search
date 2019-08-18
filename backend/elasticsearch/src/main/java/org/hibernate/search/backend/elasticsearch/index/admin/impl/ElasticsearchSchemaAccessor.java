@@ -53,6 +53,7 @@ public class ElasticsearchSchemaAccessor {
 	/**
 	 * @param indexName The name of the index
 	 * @param settings The settings for the newly created index
+	 * @param mapping
 	 * @return {@code true} if the index was actually created, {@code false} if it already existed.
 	 */
 	public boolean createIndexIfAbsent(URLEncodedString indexName, IndexSettings settings,
