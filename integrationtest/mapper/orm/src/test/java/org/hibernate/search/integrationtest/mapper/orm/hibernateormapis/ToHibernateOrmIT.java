@@ -231,12 +231,13 @@ public class ToHibernateOrmIT {
 	@Test
 	@TestForIssue( jiraKey = "HSEARCH-1857" )
 	public void reuseSearchSessionAfterOrmSessionIsClosed_noMatching() {
-		Session session = sessionFactory.openSession();
-		SearchSession searchSession = Search.session( session );
-		// a SearchSession instance is created lazily,
-		// so we need to use it to have an instance of it
-		createSimpleQuery( searchSession );
-		session.close();
+		SearchSession searchSession;
+		try (Session session = sessionFactory.openSession()) {
+			searchSession = Search.session( session );
+			// a SearchSession instance is created lazily,
+			// so we need to use it to have an instance of it
+			createSimpleQuery( searchSession );
+		}
 
 		SubTest.expectException( () -> {
 			createSimpleQuery( searchSession );
@@ -248,10 +249,12 @@ public class ToHibernateOrmIT {
 
 	@Test
 	public void lazyCreateSearchSessionAfterOrmSessionIsClosed() {
-		Session session = sessionFactory.openSession();
+		SearchSession searchSession;
 		// Search session is not created, since we don't use it
-		SearchSession searchSession = Search.session( session );
-		session.close();
+		try (Session session = sessionFactory.openSession()) {
+			// Search session is not created, since we don't use it
+			searchSession = Search.session( session );
+		}
 
 		SubTest.expectException( () -> {
 			createSimpleQuery( searchSession );
@@ -264,10 +267,11 @@ public class ToHibernateOrmIT {
 	@Test
 	@TestForIssue( jiraKey = "HSEARCH-1857" )
 	public void reuseSearchQueryAfterOrmSessionIsClosed_noMatching() {
-		Session session = sessionFactory.openSession();
-		SearchSession searchSession = Search.session( session );
-		SearchQuery<IndexedEntity> query = createSimpleQuery( searchSession );
-		session.close();
+		SearchQuery<IndexedEntity> query;
+		try (Session session = sessionFactory.openSession()) {
+			SearchSession searchSession = Search.session( session );
+			query = createSimpleQuery( searchSession );
+		}
 
 		backendMock.expectSearchObjects(
 				Arrays.asList( IndexedEntity.INDEX ),

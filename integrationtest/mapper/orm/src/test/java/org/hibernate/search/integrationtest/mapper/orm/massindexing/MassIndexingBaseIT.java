@@ -113,12 +113,13 @@ public class MassIndexingBaseIT {
 
 	@Test
 	public void reuseSearchSessionAfterOrmSessionIsClosed_createMassIndexer() {
-		Session session = sessionFactory.openSession();
-		SearchSession searchSession = Search.session( session );
-		// a SearchSession instance is created lazily,
-		// so we need to use it to have an instance of it
-		searchSession.massIndexer();
-		session.close();
+		SearchSession searchSession;
+		try (Session session = sessionFactory.openSession()) {
+			searchSession = Search.session( session );
+			// a SearchSession instance is created lazily,
+			// so we need to use it to have an instance of it
+			searchSession.massIndexer();
+		}
 
 		SubTest.expectException( () -> {
 			searchSession.massIndexer();
@@ -130,10 +131,12 @@ public class MassIndexingBaseIT {
 
 	@Test
 	public void lazyCreateSearchSessionAfterOrmSessionIsClosed_createMassIndexer() {
-		Session session = sessionFactory.openSession();
+		SearchSession searchSession;
 		// Search session is not created, since we don't use it
-		SearchSession searchSession = Search.session( session );
-		session.close();
+		try (Session session = sessionFactory.openSession()) {
+			// Search session is not created, since we don't use it
+			searchSession = Search.session( session );
+		}
 
 		SubTest.expectException( () -> {
 			searchSession.massIndexer();
