@@ -20,6 +20,17 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <exclusions>
+                <!-- We import Bytebuddy ourselves, with a version aligned on Hibernate ORM's dependency. See below. -->
+                <exclusion>
+                    <groupId>net.bytebuddy</groupId>
+                    <artifactId>byte-buddy</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.bytebuddy</groupId>
+                    <artifactId>byte-buddy-agent</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.awaitility</groupId>
@@ -75,23 +86,6 @@
             <artifactId>byte-buddy</artifactId>
             <!-- DO NOT MANAGE this dependency. See the version property declaration. -->
             <version>${version.net.bytebuddy}</version>
-        </dependency>
-
-        <!-- Work around Surefire clearing the interrupt status when forwarding stdout/stderr -->
-        <dependency>
-            <groupId>org.hibernate.search</groupId>
-            <artifactId>hibernate-search-build-surefire-extension</artifactId>
-            <version>${project.version}</version>
-            <scope>runtime</scope>
-            <exclusions>
-                <!-- Work around dependency divergence reported by the Enforcer plugin.
-                     There really is divergence, but we really don't care as it's already there,
-                     caused by the Surefire booter itself. -->
-                <exclusion>
-                    <groupId>*</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
     </dependencies>
 
