@@ -42,9 +42,28 @@ public class ToStringTreeBuilder {
 			endStructure( StructureType.OBJECT, style.endObject );
 			endEntry();
 		}
+		else if ( value instanceof Iterable ) {
+			startList( name );
+			for ( Object element : (Iterable<?>) value ) {
+				value( element );
+			}
+			endList();
+		}
 		else {
 			startEntry( name, null );
-			builder.append( value );
+			if ( value == null ) {
+				builder.append( value );
+			}
+			else {
+				String[] lines = value.toString().split( "\n" );
+				for ( int i = 0; i < lines.length; i++ ) {
+					if ( i != 0 ) {
+						appendNewline();
+						appendIndentIfNecessary();
+					}
+					builder.append( lines[i] );
+				}
+			}
 			endEntry();
 		}
 		return this;

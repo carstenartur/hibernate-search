@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.hibernate.search.engine.backend.types.dsl.IndexFieldTypeOptionsStep;
+import org.hibernate.search.mapper.pojo.automaticindexing.building.impl.DerivedDependencyWalkingInfo;
 import org.hibernate.search.mapper.pojo.common.annotation.impl.SearchProcessingWithContextException;
 import org.hibernate.search.mapper.pojo.extractor.ContainerExtractor;
 import org.hibernate.search.mapper.pojo.logging.spi.PojoConstructorModelFormatter;
@@ -32,11 +33,12 @@ import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
 import org.hibernate.search.mapper.pojo.model.spi.PojoTypeModel;
 import org.hibernate.search.mapper.pojo.search.definition.impl.PojoConstructorProjectionDefinition;
 import org.hibernate.search.util.common.SearchException;
+import org.hibernate.search.util.common.data.impl.LinkedNode;
 import org.hibernate.search.util.common.logging.impl.CommaSeparatedClassesFormatter;
 import org.hibernate.search.util.common.logging.impl.ClassFormatter;
 import org.hibernate.search.util.common.logging.impl.MessageConstants;
 import org.hibernate.search.util.common.logging.impl.SimpleNameClassFormatter;
-import org.hibernate.search.util.common.logging.impl.ToStringTreeAppendableMultilineFormatter;
+import org.hibernate.search.util.common.logging.impl.ToStringTreeMultilineFormatter;
 import org.hibernate.search.util.common.logging.impl.TypeFormatter;
 import org.hibernate.search.util.common.reporting.EventContext;
 
@@ -228,7 +230,7 @@ public interface Log extends BasicLogger {
 			value = "Type manager for indexed type '%1$s': %2$s")
 	void indexedTypeManager(
 			@FormatWith(PojoTypeModelFormatter.class) PojoRawTypeModel<?> typeModel,
-			@FormatWith(ToStringTreeAppendableMultilineFormatter.class) PojoIndexedTypeManager<?, ?> typeManager);
+			@FormatWith(ToStringTreeMultilineFormatter.class) PojoIndexedTypeManager<?, ?> typeManager);
 
 	@LogMessage(level = Logger.Level.DEBUG)
 	@Message(id = ID_OFFSET + 18,
@@ -241,7 +243,7 @@ public interface Log extends BasicLogger {
 			value = "Type manager for contained type '%1$s': %2$s")
 	void containedTypeManager(
 			@FormatWith(PojoTypeModelFormatter.class) PojoRawTypeModel<?> typeModel,
-			@FormatWith(ToStringTreeAppendableMultilineFormatter.class) PojoContainedTypeManager<?, ?> typeManager);
+			@FormatWith(ToStringTreeMultilineFormatter.class) PojoContainedTypeManager<?, ?> typeManager);
 
 	@Message(id = ID_OFFSET + 20,
 			value = "Unable to find the inverse side of the association on type '%2$s' at path '%3$s'."
@@ -295,7 +297,8 @@ public interface Log extends BasicLogger {
 
 	@Message(id = ID_OFFSET + 30,
 			value = "Unable to resolve dependencies of a derived property:"
-					+ " there is a cyclic dependency involving path '%2$s' on type '%1$s'."
+					+ " there is a cyclic dependency starting from type '%1$s'.\n"
+					+ "Derivation chain starting from that type and ending with a cycle:%2$s\n"
 					+ " A derived property cannot be marked as derived from itself, even indirectly through other "
 					+ " derived properties."
 					+ " If your model actually contains such cyclic dependency, "
@@ -304,7 +307,7 @@ public interface Log extends BasicLogger {
 	)
 	SearchException infiniteRecursionForDerivedFrom(
 			@FormatWith(PojoTypeModelFormatter.class) PojoRawTypeModel<?> typeModel,
-			@FormatWith(PojoModelPathFormatter.class) PojoModelPathValueNode path);
+			@FormatWith(ToStringTreeMultilineFormatter.class) LinkedNode<DerivedDependencyWalkingInfo> cycle);
 
 	@Message(id = ID_OFFSET + 31,
 			value = "Unable to apply property mapping:"
@@ -709,7 +712,7 @@ public interface Log extends BasicLogger {
 	@Message(id = ID_OFFSET + 117,
 			value = "Constructor projection for type '%1$s': %2$s")
 	void constructorProjection(@FormatWith(PojoTypeModelFormatter.class) PojoRawTypeModel<?> typeModel,
-			@FormatWith(ToStringTreeAppendableMultilineFormatter.class) PojoConstructorProjectionDefinition<?> projectionDefinition);
+			@FormatWith(ToStringTreeMultilineFormatter.class) PojoConstructorProjectionDefinition<?> projectionDefinition);
 
 	@Message(id = ID_OFFSET + 118,
 			value = "Infinite object projection recursion starting from projection constructor %1$s and involving field path '%2$s'.")

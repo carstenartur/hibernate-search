@@ -25,9 +25,9 @@ import org.hibernate.search.engine.backend.types.Searchable;
 import org.hibernate.search.integrationtest.mapper.pojo.smoke.AnnotationMappingSmokeIT;
 import org.hibernate.search.integrationtest.mapper.pojo.smoke.ProgrammaticMappingSmokeIT;
 import org.hibernate.search.integrationtest.mapper.pojo.testsupport.util.StartupStubBridge;
-import org.hibernate.search.integrationtest.mapper.pojo.testsupport.util.rule.JavaBeanMappingSetupHelper;
-import org.hibernate.search.mapper.javabean.mapping.SearchMapping;
-import org.hibernate.search.mapper.javabean.session.SearchSession;
+import org.hibernate.search.integrationtest.mapper.pojo.testsupport.util.rule.StandalonePojoMappingSetupHelper;
+import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.mapper.pojo.bridge.IdentifierBridge;
 import org.hibernate.search.mapper.pojo.bridge.binding.IdentifierBindingContext;
 import org.hibernate.search.mapper.pojo.bridge.builtin.spatial.impl.GeoPointBridge;
@@ -78,7 +78,7 @@ public class IndexedEmbeddedBaseIT {
 	public BackendMock backendMock = new BackendMock();
 
 	@Rule
-	public JavaBeanMappingSetupHelper setupHelper = JavaBeanMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public StandalonePojoMappingSetupHelper setupHelper = StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
 
 	@Rule
 	public StaticCounters counters = new StaticCounters();
@@ -1546,6 +1546,73 @@ public class IndexedEmbeddedBaseIT {
 						.pathContext( ".invalid" )
 						.failure( "Unable to index-embed type '" + EmptyNested.class.getName() + "': no index mapping"
 								+ " (@GenericField, @FullTextField, custom bridges, ...) is defined for that type." ) );
+	}
+
+	@Test
+	public void cycle() {
+		class Model {
+			@Indexed(index = INDEX_NAME)
+			class EntityA {
+				@DocumentId
+				Integer id;
+				@IndexedEmbedded
+				EntityB b;
+			}
+			class EntityB {
+				Integer id;
+				@IndexedEmbedded
+				EntityA a;
+			}
+		}
+
+		assertThatThrownBy( () -> setupHelper.start()
+				.withAnnotatedEntityTypes( Model.EntityA.class )
+				.setup() )
+				.isInstanceOf( SearchException.class )
+				.satisfies( FailureReportUtils.hasFailureReport()
+						.typeContext( Model.EntityA.class.getName() )
+						.pathContext( ".b<no value extractors>.a<no value extractors>.b" )
+						.failure( "Cyclic @IndexedEmbedded recursion starting from type '" + Model.EntityA.class.getName() + "'",
+								"Path starting from that type and ending with a cycle: 'b.a.b.'",
+								"A type cannot declare an unrestricted @IndexedEmbedded to itself, even indirectly",
+								"To break the cycle, you should consider adding filters to your @IndexedEmbedded: includePaths, includeDepth, ..." )
+				);
+	}
+
+	@Test
+	public void cycle_nonRoot() {
+		class Model {
+			@Indexed(index = INDEX_NAME)
+			class EntityA {
+				@DocumentId
+				Integer id;
+				@IndexedEmbedded
+				EntityB b;
+			}
+			class EntityB {
+				Integer id;
+				@IndexedEmbedded
+				EntityC c;
+			}
+			class EntityC {
+				Integer id;
+				@IndexedEmbedded
+				EntityB b;
+			}
+		}
+
+		assertThatThrownBy( () -> setupHelper.start()
+				.withAnnotatedEntityTypes( Model.EntityA.class )
+				.setup() )
+				.isInstanceOf( SearchException.class )
+				.satisfies( FailureReportUtils.hasFailureReport()
+						.typeContext( Model.EntityA.class.getName() )
+						.pathContext( ".b<no value extractors>.c<no value extractors>.b<no value extractors>.c" )
+						.failure( "Cyclic @IndexedEmbedded recursion starting from type '" + Model.EntityB.class.getName() + "'",
+								"Path starting from that type and ending with a cycle: 'c.b.c.'",
+								"A type cannot declare an unrestricted @IndexedEmbedded to itself, even indirectly",
+								"To break the cycle, you should consider adding filters to your @IndexedEmbedded: includePaths, includeDepth, ..." )
+				);
 	}
 
 	private <E> void doTestEmbeddedRuntime(SearchMapping mapping,

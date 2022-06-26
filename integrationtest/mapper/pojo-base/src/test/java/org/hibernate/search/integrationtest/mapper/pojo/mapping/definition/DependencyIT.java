@@ -11,9 +11,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.invoke.MethodHandles;
 
-import org.hibernate.search.integrationtest.mapper.pojo.testsupport.util.rule.JavaBeanMappingSetupHelper;
-import org.hibernate.search.mapper.javabean.mapping.SearchMapping;
-import org.hibernate.search.mapper.javabean.session.SearchSession;
+import org.hibernate.search.integrationtest.mapper.pojo.testsupport.util.rule.StandalonePojoMappingSetupHelper;
+import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.AssociationInverseSide;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
@@ -37,7 +37,7 @@ public class DependencyIT {
 	public BackendMock backendMock = new BackendMock();
 
 	@Rule
-	public JavaBeanMappingSetupHelper setupHelper = JavaBeanMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public StandalonePojoMappingSetupHelper setupHelper = StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
 
 	@Test
 	public void associationInverseSide_error_missingInversePath() {
@@ -683,12 +683,89 @@ public class DependencyIT {
 				.satisfies( FailureReportUtils.hasFailureReport()
 						.typeContext( DerivedFromCycle.A.class.getName() )
 						.pathContext( ".derivedA<no value extractors>" )
-						.failure( "Unable to resolve dependencies of a derived property:"
-								+ " there is a cyclic dependency involving path '.derivedA<no value extractors>'"
-								+ " on type '" + DerivedFromCycle.A.class.getName() + "'",
+						.multilineFailure( "Unable to resolve dependencies of a derived property:"
+										+ " there is a cyclic dependency starting from type '" + DerivedFromCycle.A.class.getName() + "'",
+								"Derivation chain starting from that type and ending with a cycle:\n"
+										+ "- " + DerivedFromCycle.A.class.getName() + "#.b<default value extractors>.derivedB<default value extractors>\n"
+										+ "- " + DerivedFromCycle.B.class.getName() + "#.c<default value extractors>.derivedC<default value extractors>\n"
+										+ "- " + DerivedFromCycle.C.class.getName() + "#.a<default value extractors>.derivedA<default value extractors>\n",
 								"A derived property cannot be marked as derived from itself",
 								"you should consider disabling automatic reindexing"
 						) );
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4565")
+	public void derivedFrom_error_cycle_buried() {
+		class DerivedFromCycle {
+			@Indexed
+			class Zero {
+				@DocumentId
+				Integer id;
+				A a;
+				@GenericField
+				@IndexingDependency(derivedFrom = @ObjectPath({
+						@PropertyValue(propertyName = "a"),
+						@PropertyValue(propertyName = "derivedA")
+				}))
+				public String getDerivedZero() {
+					throw new UnsupportedOperationException( "Should not be called" );
+				}
+			}
+			class A {
+				B b;
+				@GenericField
+				@IndexingDependency(derivedFrom = @ObjectPath({
+						@PropertyValue(propertyName = "b"),
+						@PropertyValue(propertyName = "derivedB")
+				}))
+				public String getDerivedA() {
+					throw new UnsupportedOperationException( "Should not be called" );
+				}
+			}
+			class B {
+				C c;
+				@GenericField
+				@IndexingDependency(derivedFrom = @ObjectPath({
+						@PropertyValue(propertyName = "c"),
+						@PropertyValue(propertyName = "derivedC")
+				}))
+				public String getDerivedB() {
+					throw new UnsupportedOperationException( "Should not be called" );
+				}
+			}
+			class C {
+				A a;
+				@GenericField
+				@IndexingDependency(derivedFrom = @ObjectPath({
+						@PropertyValue(propertyName = "a"),
+						@PropertyValue(propertyName = "derivedA")
+				}))
+				public String getDerivedC() {
+					throw new UnsupportedOperationException( "Should not be called" );
+				}
+			}
+		}
+		assertThatThrownBy(
+				() -> setupHelper.start()
+						.withAnnotatedEntityTypes( DerivedFromCycle.Zero.class )
+						.withAnnotatedTypes( DerivedFromCycle.A.class, DerivedFromCycle.B.class, DerivedFromCycle.C.class )
+						.setup()
+		)
+				.isInstanceOf( SearchException.class )
+				.satisfies( FailureReportUtils.hasFailureReport()
+						.typeContext( DerivedFromCycle.Zero.class.getName() )
+						.pathContext( ".derivedZero<no value extractors>" )
+						.multilineFailure( "Unable to resolve dependencies of a derived property:"
+										+ " there is a cyclic dependency starting from type '" + DerivedFromCycle.A.class.getName() + "'",
+								"Derivation chain starting from that type and ending with a cycle:\n"
+										+ "- " + DerivedFromCycle.A.class.getName() + "#.b<default value extractors>.derivedB<default value extractors>\n"
+										+ "- " + DerivedFromCycle.B.class.getName() + "#.c<default value extractors>.derivedC<default value extractors>\n"
+										+ "- " + DerivedFromCycle.C.class.getName() + "#.a<default value extractors>.derivedA<default value extractors>\n",
+								"A derived property cannot be marked as derived from itself",
+								"you should consider disabling automatic reindexing"
+						)
+				);
 	}
 
 	@Test

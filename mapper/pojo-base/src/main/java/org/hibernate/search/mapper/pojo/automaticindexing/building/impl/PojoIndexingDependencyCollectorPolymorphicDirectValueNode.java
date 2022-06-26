@@ -11,6 +11,7 @@ import java.util.List;
 
 import org.hibernate.search.mapper.pojo.extractor.impl.BoundContainerExtractorPath;
 import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPathValueNode;
+import org.hibernate.search.util.common.data.impl.LinkedNode;
 
 /**
  * A node representing a value in a dependency collector,
@@ -28,13 +29,12 @@ public class PojoIndexingDependencyCollectorPolymorphicDirectValueNode<P, V>
 
 	static <P, V> AbstractPojoIndexingDependencyCollectorDirectValueNode<P, V> create(
 			PojoIndexingDependencyCollectorPropertyNode<?, P> parentNode,
-			BoundPojoModelPathValueNode<?, P, V> modelPathFromLastTypeNode,
 			BoundPojoModelPathValueNode<?, P, V> modelPathFromLastEntityNode,
 			PojoImplicitReindexingResolverBuildingHelper buildingHelper) {
 		List<? extends PojoIndexingDependencyCollectorTypeNode<?>> holderSubTypeNodes =
 				parentNode.parentNode().polymorphic();
 		String propertyName = parentNode.modelPathFromParentNode().getPropertyModel().name();
-		BoundContainerExtractorPath<? super P, V> boundExtractorPath = modelPathFromLastTypeNode.getBoundExtractorPath();
+		BoundContainerExtractorPath<? super P, V> boundExtractorPath = modelPathFromLastEntityNode.getBoundExtractorPath();
 		List<PojoIndexingDependencyCollectorMonomorphicDirectValueNode<? extends P, V>> monomorphicValueNodes =
 				new ArrayList<>();
 		Metadata parentTypeMetadata = Metadata.create(
@@ -60,7 +60,7 @@ public class PojoIndexingDependencyCollectorPolymorphicDirectValueNode<P, V>
 		else {
 			// No need to use polymorphism; just return the value as it is on the (super) holder type.
 			return new PojoIndexingDependencyCollectorMonomorphicDirectValueNode<>( parentNode,
-					modelPathFromLastTypeNode, modelPathFromLastEntityNode, parentTypeMetadata, buildingHelper
+					modelPathFromLastEntityNode, parentTypeMetadata, buildingHelper
 			);
 		}
 	}
@@ -92,10 +92,9 @@ public class PojoIndexingDependencyCollectorPolymorphicDirectValueNode<P, V>
 	}
 
 	@Override
-	void doCollectDependency(
-			PojoIndexingDependencyCollectorMonomorphicDirectValueNode<?, ?> initialNodeCollectingDependency) {
+	void doCollectDependency(LinkedNode<DerivedDependencyWalkingInfo> derivedDependencyPath) {
 		for ( PojoIndexingDependencyCollectorMonomorphicDirectValueNode<?, ?> node : monomorphicValueNodes ) {
-			node.doCollectDependency( initialNodeCollectingDependency );
+			node.doCollectDependency( derivedDependencyPath );
 		}
 	}
 
