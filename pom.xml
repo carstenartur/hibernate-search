@@ -201,20 +201,22 @@
 
         <!-- >>> Elasticsearch -->
         <!-- The version of the Elasticsearch client used by Hibernate Search, independently of the version of the remote cluster -->
-        <!-- Use the latest open-source version here. Currently, low-level clients are open-source even in 8.2+ -->
-        <version.org.elasticsearch.client>8.2.3</version.org.elasticsearch.client>
+        <!-- Use the latest open-source version here. Currently, low-level clients are open-source even in 8.3+ -->
+        <version.org.elasticsearch.client>8.3.2</version.org.elasticsearch.client>
         <!-- The main compatible version of Elasticsearch, advertised by default. Used in documentation links. -->
         <!-- When updating the following version you will likely need to update the test profiles as well,
              to make sure the corresponding profile (e.g. elasticsearch-8.3) becomes the default. -->
-        <version.org.elasticsearch.compatible.main>${version.org.elasticsearch.latest-8.2}</version.org.elasticsearch.compatible.main>
+        <version.org.elasticsearch.compatible.main>${version.org.elasticsearch.latest-8.3}</version.org.elasticsearch.compatible.main>
         <documentation.org.elasticsearch.url>https://www.elastic.co/guide/en/elasticsearch/reference/${parsed-version.org.elasticsearch.compatible.main.majorVersion}.${parsed-version.org.elasticsearch.compatible.main.minorVersion}</documentation.org.elasticsearch.url>
-        <!-- The versions of Elasticsearch/OpenSearch advertised as compatible with Hibernate Search -->
+
+        <!-- The versions of Elasticsearch advertised as compatible with Hibernate Search -->
+        <!-- Make sure to only mention tested versions here -->
         <!-- Make sure that 7.10 stays explicitly mentioned here, because that's the last open-source version -->
-        <version.org.elasticsearch.compatible.regularly-tested.text>5.6, 6.8, 7.10, 7.17 or 8.2</version.org.elasticsearch.compatible.regularly-tested.text>
-        <version.org.opensearch.compatible.regularly-tested.text>1.0 or 1.2</version.org.opensearch.compatible.regularly-tested.text>
+        <version.org.elasticsearch.compatible.regularly-tested.text>5.6, 6.8, 7.10, 7.17 or 8.3</version.org.elasticsearch.compatible.regularly-tested.text>
         <!-- The versions of Elasticsearch that may work, but are not given priority for bugfixes and new features -->
         <version.org.elasticsearch.compatible.not-regularly-tested.text>7.0 or 8.0</version.org.elasticsearch.compatible.not-regularly-tested.text>
-        <!-- The latest micro of each Elasticsearch branch -->
+        <!-- The latest micro of each Elasticsearch release line -->
+        <version.org.elasticsearch.latest-8.3>8.3.2</version.org.elasticsearch.latest-8.3>
         <version.org.elasticsearch.latest-8.2>8.2.3</version.org.elasticsearch.latest-8.2>
         <version.org.elasticsearch.latest-8.1>8.1.3</version.org.elasticsearch.latest-8.1>
         <version.org.elasticsearch.latest-8.0>8.0.1</version.org.elasticsearch.latest-8.0>
@@ -236,11 +238,15 @@
         <version.org.elasticsearch.latest-6.3>6.3.2</version.org.elasticsearch.latest-6.3>
         <version.org.elasticsearch.latest-6.2>6.2.4</version.org.elasticsearch.latest-6.2>
         <version.org.elasticsearch.latest-5.6>5.6.16</version.org.elasticsearch.latest-5.6>
-        <!-- The latest micro of other Elasticsearch distributions -->
-        <version.org.opensearch.latest-2.0>2.0.0-rc1</version.org.opensearch.latest-2.0>
-        <version.org.opensearch.latest-1.3>1.3.1</version.org.opensearch.latest-1.3>
+        <!-- The versions of OpenSearch advertised as compatible with Hibernate Search -->
+        <!-- Make sure to only mention tested versions here -->
+        <version.org.opensearch.compatible.regularly-tested.text>1.3 or 2.0</version.org.opensearch.compatible.regularly-tested.text>
+        <!-- The latest micro of each OpenSearch release line -->
+        <version.org.opensearch.latest-2.0>2.0.1</version.org.opensearch.latest-2.0>
+        <version.org.opensearch.latest-1.3>1.3.3</version.org.opensearch.latest-1.3>
         <version.org.opensearch.latest-1.2>1.2.1</version.org.opensearch.latest-1.2>
         <version.org.opensearch.latest-1.0>1.0.0</version.org.opensearch.latest-1.0>
+
         <version.com.google.code.gson>2.9.0</version.com.google.code.gson>
         <version.software.amazon.awssdk>2.17.94</version.software.amazon.awssdk>
         <!-- Jackson: used by the Elasticsearch REST client, the AWS SDK and in tests (wiremock, ...) -->
@@ -258,7 +264,7 @@
         <version.org.slf4j>1.7.36</version.org.slf4j>
 
         <!-- >>> ORM -->
-        <version.org.hibernate>5.6.9.Final</version.org.hibernate>
+        <version.org.hibernate>5.6.10.Final</version.org.hibernate>
         <javadoc.org.hibernate.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.majorVersion}.${parsed-version.org.hibernate.minorVersion}/javadocs/</javadoc.org.hibernate.url>
         <documentation.org.hibernate.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.majorVersion}.${parsed-version.org.hibernate.minorVersion}/userguide/html_single/Hibernate_User_Guide.html</documentation.org.hibernate.url>
         <version.org.hibernate.commons.annotations>5.1.2.Final</version.org.hibernate.commons.annotations>
@@ -280,7 +286,7 @@
         <version.net.bytebuddy>1.12.9</version.net.bytebuddy>
 
         <!-- >>> ORM 6 / Jakarta Persistence -->
-        <version.org.hibernate.orm>6.1.0.Final</version.org.hibernate.orm>
+        <version.org.hibernate.orm>6.1.1.Final</version.org.hibernate.orm>
         <javadoc.org.hibernate.orm.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.orm.majorVersion}.${parsed-version.org.hibernate.orm.minorVersion}/javadocs/</javadoc.org.hibernate.orm.url>
         <documentation.org.hibernate.orm.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.orm.majorVersion}.${parsed-version.org.hibernate.orm.minorVersion}/userguide/html_single/Hibernate_User_Guide.html</documentation.org.hibernate.orm.url>
         <version.org.hibernate.commons.annotations.orm6>6.0.2.Final</version.org.hibernate.commons.annotations.orm6>
@@ -318,7 +324,7 @@
         <!-- Test dependencies -->
 
         <!-- >>> Common -->
-        <version.log4j>2.17.2</version.log4j>
+        <version.log4j>2.18.0</version.log4j>
         <version.junit>4.13.2</version.junit>
         <version.org.osgi.core>6.0.0</version.org.osgi.core>
 
@@ -326,7 +332,7 @@
         <version.org.mockito>4.6.1</version.org.mockito>
         <version.org.assertj.assertj-core>3.23.1</version.org.assertj.assertj-core>
         <version.org.awaitily>4.2.0</version.org.awaitily>
-        <version.org.skyscreamer.jsonassert>1.5.0</version.org.skyscreamer.jsonassert>
+        <version.org.skyscreamer.jsonassert>1.5.1</version.org.skyscreamer.jsonassert>
         <version.io.takari.junit>1.2.7</version.io.takari.junit>
         <version.com.h2database>2.1.214</version.com.h2database>
         <version.com.github.tomakehurst.wiremock>2.27.2</version.com.github.tomakehurst.wiremock>
@@ -359,7 +365,7 @@
         <version.assembly.plugin>3.1.0</version.assembly.plugin>
         <version.buildhelper.plugin>3.3.0</version.buildhelper.plugin>
         <version.checkstyle.plugin>3.1.2</version.checkstyle.plugin>
-        <version.bundle.plugin>5.1.6</version.bundle.plugin>
+        <version.bundle.plugin>5.1.7</version.bundle.plugin>
         <version.clean.plugin>3.2.0</version.clean.plugin>
         <!-- Needing 3.6.2 at least because of MCOMPILER-294 -->
         <version.compiler.plugin>3.10.1</version.compiler.plugin>
@@ -369,19 +375,19 @@
         <version.deploy.plugin>2.8.2</version.deploy.plugin>
         <version.org.eclipse.m2e.lifecycle-mapping>1.0.0</version.org.eclipse.m2e.lifecycle-mapping>
         <version.enforcer.plugin>3.1.0</version.enforcer.plugin>
-        <version.exec.plugin>3.0.0</version.exec.plugin>
+        <version.exec.plugin>3.1.0</version.exec.plugin>
         <version.forbiddenapis.plugin>3.3</version.forbiddenapis.plugin>
         <version.help.plugin>3.2.0</version.help.plugin>
         <version.install.plugin>2.5.2</version.install.plugin>
         <version.io.takari.maven>0.7.7</version.io.takari.maven>
-        <version.jandex.plugin>1.2.2</version.jandex.plugin>
+        <version.jandex.plugin>1.2.3</version.jandex.plugin>
         <version.japicmp.plugin>0.15.7</version.japicmp.plugin>
         <version.jar.plugin>3.2.2</version.jar.plugin>
         <version.javadoc.plugin>3.4.0</version.javadoc.plugin>
         <version.jdeps.plugin>0.5.1</version.jdeps.plugin>
         <version.nexus-staging.plugin>1.6.13</version.nexus-staging.plugin>
         <version.processor.plugin>4.5-jdk8</version.processor.plugin>
-        <version.project-info.plugin>3.3.0</version.project-info.plugin>
+        <version.project-info.plugin>3.4.0</version.project-info.plugin>
         <version.release.plugin>2.5.3</version.release.plugin>
         <version.resources.plugin>3.2.0</version.resources.plugin>
         <version.shade.plugin>3.3.0</version.shade.plugin>
@@ -393,14 +399,14 @@
         <version.failsafe.plugin>${version.surefire.plugin}</version.failsafe.plugin>
         <version.jacoco.plugin>0.8.8</version.jacoco.plugin>
         <version.coveralls.plugin>4.3.0</version.coveralls.plugin>
-        <version.com.buschmais.jqassistant.plugin>1.11.1</version.com.buschmais.jqassistant.plugin>
+        <version.com.buschmais.jqassistant.plugin>1.12.0</version.com.buschmais.jqassistant.plugin>
         <version.docker.maven.plugin>0.40.1</version.docker.maven.plugin>
         <version.moditect.plugin>1.0.0.RC2</version.moditect.plugin>
         <version.sonar.plugin>3.9.1.2184</version.sonar.plugin>
         <version.scripting.plugin>3.0.0</version.scripting.plugin>
         <version.gpg.plugin>3.0.1</version.gpg.plugin>
         <version.org.codehaus.groovy-jsr223>3.0.11</version.org.codehaus.groovy-jsr223>
-        <version.com.puppycrawl.tools.checkstyle>10.3</version.com.puppycrawl.tools.checkstyle>
+        <version.com.puppycrawl.tools.checkstyle>10.3.1</version.com.puppycrawl.tools.checkstyle>
 
         <!-- Asciidoctor -->
 
@@ -520,7 +526,6 @@
         <!-- JVM args to be customized depending on the Java version -->
         <surefire.jvm.args.java-version>
             -Djdk.attach.allowAttachSelf=true
-            --illegal-access=deny
         </surefire.jvm.args.java-version>
         <!-- JVM args generated by JaCoCo -->
         <surefire.jvm.args.jacoco></surefire.jvm.args.jacoco>
@@ -1878,6 +1883,9 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
                     <version>${version.shade.plugin}</version>
+                    <configuration>
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
@@ -2053,7 +2061,8 @@
                         <excludes>
                             **/Generated.java,**/TypeHelper*.java,**/MatchSuppressor.java,**/CommentSuppressor.java,**/NeverSuppress.java,
                             **/*_$logger.java,**/*_$bundle.java,
-                            **/module-info.java
+                            **/module-info.java,
+                            **/avro/generated/**/*.java
                         </excludes>
                     </configuration>
                     <executions>
@@ -2482,6 +2491,11 @@
                 </property>
             </activation>
             <properties>
+                <!-- illegal-access=deny is not the default yet in JDK 11  -->
+                <surefire.jvm.args.java-version>
+                    -Djdk.attach.allowAttachSelf=true
+                    --illegal-access=deny
+                </surefire.jvm.args.java-version>
                 <!-- Tests specific to Java 17+ won't work with JDK 11, so we disable them. -->
                 <java-version.test.java17.add-main-source-phase>none</java-version.test.java17.add-main-source-phase>
                 <java-version.test.java17.add-test-source-phase>none</java-version.test.java17.add-test-source-phase>
@@ -2503,6 +2517,25 @@
                     -Dnet.bytebuddy.experimental=true
                 </surefire.jvm.args.java-version>
                 <!-- Spring isn't ready for JDK19 yet -->
+                <failsafe.spring.skip>true</failsafe.spring.skip>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>testWithJdk20</id>
+            <activation>
+                <property>
+                    <name>java-version.test.release</name>
+                    <value>20</value>
+                </property>
+            </activation>
+            <properties>
+                <!-- We need net.bytebuddy.experimental=true to make BytecodeEnhancementIT and mockito-based tests pass -->
+                <surefire.jvm.args.java-version>
+                    -Djdk.attach.allowAttachSelf=true
+                    -Dnet.bytebuddy.experimental=true
+                </surefire.jvm.args.java-version>
+                <!-- Spring isn't ready for JDK20 yet -->
                 <failsafe.spring.skip>true</failsafe.spring.skip>
             </properties>
         </profile>

@@ -44,8 +44,11 @@ so you can use that and don't need to care about the required version of Maven
 
 #### <a id="setup-ide-intellij-idea"></a> IntelliJ IDEA
 
-Make sure you use IntelliJ IDEA 2022.1 or later, as previous versions have some
-[trouble with generated sources](https://youtrack.jetbrains.com/issue/IDEA-286455).
+**WARNING**: Avoid running `./mvnw` while IntelliJ IDEA is importing/building,
+and ideally avoid using Maven from the command line at all while IntelliJ IDEA is open.
+IntelliJ IDEA's own build might conflict with the Maven build, leaving your working directory in an undetermined state
+(some classes being generated twice, ...).
+If you already did that, close IntelliJ IDEA, run `./mvnw clean`, and open IntelliJ IDEA again.
 
 You will need to change some settings:
 
@@ -56,10 +59,13 @@ You will need to change some settings:
 Then a few steps will initialize your workspace:
 
 * In the "Maven" side panel, click "Reload all Maven projects".
-* In the "Maven" side panel, click "Generate Sources and Update Folders For All Projects".
-  This will take a while.
 * To check your setup, click `Build > Rebuild Project`.
-  If this completes successfully, your workspace is correctly set up.
+  You might get a few errors similar to `java: module not found: org.hibernate.search.mapper.orm`;
+  those are caused by limitations of IntelliJ IDEA and can be safely ignored.
+  If the build has no other error, your workspace is correctly set up.
+* If you encounter any problem, that might be caused by the project being half-built before you started.
+  Try again from a clean state: close IntelliJ IDEA, run `./mvnw clean`, open IntelliJ IDEA again,
+  and go back to the first step.
 
 #### <a id="setup-ide-eclipse"></a> Eclipse
 
@@ -128,13 +134,6 @@ see [here](https://hibernate.org/community/#contribute) for more information.
 This is how JIRA will pick up the related commits and display them on the JIRA issue.
 * Avoid formatting changes to existing code as much as possible:
 they make the intent of your patch less clear.
-* Make sure you have added the necessary tests for your changes.
-* If relevant, make sure you have updated the documentation to match your changes.
-* Run _all_ the tests to assure nothing else was accidentally broken:
-
-    ```bash
-    ./mvnw clean install
-    ```
 
 _Prior to committing, if you want to pull in the latest upstream changes (highly
 appreciated by the way), please use rebasing rather than merging (see instructions below).
@@ -149,6 +148,20 @@ If you want to rebase your branch on top of the main branch, you can use the fol
 ```bash
 git pull --rebase upstream main
 ```
+
+### Check and test your work
+
+Before submitting a pull requests, check your contribution:
+
+* Make sure you have added the necessary tests for your changes.
+* If relevant, make sure you have updated the documentation to match your changes.
+* Run the relevant tests once again to check that your changes work as expected.
+  No need to run the whole test suite, the Continuous Integration will take care of that.
+
+**Note**: If you want to run specific tests of the `integrationtests/backend/tck` module from the IDE,
+you will need to rely on runner classes to to run them in the appropriate context:
+see `org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckTestRunner` for Elasticsearch,
+or `org.hibernate.search.integrationtest.backend.lucene.testsupport.util.LuceneTckTestRunner` for Lucene.
 
 ### Submit
 
@@ -210,12 +223,30 @@ and run unit tests and integration tests.
 Note: the produced JARs are compatible with Java 8 and later,
 regardless of the JDK used to build Hibernate Search.
 
-### Documentation
-The documentation is based on [Asciidoctor](http://asciidoctor.org/). By default only the HTML
-output is enabled; to also generate the PDF output use:
+**WARNING:** Avoid using other goals unless you know what you're doing, because they may leave your workspace
+in an undetermined state and lead to strange errors.
+In particular, `./mvnw compile` will not build tests and may skip some post-processing of classes,
+and `./mvnw package` will not install the JARs into your local Maven repository
+which might be a problem for some of the Maven plugins used in the build.
+If you did run those commands and are facing strange errors,
+you'll have to close your IDE then use `./mvnw clean` to get back to a clean state.
+
+### Building without running tests
+
+To only build Hibernate Search, without running tests, use the following command:
 
 ```bash
-./mvnw clean install -Pdocumentation-pdf
+./mvnw clean install -DskipTests
+```
+
+### Documentation
+
+The documentation is based on [Asciidoctor](http://asciidoctor.org/).
+
+To generate the documentation only, without running tests, use:
+
+```bash
+./mvnw clean install -pl documentation -am -DskipTests
 ```
 
 You can then find the freshly built documentation at the following location:
@@ -224,12 +255,24 @@ You can then find the freshly built documentation at the following location:
 ./documentation/target/dist/
 ```
 
+By default only the HTML output is enabled; to also generate the PDF output, enable the `documentation-pdf` profile:
+
+```bash
+./mvnw clean install -pl documentation -am -DskipTests -Pdocumentation-pdf
+```
+
 ### Distribution
 
-To build the distribution bundle run:
+To build the distribution bundle, enable the `documentation-pdf` and `dist` profiles:
 
 ```bash
 ./mvnw clean install -Pdocumentation-pdf,dist
+```
+
+Or if you don't want to run tests:
+
+```bash
+./mvnw clean install -Pdocumentation-pdf,dist -DskipTests
 ```
 
 ### <a id="other-jdks"></a> Other JDKs

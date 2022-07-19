@@ -91,7 +91,7 @@ For example, with the configuration above,
 an entity type named `Order` will be indexed in directory
 `/path/to/my/root/Order/`.
 If that entity is explicitly assigned the index name `orders`
-(see `@Indexed(index = ...)` in <<mapper-orm-entityindexmapping>>),
+(see `@Indexed(index = ...)` in <<mapping-entityindexmapping>>),
 it will instead be indexed in directory
 `/path/to/my/root/orders/`.
 
@@ -249,7 +249,7 @@ When routing, the routing key will be hashed to assign it to a shard.
 If the routing key is null, the document ID will be used instead.
 +
 This strategy is suitable when there is no explicit routing key
-<<mapper-orm-bridge-routingbridge-routingkey,configured in the mapping>>,
+<<bridge-routingbridge-routingkey,configured in the mapping>>,
 or when the routing key has a large number of possible values that need
 to be brought down to a smaller number (e.g. "all integers").
 
@@ -278,7 +278,7 @@ If it does not, an exception will be thrown.
 The routing key cannot be null, and the document ID will be ignored.
 +
 This strategy is suitable when there is an explicit routing key
-<<mapper-orm-bridge-routingbridge-routingkey,configured in the mapping>>,
+<<bridge-routingbridge-routingkey,configured in the mapping>>,
 and that routing key has a limited number of possible values that are known before starting the application.
 
 
@@ -378,7 +378,7 @@ but Hibernate Search maintains such a schema in memory,
 in order to remember which predicates/projections/sorts can be applied to each field.
 
 For the most part, the schema is inferred from
-<<mapper-orm-mapping,the mapping configured through Hibernate Search's mapping APIs>>,
+<<mapping,the mapping configured through Hibernate Search's mapping APIs>>,
 which are generic and independent of Lucene.
 
 Aspects that are specific to the Lucene backend are explained in this section.
@@ -395,7 +395,7 @@ Some types are not supported directly by the Lucene backend,
 but will work anyway because they are "bridged" by the mapper.
 For example a `java.util.Date` in your entity model is "bridged" to `java.time.Instant`,
 which is supported by the Lucene backend.
-See <<mapper-orm-directfieldmapping-supported-types>> for more information.
+See <<mapping-directfieldmapping-supported-types>> for more information.
 ====
 
 [NOTE]
@@ -404,7 +404,7 @@ Field types that are not in this list can still be used with a bit more work:
 
 * If a property in the entity model has an unsupported type,
 but can be converted to a supported type, you will need a bridge.
-See <<mapper-orm-bridge>>.
+See <<bridge>>.
 * If you need an index field with a specific type that is not supported by Hibernate Search,
 you will need a bridge that defines a native field type.
 See <<backend-lucene-field-types-extension>>.
@@ -487,12 +487,12 @@ Below is an example of how to use the Lucene "native" type.
 ----
 include::{sourcedir}/org/hibernate/search/documentation/backend/lucene/type/asnative/PageRankValueBinder.java[tags=include]
 ----
-<1> Define a <<mapper-orm-bridge,custom binder>> and its bridge.
+<1> Define a <<bridge,custom binder>> and its bridge.
 The "native" type can only be used from a binder,
 it cannot be used directly with annotation mapping.
-Here we're defining a <<mapper-orm-bridge-valuebridge,value binder>>,
-but a <<mapper-orm-bridge-typebridge,type binder>>,
-or a <<mapper-orm-bridge-propertybridge,property binder>>
+Here we're defining a <<bridge-valuebridge,value binder>>,
+but a <<bridge-typebridge,type binder>>,
+or a <<bridge-propertybridge,property binder>>
 would work as well.
 <2> Get the context's type factory.
 <3> Apply the Lucene extension to the type factory.
@@ -527,7 +527,8 @@ according to the tenant ID defined in the current session:
 * queries will filter results appropriately.
 
 The multi-tenancy is automatically enabled in the backend if it is enabled in the mapper,
-e.g. if link:{hibernateDocUrl}#multitenacy[a multi-tenancy strategy is selected in Hibernate ORM].
+e.g. if link:{hibernateDocUrl}#multitenacy[a multi-tenancy strategy is selected in Hibernate ORM],
+or if <<mapper-pojo-standalone-multi-tenancy,multi-tenancy is explicitly configured in the Standalone POJO mapper>>.
 
 However, it is possible to enable multi-tenancy manually.
 
@@ -595,7 +596,7 @@ If necessary, they can be overridden by defining your own analyzer with the same
 The Lucene backend comes with a series of built-in analyzer:
 
 `default`::
-The analyzer used by default with <<mapper-orm-directfieldmapping-annotations-fulltextfield,`@FullTextField`>>.
+The analyzer used by default with <<mapping-directfieldmapping-annotations-fulltextfield,`@FullTextField`>>.
 +
 Default implementation: `org.apache.lucene.analysis.standard.StandardAnalyzer`.
 +
@@ -632,7 +633,7 @@ Default behavior: do not change the text in any way.
 With this analyzer a full text field would behave similarly to a keyword field,
 but with fewer features: no terms aggregations, for example.
 +
-Consider using a <<mapper-orm-directfieldmapping-annotations-keywordfield,`@KeywordField`>> instead.
+Consider using a <<mapping-directfieldmapping-annotations-keywordfield,`@KeywordField`>> instead.
 
 [[backend-lucene-analysis-builtin-normalizer]]
 === Built-in normalizers
@@ -876,16 +877,16 @@ are pushed to the index itself,
 so that a crash or power loss will no longer result in data loss.
 
 Some operations are critical and are always committed before they are considered complete.
-This is the case for changes triggered by <<mapper-orm-indexing-automatic,automatic indexing>>
-(unless <<mapper-orm-indexing-automatic-synchronization,configured otherwise>>),
-and also for large-scale operations such as a <<mapper-orm-indexing-manual-largescale,purge>>.
+This is the case for changes triggered by <<indexing-automatic,automatic indexing>>
+(unless <<indexing-plan-synchronization,configured otherwise>>),
+and also for large-scale operations such as a <<indexing-workspace,purge>>.
 When such an operation is encountered, a commit will be performed immediately,
 guaranteeing that the operation is only considered complete after all changes are safely stored on disk.
 
 Other operations, however, are not expected to be committed immediately.
-This is the case for changes contributed by the <<mapper-orm-indexing-massindexer,mass indexer>>,
+This is the case for changes contributed by the <<indexing-massindexer,mass indexer>>,
 or by automatic indexing when using the
-<<mapper-orm-indexing-automatic-synchronization,`async` synchronization strategy>>.
+<<indexing-plan-synchronization,`async` synchronization strategy>>.
 
 Performance-wise, committing may be an expensive operation,
 which is why Hibernate Search tries not to commit too often.
@@ -894,7 +895,7 @@ Hibernate Search will delay the commit by one second.
 If other changes are applied during that second,
 they will be included in the same commit.
 This dramatically reduces the amount of commits in write-intensive scenarios
-(e.g. <<mapper-orm-indexing-massindexer,mass indexing>>),
+(e.g. <<indexing-massindexer,mass indexing>>),
 leading to much better performance.
 
 It is possible to control exactly how often Hibernate Search will commit
@@ -913,8 +914,8 @@ The default for this property is `1000`.
 ====
 Setting the commit interval to 0 will force Hibernate Search to commit after every batch of changes,
 which may result in a much lower throughput,
-both for <<mapper-orm-indexing-automatic,automatic indexing>>
-and <<mapper-orm-indexing-massindexer,mass indexing>>.
+both for <<indexing-automatic,automatic indexing>>
+and <<indexing-massindexer,mass indexing>>.
 ====
 
 [NOTE]
@@ -923,10 +924,10 @@ Remember that individual write operations may force a commit,
 which may cancel out the potential performance gains from setting a higher commit interval.
 
 By default, the commit interval may only improve throughput
-of the <<mapper-orm-indexing-massindexer,mass indexer>>.
-If you want changes triggered by <<mapper-orm-indexing-automatic,automatic indexing>>
+of the <<indexing-massindexer,mass indexer>>.
+If you want changes triggered by <<indexing-automatic,automatic indexing>>
 to benefit from it too, you will need to select a non-default
-<<mapper-orm-indexing-automatic-synchronization,synchronization strategy>>,
+<<indexing-plan-synchronization,synchronization strategy>>,
 so as not to require a commit after each change.
 ====
 
@@ -1070,8 +1071,8 @@ larger values provide better search performance if the index does not change oft
 
 With smaller values, merging happens more often and thus uses more resources,
 but the total number of segments will be lower on average, increasing read performance.
-Thus, larger values (`> 10`) are best for <<mapper-orm-indexing-massindexer,mass indexing>>,
-and smaller values (`< 10`) are best for <<mapper-orm-indexing-automatic,automatic indexing>>.
+Thus, larger values (`> 10`) are best for <<indexing-massindexer,mass indexing>>,
+and smaller values (`< 10`) are best for <<indexing-automatic,automatic indexing>>.
 
 The value must not be lower than `2`.
 
@@ -1090,14 +1091,14 @@ Segments larger than this size are never merged in the background.
 Settings this to a lower value helps reduce memory requirements and avoids some merging operations at the
 cost of optimal search speed.
 
-When <<mapper-orm-indexing-manual-merge,forcefully merging>> an index, this value is ignored and `max_forced_size` is used instead (see below).
+When <<indexing-workspace-merge,forcefully merging>> an index, this value is ignored and `max_forced_size` is used instead (see below).
 
 |`[...].io.merge.max_forced_size`
 |The maximum size of segments, in MB, for forced merges.
 
-This is the equivalent of `io.merge.max_size` for <<mapper-orm-indexing-manual-merge,forceful merges>>.
+This is the equivalent of `io.merge.max_size` for <<indexing-workspace-merge,forceful merges>>.
 You will generally want to set this to the same value as `max_size` or lower,
-but setting it too low will <<mapper-orm-indexing-merge-segments,degrade search performance as documents are deleted>>.
+but setting it too low will <<indexing-workspace-merge-segments,degrade search performance as documents are deleted>>.
 
 |`[...].io.merge.calibrate_by_deletes`
 |Whether the number of deleted documents in an index should be taken into account; `true` or `false`.
@@ -1194,7 +1195,7 @@ can be retrieved from the Lucene backend.
 ----
 include::{sourcedir}/org/hibernate/search/documentation/backend/lucene/analyzer/LuceneGetAnalyzerIT.java[tags=fromBackend]
 ----
-<1> Retrieve the `SearchMapping`.
+<1> <<entrypoints-search-mapping,Retrieve the `SearchMapping`>>.
 <2> Retrieve the `Backend`.
 <3> Narrow down the backend to the `LuceneBackend` type.
 <4> Get an analyzer by name.
@@ -1217,15 +1218,15 @@ delegating to the analyzer configured in the mapping for each field.
 ----
 include::{sourcedir}/org/hibernate/search/documentation/backend/lucene/analyzer/LuceneGetAnalyzerIT.java[tags=fromIndexManager]
 ----
-<1> Retrieve the `SearchMapping`.
+<1> <<entrypoints-search-mapping,Retrieve the `SearchMapping`>>.
 <2> Retrieve the `IndexManager`.
 <3> Narrow down the index manager to the `LuceneIndexManager` type.
 <4> Get the indexing analyzer.
 This is the analyzer used when indexing documents.
-It ignores the <<mapper-orm-directfieldmapping-search-analyzer,search analyzer>> in particular.
+It ignores the <<mapping-directfieldmapping-search-analyzer,search analyzer>> in particular.
 <5> Get the search analyzer.
 This is the analyzer used when building search queries through the <<search-dsl,Search DSL>>.
-On contrary to the indexing analyzer, it takes into account the <<mapper-orm-directfieldmapping-search-analyzer,search analyzer>>.
+On contrary to the indexing analyzer, it takes into account the <<mapping-directfieldmapping-search-analyzer,search analyzer>>.
 ====
 
 
@@ -1240,7 +1241,7 @@ The size of a Lucene index can be retrieved from the `LuceneIndexManager`.
 ----
 include::{sourcedir}/org/hibernate/search/documentation/backend/lucene/indexmanager/LuceneGetIndexSizeIT.java[tags=computeIndexSize]
 ----
-<1> Retrieve the `SearchMapping`.
+<1> <<entrypoints-search-mapping,Retrieve the `SearchMapping`>>.
 <2> Retrieve the `IndexManager`.
 <3> Narrow down the index manager to the `LuceneIndexManager` type.
 <4> Compute the index size and get the result.
@@ -1258,7 +1259,7 @@ The low-level `IndexReader` can be retrieved from the `LuceneIndexScope`.
 ----
 include::{sourcedir}/org/hibernate/search/documentation/backend/lucene/lowlevel/LuceneLowLevelIndexReaderIT.java[tags=indexReader]
 ----
-<1> Retrieve the `SearchMapping`.
+<1> <<entrypoints-search-mapping,Retrieve the `SearchMapping`>>.
 <2> Retrieve the `LuceneIndexScope` extending the search scope with the `LuceneExtension`.
 <3> Open an instance of `IndexReader`. Optionally it is possible to provide the routing keys
 to target only some shards of the indexes using the method `openIndexReader(Set<String>)`.
