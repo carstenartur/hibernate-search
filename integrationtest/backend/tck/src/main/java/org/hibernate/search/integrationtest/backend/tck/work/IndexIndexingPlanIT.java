@@ -17,10 +17,11 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
 import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
-import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.configuration.DefaultAnalysisDefinitions;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendHelper;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendSetupStrategy;
@@ -104,7 +105,7 @@ public class IndexIndexingPlanIT {
 		plan.add( referenceProvider( "1" ), document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 1" ) );
 		plan.add( referenceProvider( "2" ), document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 2" ) );
 		plan.add( referenceProvider( "3" ), document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 3" ) );
-		CompletableFuture<?> future = plan.execute();
+		CompletableFuture<?> future = plan.execute( OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 		// The operations should succeed.
 		assertThatFuture( future ).isSuccessful();
@@ -116,7 +117,7 @@ public class IndexIndexingPlanIT {
 
 		// Update
 		plan.addOrUpdate( referenceProvider( "2" ), document -> document.addValue( index.binding().title, "The Boss of the Rings chap. 2" ) );
-		future = plan.execute();
+		future = plan.execute( OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 		// The operations should succeed.
 		assertThatFuture( future ).isSuccessful();
@@ -128,7 +129,7 @@ public class IndexIndexingPlanIT {
 
 		// Delete
 		plan.delete( referenceProvider( "1" ) );
-		future = plan.execute();
+		future = plan.execute( OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 		// The operations should succeed.
 		assertThatFuture( future ).isSuccessful();
@@ -147,7 +148,7 @@ public class IndexIndexingPlanIT {
 		plan.discard();
 		plan.add( referenceProvider( "2" ), document -> document.addValue( index.binding().title, "Title of Book 2" ) );
 
-		CompletableFuture<?> future = plan.execute();
+		CompletableFuture<?> future = plan.execute( OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 		// The operations should succeed.
 		assertThatFuture( future ).isSuccessful();
@@ -167,7 +168,7 @@ public class IndexIndexingPlanIT {
 		// Trigger failures in the next operations
 		setupHelper.getBackendAccessor().ensureIndexingOperationsFail( index.name() );
 
-		CompletableFuture<?> future = plan.execute();
+		CompletableFuture<?> future = plan.execute( OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 
 		// The operation should fail.
@@ -193,7 +194,7 @@ public class IndexIndexingPlanIT {
 		// Trigger failures in the next operations
 		setupHelper.getBackendAccessor().ensureIndexingOperationsFail( index.name() );
 
-		CompletableFuture<?> future = plan.execute();
+		CompletableFuture<?> future = plan.execute( OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 
 		// The operation should fail.
@@ -219,7 +220,7 @@ public class IndexIndexingPlanIT {
 		// Trigger failures in the next operations
 		setupHelper.getBackendAccessor().ensureIndexingOperationsFail( index.name() );
 
-		CompletableFuture<?> future = plan.execute();
+		CompletableFuture<?> future = plan.execute( OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 
 		// The operation should fail.
@@ -247,7 +248,7 @@ public class IndexIndexingPlanIT {
 		setupHelper.getBackendAccessor().ensureIndexingOperationsFail( index.name() );
 
 		CompletableFuture<MultiEntityOperationExecutionReport<StubEntityReference>> future =
-				plan.executeAndReport( StubEntityReference.FACTORY );
+				plan.executeAndReport( StubEntityReference.FACTORY, OperationSubmitter.BLOCKING );
 		Awaitility.await().until( future::isDone );
 
 		// The operation should succeed, but the report should indicate a failure.

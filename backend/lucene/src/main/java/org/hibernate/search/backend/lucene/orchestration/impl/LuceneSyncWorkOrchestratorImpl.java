@@ -19,6 +19,7 @@ import org.hibernate.search.backend.lucene.lowlevel.reader.impl.ReadIndexManager
 import org.hibernate.search.backend.lucene.work.impl.ReadWork;
 import org.hibernate.search.backend.lucene.work.impl.ReadWorkExecutionContext;
 import org.hibernate.search.engine.backend.orchestration.spi.AbstractWorkOrchestrator;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.util.common.impl.SuppressingCloser;
@@ -55,7 +56,7 @@ public class LuceneSyncWorkOrchestratorImpl
 		);
 		Throwable throwable = null;
 		try {
-			submit( workExecution );
+			submit( workExecution, OperationSubmitter.BLOCKING );
 			// If we get there, the task succeeded and we are sure there is a result.
 			return workExecution.getResult();
 		}
@@ -82,7 +83,10 @@ public class LuceneSyncWorkOrchestratorImpl
 	}
 
 	@Override
-	protected void doSubmit(WorkExecution<?> work) {
+	protected void doSubmit(WorkExecution<?> work, OperationSubmitter operationSubmitter) {
+		if ( !OperationSubmitter.BLOCKING.equals( operationSubmitter ) ) {
+			throw log.nonblockingOperationSubmitterNotSupported();
+		}
 		work.execute();
 	}
 

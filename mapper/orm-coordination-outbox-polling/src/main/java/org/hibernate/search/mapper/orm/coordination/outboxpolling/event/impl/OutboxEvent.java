@@ -7,6 +7,7 @@
 package org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl;
 
 import java.time.Instant;
+import java.util.UUID;
 import javax.persistence.Transient;
 
 public final class OutboxEvent {
@@ -15,7 +16,7 @@ public final class OutboxEvent {
 		PENDING, ABORTED
 	}
 
-	private Long id;
+	private UUID id;
 
 	private String entityName;
 	private String entityId;
@@ -24,6 +25,7 @@ public final class OutboxEvent {
 	private int retries = 0;
 	private Instant processAfter;
 	private Status status = Status.PENDING;
+	private Instant created = Instant.now();
 
 	@Transient
 	private Object originalEntityId;
@@ -51,14 +53,15 @@ public final class OutboxEvent {
 				", processAfter=" + processAfter +
 				", status=" + status +
 				", originalEntityId=" + originalEntityId +
+				", created=" + created +
 				'}';
 	}
 
-	public Long getId() {
+	public UUID getId() {
 		return id;
 	}
 
-	public void setId(Long id) {
+	public void setId(UUID id) {
 		this.id = id;
 	}
 
@@ -124,6 +127,14 @@ public final class OutboxEvent {
 
 	public void setOriginalEntityId(Object originalEntityId) {
 		this.originalEntityId = originalEntityId;
+	}
+
+	public Instant getCreated() {
+		return created;
+	}
+
+	public void setCreated(Instant created) {
+		this.created = created;
 	}
 
 	OutboxEventReference getReference() {

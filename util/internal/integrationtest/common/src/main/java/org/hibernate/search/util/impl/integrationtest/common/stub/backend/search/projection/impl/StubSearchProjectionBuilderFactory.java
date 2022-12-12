@@ -6,11 +6,16 @@
  */
 package org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.projection.impl;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Supplier;
+
 import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.search.common.spi.SearchIndexIdentifierContext;
 import org.hibernate.search.engine.search.projection.SearchProjection;
 import org.hibernate.search.engine.search.projection.spi.CompositeProjectionBuilder;
 import org.hibernate.search.engine.search.projection.spi.SearchProjectionBuilderFactory;
+import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.common.impl.StubSearchIndexScope;
 
 public class StubSearchProjectionBuilderFactory implements SearchProjectionBuilderFactory {
@@ -27,8 +32,8 @@ public class StubSearchProjectionBuilderFactory implements SearchProjectionBuild
 	}
 
 	@Override
-	public <E> SearchProjection<E> entity() {
-		return StubEntityProjection.get();
+	public <E> SearchProjection<E> entityLoading() {
+		return StubEntityLoadingProjection.get();
 	}
 
 	@Override
@@ -58,4 +63,23 @@ public class StubSearchProjectionBuilderFactory implements SearchProjectionBuild
 		return new StubConstantProjection<>( value );
 	}
 
+	@Override
+	public <T> SearchProjection<T> throwing(Supplier<SearchException> exceptionSupplier) {
+		return new StubThrowingProjection<>( exceptionSupplier );
+	}
+
+	@Override
+	public <T> SearchProjection<T> byTypeName(Map<String, ? extends SearchProjection<? extends T>> inners) {
+		Map<String, StubSearchProjection<? extends T>> stubInners = new HashMap<>();
+		for ( Map.Entry<String, ? extends SearchProjection<? extends T>> entry : inners.entrySet() ) {
+			stubInners.put( entry.getKey(), StubSearchProjection.from( entry.getValue() ) );
+		}
+		return new StubByMappedTypeProjection<>( stubInners );
+	}
+
+	@Override
+	public <T> SearchProjection<T> rootContext(SearchProjection<T> inner) {
+		// Simulating the execution in a root context is considered the responsibility of the tester.
+		return StubSearchProjection.from( inner );
+	}
 }

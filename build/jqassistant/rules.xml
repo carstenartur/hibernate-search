@@ -1,0 +1,866 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ ~ Hibernate Search, full-text search for your domain model
+ ~
+ ~ License: GNU Lesser General Public License (LGPL), version 2.1 or later
+ ~ See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
+  -->
+<jqa:jqassistant-rules xmlns:jqa="http://www.buschmais.com/jqassistant/core/rule/schema/v1.3">
+
+    <concept id="hsearch:SuppressJQAssistant">
+        <description>
+            Contributes the :SuppressJQAssistant label at the type level.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)-[:ANNOTATED_BY]->()-[:OF_TYPE]->(suppressAnnotation:Type)
+            WHERE
+                suppressAnnotation.fqn = "org.hibernate.search.util.common.annotation.impl.SuppressJQAssistant"
+                OR suppressAnnotation.fqn = "org.hibernate.search.util.impl.test.annotation.SuppressJQAssistant"
+            SET
+                type:SuppressJQAssistant
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:MethodOverrides">
+        <requiresConcept refId="java:TypeAssignableFrom" />
+        <description>
+            A fixed version of java:MethodOverrides that works even for overrides of methods declared in the JDK,
+            which apparently don't have a name in the graph.
+            That's not important because the name is included in the signature.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)-[:DECLARES]->(method:Method),
+                (superType:Type)-[:DECLARES]->(otherMethod:Method),
+                (superType)-[:ASSIGNABLE_FROM]->(type)
+            WHERE
+                method.signature = otherMethod.signature
+                AND method.visibility <> 'private'
+            MERGE
+                (method)-[:OVERRIDES]->(otherMethod)
+            RETURN method AS OverriddenMethod, type AS DeclaringType, superType AS SuperType
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:TypeMetadata">
+        <description>
+            Contributes additional metadata to the :Type nodes.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)
+            SET
+                type.nameWithoutContainingTypeName = SPLIT(type.name, "$")[-1]
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Anonymous">
+        <description>
+            Contributes the :Anonymous label to anonymous types
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)
+            WHERE
+                type.name =~ ".*\\$[0-9]+$"
+            SET
+                type:Anonymous
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Generated">
+        <description>
+            Contributes the :Generated label to generated types
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)
+            WHERE
+                type.name =~ ".*_\\$(logger|bundle)$"
+            SET
+                type:Generated
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Test">
+        <description>
+            Contributes the :Test label to :Type nodes that exist for test purposes only.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)<-[:CONTAINS]-(artifact:Maven:Artifact)
+            WHERE
+                artifact.type = "test-jar"
+                OR artifact.name =~ "hibernate-search-integrationtest-.*"
+                OR artifact.name =~ "hibernate-search-util-internal-test.*"
+                OR artifact.name =~ "hibernate-search-util-internal-integrationtest.*"
+            SET
+                type:Test
+            RETURN
+                artifact
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Main">
+        <requiresConcept refId="hsearch:Test" />
+        <description>
+            Contributes the :Main label to non-test types
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)
+            WHERE
+                NOT type:Test
+            SET
+                type:Main
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Spi">
+        <requiresConcept refId="hsearch:Main" />
+        <description>
+            Contributes the :Spi label to SPI types
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type:Main)
+            WHERE
+                type.fqn =~ ".*\\.spi\\..*"
+                AND type.visibility = "public"
+            SET
+                type:Spi
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Impl">
+        <requiresConcept refId="hsearch:Main" />
+        <description>
+            Contributes the :Impl label to implementation types
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type:Main)
+            WHERE
+                type.fqn =~ ".*\\.impl\\..*"
+                // Apache HTTP Client uses an impl package, but puts public classes in there... Such as the client builder.
+                AND NOT type.fqn STARTS WITH "org.apache.http.impl."
+                OR type.visibility <> "public"
+            SET
+                type:Impl
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Api">
+        <requiresConcept refId="hsearch:Main" />
+        <requiresConcept refId="hsearch:Spi" />
+        <requiresConcept refId="hsearch:Impl" />
+        <description>
+            Contributes the :Api label to API types
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type:Main)
+            WHERE
+                NOT type:Impl
+                AND NOT type:Spi
+            SET
+                type:Api
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:Public">
+        <requiresConcept refId="hsearch:Api" />
+        <requiresConcept refId="hsearch:Spi" />
+        <description>
+            Contributes the :Public label to API and SPI types
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type)
+            WHERE
+                type:Api OR type:Spi
+            SET
+                type:Public
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:HibernateSearch">
+        <description>
+            Contributes the :HibernateSearch label to :Maven:Artifact, :Package and :Type nodes from Hibernate Search.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (package:Package)-[:CONTAINS]->(type:Type)<-[:CONTAINS]-(artifact:Maven:Artifact)
+            WHERE
+                artifact.name =~ "hibernate-search-.*"
+            SET
+                artifact:HibernateSearch,
+                package:HibernateSearch,
+                type:HibernateSearch
+            RETURN
+                type
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:UtilArtifacts">
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            Contributes the :Util label to :Maven:Artifact nodes representing utils artifacts.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (artifact:Maven:Artifact:HibernateSearch)
+            WHERE
+                artifact.name =~ ".*-util-.*"
+            SET
+                artifact:Util
+            RETURN
+                artifact
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:IntegrationTestArtifacts">
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <requiresConcept refId="hsearch:UtilArtifacts" />
+        <description>
+            Contributes the :IntegrationTest label to :Maven:Artifact nodes representing integration testing artifacts.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (artifact:Maven:Artifact:HibernateSearch)
+            WHERE
+                NOT artifact:Util
+                AND (
+                    artifact.name =~ ".*-integrationtest-.*"
+                    OR artifact.name = "hibernate-search-documentation"
+                )
+            SET
+                artifact:IntegrationTest
+            RETURN
+                artifact
+        ]]></cypher>
+    </concept>
+
+    <concept id="hsearch:ArtifactMetadata">
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            Contributes additional metadata to the :Maven:Artifact:HibernateSearch nodes.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (artifact:Maven:Artifact:HibernateSearch)
+            SET
+                // Assign a keyword to each module
+                artifact.moduleSpecificKeyword =
+                    CASE artifact.name
+                        WHEN 'hibernate-search-backend-lucene' THEN 'Lucene'
+                        WHEN 'hibernate-search-backend-elasticsearch' THEN 'Elasticsearch'
+                        WHEN 'hibernate-search-backend-elasticsearch-aws' THEN 'ElasticsearchAws'
+                        WHEN 'hibernate-search-mapper-pojo-base' THEN 'Pojo'
+                        WHEN 'hibernate-search-mapper-pojo-standalone' THEN 'StandalonePojo'
+                        WHEN 'hibernate-search-mapper-orm' THEN 'HibernateOrm'
+                        WHEN 'hibernate-search-mapper-orm-coordination-outbox-polling' THEN 'OutboxPolling'
+                        WHEN 'hibernate-search-mapper-orm-batch-jsr352-jberet' THEN 'JBeret'
+                        ELSE 'UNKNOWN-MODULE-SPECIFIC-KEYWORD-PLEASE-UPDATE-JQASSISTANT-RULES'
+                    END
+            RETURN
+                artifact
+        ]]></cypher>
+    </concept>
+
+    <constraint id="hsearch:PublicTypesMayNotExposeInternalTypes">
+        <requiresConcept refId="hsearch:Public" />
+        <requiresConcept refId="hsearch:Impl" />
+        <description>API/SPI types must not expose internal types.</description>
+        <cypher><![CDATA[
+            // supertypes
+            MATCH
+                (type:Type:Public)-[:EXTENDS|:IMPLEMENTS]->(superType:Type:Impl)
+            RETURN
+                type AS ExposingSite, superType.fqn AS ExposedType
+
+            // return values
+            UNION ALL
+            MATCH
+                (type:Type:Public)-[:DECLARES]->(method)-[:RETURNS]->(returnType:Type:Impl)
+            WHERE
+                (method.visibility="public" OR method.visibility="protected")
+            RETURN
+                ( method.signature + " (in " + type.fqn + ")" ) AS ExposingSite, returnType.fqn AS ExposedType
+
+            // parameters
+            UNION ALL
+            MATCH
+                (type:Type:Public)-[:DECLARES]->(method)-[:HAS]->(parameter)-[:OF_TYPE]->(parameterType:Type:Impl)
+            WHERE
+                (method.visibility="public" OR method.visibility="protected")
+            RETURN
+                ( method.signature + " (in " + type.fqn + ")" ) AS ExposingSite, parameterType.fqn AS ExposedType
+
+            // fields
+            UNION ALL
+            MATCH
+                (type:Type:Public)-[:DECLARES]->(field)-[:OF_TYPE]->(fieldType:Type:Impl)
+            WHERE
+                (field.visibility="public" OR field.visibility="protected")
+            RETURN
+                ( field.signature + " (in " + type.fqn + ")" ) AS ExposingSite, fieldType.fqn AS ExposedType
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:PublicTypesMayNotDeclareMethodsWithGetOrSetPrefix">
+        <requiresConcept refId="java:Deprecated" />
+        <requiresConcept refId="hsearch:MethodOverrides" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <requiresConcept refId="hsearch:Public" />
+        <description>
+            API or SPI methods must not start with "get" or "set".
+            Exceptions are allowed when:
+            - the method is deprecated;
+            - or the method overrides another method;
+            - or the method name matches 'getOr[A-Z].*';
+            - or the name of the declaring type ends with 'Provider';
+            - or the name of the declaring type ends with 'ConfigurationProperty';
+            - or the name of the declaring type ends with 'ConfigurationPropertySource'.
+            - or the name of the declaring type ends with: 'ScrollableResultsAdapter'.
+            - or the name of the declaring type ends with: '_$bundle'.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type:Public:HibernateSearch)-[:DECLARES]->(method:Method)
+            WHERE
+                method.name =~ "^(get|set).+"
+                AND (method.visibility="public" OR method.visibility="protected")
+                // Exceptions
+                AND NOT (method:Deprecated)
+                AND NOT (method)-[:OVERRIDES]->()
+                AND NOT method.name =~ "getOr[A-Z].*"
+                AND NOT type.name ENDS WITH "Provider"
+                AND NOT type.name ENDS WITH "ConfigurationProperty"
+                AND NOT type.name ENDS WITH "ConfigurationPropertySource"
+                AND NOT type.name ENDS WITH "ScrollableResultsAdapter"
+                AND NOT type.name ENDS WITH "_$bundle"
+            RETURN
+                type, method
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:APITypesMayNotExposeSPITypes">
+        <requiresConcept refId="hsearch:Api" />
+        <requiresConcept refId="hsearch:Spi" />
+        <description>API types must not expose SPI types.</description>
+        <cypher><![CDATA[
+            // supertypes
+            MATCH
+                (type:Type:Api)-[:EXTENDS|:IMPLEMENTS]->(superType:Type:Spi)
+            RETURN
+                type AS ExposingSite, superType AS ExposedType
+
+            // method return values
+            UNION ALL
+            MATCH
+                (type:Type:Api)-[:DECLARES]->(method)-[:RETURNS]->(returnType:Type:Spi)
+            WHERE
+                (method.visibility="public" OR method.visibility="protected")
+                // Exclude extensions from SPI leak rules: they are *meant* to allow SPI leaks
+                AND NOT type.name =~ ".*Extension"
+            RETURN
+                method AS ExposingSite, returnType AS ExposedType
+
+            // method parameters
+            UNION ALL
+            MATCH
+                (type:Type:Api)-[:DECLARES]->(method)-[:HAS]->(parameter)-[:OF_TYPE]->(parameterType:Type:Spi)
+            WHERE
+                (method.visibility="public" OR method.visibility="protected")
+                // Exclude extensions from SPI leak rules: they are *meant* to allow SPI leaks
+                AND NOT type.name =~ ".*Extension"
+            RETURN
+                method AS ExposingSite, parameterType AS ExposedType
+
+            // fields
+            UNION ALL
+            MATCH
+                (type:Type:Api)-[:DECLARES]->(field)-[:OF_TYPE]->(fieldType:Type:Spi)
+            WHERE
+                (field.visibility="public" OR field.visibility="protected")
+            RETURN
+                field AS ExposingSite, fieldType AS ExposedType
+        ]]></cypher>
+    </constraint>
+
+
+    <constraint id="hsearch:APITypesMayNotExposeForbiddenTypes">
+        <requiresConcept refId="hsearch:Api" />
+        <requiresConcept refId="hsearch:Spi" />
+        <description>
+            API types must not expose forbidden types:
+            - CompletableFuture: expose CompletionStage instead.
+              The corresponding CompletableFuture can be retrieved with '.toCompletableFuture()'.
+        </description>
+        <cypher><![CDATA[
+            // supertypes
+            MATCH
+                (type:Type:Api)-[:EXTENDS|:IMPLEMENTS*]->(superType:Type)
+            WHERE
+                superType.fqn = "java.util.concurrent.CompletableFuture"
+            RETURN
+                type AS ExposingSite, superType AS ExposedType
+
+            // method return values
+            UNION ALL
+            MATCH
+                (type:Type:Api)-[:DECLARES]->(method)-[:RETURNS]->(returnType:Type)
+                        -[:EXTENDS|:IMPLEMENTS*0..]->(returnTypeOrSuperType:Type)
+            WHERE
+                (method.visibility="public" OR method.visibility="protected")
+                AND returnTypeOrSuperType.fqn = "java.util.concurrent.CompletableFuture"
+            RETURN
+                method AS ExposingSite, returnTypeOrSuperType AS ExposedType
+
+            // method parameters
+            UNION ALL
+            MATCH
+                (type:Type:Api)-[:DECLARES]->(method)-[:HAS]->(parameter)-[:OF_TYPE]->(parameterType:Type)
+                        -[:EXTENDS|:IMPLEMENTS*0..]->(parameterTypeOrSuperType:Type)
+            WHERE
+                (method.visibility="public" OR method.visibility="protected")
+                AND parameterTypeOrSuperType.fqn = "java.util.concurrent.CompletableFuture"
+            RETURN
+                method AS ExposingSite, parameterTypeOrSuperType AS ExposedType
+
+            // fields
+            UNION ALL
+            MATCH
+                (type:Type:Api)-[:DECLARES]->(field)-[:OF_TYPE]->(fieldType:Type)
+                        -[:EXTENDS|:IMPLEMENTS*0..]->(fieldTypeOrSuperType:Type)
+            WHERE
+                (field.visibility="public" OR field.visibility="protected")
+                AND fieldTypeOrSuperType.fqn = "java.util.concurrent.CompletableFuture"
+            RETURN
+                field AS ExposingSite, fieldTypeOrSuperType AS ExposedType
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:TypesMayNotDependOnImplementationTypeFromOtherModules">
+        <requiresConcept refId="hsearch:UtilArtifacts" />
+        <requiresConcept refId="hsearch:Main" />
+        <requiresConcept refId="hsearch:Impl" />
+        <description>
+            Main (non-test) types must not depend on implementation types from other modules.
+            SPIs must be used for such dependencies.
+            Exceptions are allowed only when the dependency type is in a util module,
+            or the depending type is a test type.
+        </description>
+        <cypher><![CDATA[
+            MATCH (artifact1:Maven:Artifact)-[:CONTAINS]->(type1:Type:Main)-[:DEPENDS_ON]->
+                (type2:Type:Impl)<-[:CONTAINS]-(artifact2:Maven:Artifact)
+            WHERE
+                artifact1 <> artifact2
+                // Exceptions
+                AND NOT artifact2:Util
+            RETURN
+                artifact1, type1, artifact2, type2
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:TypesShouldUseImplSuffixWithRestraint">
+        <requiresConcept refId="java:Deprecated" />
+        <requiresConcept refId="hsearch:TypeMetadata" />
+        <requiresConcept refId="hsearch:Anonymous" />
+        <requiresConcept refId="hsearch:Generated" />
+        <requiresConcept refId="hsearch:Main" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            The 'Impl' suffix should only be used when naming classes that are the only implementation
+            for a given Hibernate Search interface (excluding its own subclasses).
+            Whenever multiple implementations exist, a more meaningful name should be given to the implementation.
+            Exceptions are allowed when:
+            - the implementing type is an anonymous type or a generated type;
+            - or the implementing type is deprecated;
+            - or the implemented type is deprecated;
+            - or the implementing type is an inner/nested type.
+        </description>
+        <cypher><![CDATA[
+            // Hibernate Search classes named "<prefix>Impl"
+            MATCH (implementingTypeEndingWithImpl:Class:Main:HibernateSearch)
+            WHERE
+                implementingTypeEndingWithImpl.nameWithoutContainingTypeName =~ ".*Impl$"
+                // Exceptions
+                AND NOT implementingTypeEndingWithImpl:Anonymous
+                AND NOT implementingTypeEndingWithImpl:Deprecated
+                AND NOT implementingTypeEndingWithImpl:Generated
+                AND NOT implementingTypeEndingWithImpl.nameWithoutContainingTypeName <> implementingTypeEndingWithImpl.name
+            // The interface they implement, named "<prefix>" (if any)
+            OPTIONAL MATCH (implementingTypeEndingWithImpl)-[:IMPLEMENTS|EXTENDS *]->(implementedType:Interface:HibernateSearch)
+            WHERE
+                implementingTypeEndingWithImpl.nameWithoutContainingTypeName = (implementedType.nameWithoutContainingTypeName + "Impl")
+            // All the implementing types that do not extend implementingTypeEndingWithImpl
+            OPTIONAL MATCH (topLevelImplementingType:Class:Main)-[:IMPLEMENTS|EXTENDS *]->(implementedType)
+            WHERE
+                NOT (topLevelImplementingType)-[:EXTENDS *]->(implementingTypeEndingWithImpl)
+            WITH implementingTypeEndingWithImpl, implementedType, count(distinct topLevelImplementingType) AS topLevelImplementingTypeCount
+            WHERE
+                implementedType IS NULL OR topLevelImplementingTypeCount > 1
+                // Exceptions
+                AND NOT implementedType:Deprecated
+            RETURN implementingTypeEndingWithImpl, implementedType
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:AbstractTypesShouldUseAbstractPrefix">
+        <requiresConcept refId="hsearch:TypeMetadata" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            The 'Abstract' prefix should be used on abstract types.
+            Exceptions are allowed when:
+            - the abstract type doesn't implement any Hibernate Search interface, or just interfaces from a util module,
+            in which case the abstract class is assumed to represent both the interface and part of the implementation.
+            - the abstract type has only private constructors,
+            in which case the type may just be a marker (to be used in annotations for example).
+        </description>
+        <cypher><![CDATA[
+            // Abstract types without an "Abstract" prefix in their name that implement a meaningful interface
+            MATCH (type:Type:HibernateSearch)-[:EXTENDS|IMPLEMENTS *]->(interface:Interface:HibernateSearch)
+                    <-[:CONTAINS]-(interfaceArtifact:Maven:Artifact)
+            WHERE
+                type.abstract
+                AND NOT type.nameWithoutContainingTypeName =~ "^Abstract.*"
+                // Exceptions
+                AND NOT interfaceArtifact.name STARTS WITH "hibernate-search-util-"
+            // Exclude types that have only private constructors
+            OPTIONAL MATCH (type)-[:DECLARES]->(nonPrivateConstructor:Constructor)
+            WHERE
+                // Ignore synthetic constructors
+                NOT nonPrivateConstructor.synthetic
+                AND nonPrivateConstructor.visibility <> 'private'
+            WITH type, count(nonPrivateConstructor) = 0 AS hasOnlyPrivateConstructors
+            WHERE
+                NOT hasOnlyPrivateConstructors
+            RETURN type
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:TypesExtendingTypeFromAnotherModuleMustHaveModuleSpecificKeywordInName">
+        <requiresConcept refId="java:Deprecated" />
+        <requiresConcept refId="hsearch:TypeMetadata" />
+        <requiresConcept refId="hsearch:Anonymous" />
+        <requiresConcept refId="hsearch:Generated" />
+        <requiresConcept refId="hsearch:Main" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <requiresConcept refId="hsearch:ArtifactMetadata" />
+        <description>
+            Main (non-test) types extending/implementing a Hibernate Search type from another module must have a module-specific keyword in their name,
+            either at the very start or just after "Abstract".
+            This allows to more easily understand which module a given type comes from.
+            Exceptions are allowed when:
+            - the misnamed type is an anonymous type or a generated type;
+            - or the misnamed type is deprecated;
+            - or the implemented type is deprecated;
+            - or the implementing type is an inner/nested type;
+            and its surrounding type does use the module-specific keyword;
+            - or the implemented type is in a util module,
+            in which case the implemented interface may just be a detail.
+        </description>
+        <cypher><![CDATA[
+            MATCH (misnamedTypeArtifact:Maven:Artifact)-[:CONTAINS]->(misnamedType:Type:Main)
+                    -[:IMPLEMENTS|EXTENDS *]->
+                    (externalParentType:Type:HibernateSearch)<-[:CONTAINS]-(externalParentTypeArtifact:Maven:Artifact)
+            WHERE
+                misnamedTypeArtifact <> externalParentTypeArtifact
+                // Abstract<Keyword><something> or <Keyword><something>
+                // Ignore the containing type for inner/nested types
+                AND NOT misnamedType.nameWithoutContainingTypeName =~ ("^(Abstract)?\\Q" + misnamedTypeArtifact.moduleSpecificKeyword + "\\E.*")
+                // Exceptions
+                AND NOT misnamedType:Anonymous
+                AND NOT misnamedType:Deprecated
+                AND NOT externalParentType:Deprecated
+                AND NOT misnamedType:Generated
+                AND NOT (
+                        misnamedType.nameWithoutContainingTypeName <> misnamedType.name
+                        AND misnamedType.name =~ ("^(Abstract)?\\Q" + misnamedTypeArtifact.moduleSpecificKeyword + "\\E.*")
+                )
+                AND NOT externalParentTypeArtifact.name STARTS WITH "hibernate-search-util-"
+            RETURN misnamedTypeArtifact.moduleSpecificKeyword, misnamedType, externalParentType
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:TypeNamesShouldBeUniqueInInterdependentModules">
+        <requiresConcept refId="java:Deprecated" />
+        <requiresConcept refId="hsearch:TypeMetadata" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <requiresConcept refId="hsearch:Public" />
+        <requiresConcept refId="hsearch:Impl" />
+        <description>
+            The simple (non-qualified) name of public Hibernate Search types should be unique.
+            Exceptions are only allowed when the two types sharing an identical name:
+            - are located in two modules that do not depend on each other
+            - or are deprecated (at least one of them)
+            - or are both nested types.
+        </description>
+        <cypher><![CDATA[
+            MATCH (artifact1:Maven:Artifact)-[:DEPENDS_ON *0]->(artifact2:Maven:Artifact)
+            MATCH (artifact1:Maven:Artifact)-[:CONTAINS]->(type1:Type:HibernateSearch:Public)
+            MATCH (artifact2:Maven:Artifact)-[:CONTAINS]->(type2:Type:HibernateSearch:Public)
+            WHERE
+                type1 <> type2
+                AND type1.nameWithoutContainingTypeName = type2.nameWithoutContainingTypeName
+                AND NOT (type1.name =~ ".*\\$.*" AND type2.name =~ ".*\\$.*")
+                AND NOT (type1:Deprecated OR type2:Deprecated)
+            RETURN
+                type1, type2
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:PackagesShouldNotHaveCyclicDependencies">
+        <requiresConcept refId="dependency:Package" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            Packages should not have cyclic dependencies.
+            The following types are ignored when computing dependency paths:
+            - logging-related types.
+        </description>
+        <cypher><![CDATA[
+            // First pass to compute inter-package dependencies, which is faster than inter-type dependencies
+            MATCH
+                (a1:Maven:Artifact)-[:CONTAINS]->(p1:Package:HibernateSearch)
+                        -[:DEPENDS_ON]->
+                        (p2:Package:HibernateSearch)<-[:CONTAINS]-(a2:Maven:Artifact),
+                packagePath=allShortestPaths((p2)-[:DEPENDS_ON*..20]->(p1)) // Optimize: only look for path with 20 hops or less
+            WHERE
+                p1<>p2
+                AND a1=a2 // Optimize: we consider there are no cyclic dependencies between artifacts
+                AND NOT p1.fqn CONTAINS "logging"
+                AND NOT p2.fqn CONTAINS "logging"
+                AND ALL (
+                    p IN nodes(packagePath)
+                    WHERE
+                        NOT p.fqn CONTAINS "logging"
+                        AND ((a1)-[:CONTAINS]->(p)) // Optimize: we consider there are no cyclic dependencies between artifacts
+                )
+            // Second pass to compute inter-type dependencies, which are easier to understand
+            MATCH
+                (p1)-[:CONTAINS]->(t1:Type:HibernateSearch)-[:DEPENDS_ON]->(t2:Type:HibernateSearch)<-[:CONTAINS]-(p2:Package),
+                typePath=allShortestPaths((t2)-[:DEPENDS_ON*..20]->(t1)) // Optimize: only look for path with 20 hops or less
+            WHERE
+                t1<>t2
+                AND ALL (
+                    t IN nodes(typePath)
+                    WHERE
+                        ANY (
+                            p IN nodes(packagePath)
+                            WHERE
+                            ((p)-[:CONTAINS]->(t)) // Optimize: only consider types from packages in the cyclic path
+                        )
+                )
+            RETURN DISTINCT
+                a1.name AS Artifact, p1.fqn AS Package, EXTRACT(t IN nodes(typePath) | t.fqn) AS Cycle
+            ORDER BY
+                Package
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:UnitTestsMustHaveProperSuffix">
+        <requiresConcept refId="hsearch:SuppressJQAssistant" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <requiresConcept refId="hsearch:IntegrationTestArtifacts" />
+        <description>
+            Unit test class names must be suffixed with "Test".
+        </description>
+        <cypher><![CDATA[
+            MATCH (artifact:Maven:Artifact:HibernateSearch)
+                    -[:CONTAINS]->(type:Type)-[:DECLARES]->(method:Method)
+                    -[:ANNOTATED_BY]->()-[:OF_TYPE]->(testAnnotation:Type)
+            WHERE
+                NOT artifact:IntegrationTest
+                AND testAnnotation.fqn = "org.junit.Test"
+                AND NOT type.name ENDS WITH "Test"
+                AND NOT type:SuppressJQAssistant
+            RETURN DISTINCT
+                artifact.name AS Artifact, type.fqn AS Test
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:IntegrationTestsMustHaveProperSuffix">
+        <requiresConcept refId="hsearch:SuppressJQAssistant" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <requiresConcept refId="hsearch:IntegrationTestArtifacts" />
+        <description>
+            Integration test class names must be suffixed with "IT".
+        </description>
+        <cypher><![CDATA[
+            MATCH (artifact:Maven:Artifact:HibernateSearch:IntegrationTest)
+                    -[:CONTAINS]->(type:Type)-[:DECLARES]->(method:Method)
+                    -[:ANNOTATED_BY]->()-[:OF_TYPE]->(testAnnotation:Type)
+            WHERE
+                testAnnotation.fqn = "org.junit.Test"
+                AND NOT type.name ENDS WITH "IT"
+                AND NOT type:SuppressJQAssistant
+            RETURN DISTINCT
+                artifact.name AS Artifact, type.fqn AS Test
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:ImplPackagesMustNotHaveSubPackages">
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            ".impl" packages must be leaves: they must not have any sub-package.
+            Exceptions are only allowed for:
+            - org.hibernate.search.util.impl
+        </description>
+        <cypher><![CDATA[
+            MATCH (artifact:Maven:Artifact:HibernateSearch)
+                    -[:CONTAINS]->(package:Package)
+            WHERE
+                package.fqn =~ ".*\\.impl\\..*"
+                AND NOT package.fqn STARTS WITH "org.hibernate.search.util.impl"
+            RETURN DISTINCT
+                artifact.name AS Artifact, package.fqn AS Package
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:NestedTestTypesShouldBeAnnotatedWithNested">
+        <requiresConcept refId="hsearch:TypeMetadata" />
+        <requiresConcept refId="hsearch:Test" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            Nested test types should be annotated with @Nested in order to be actually executed
+            when their surrounding type (hopefully annotated with @RunWith(NestedInner.class))
+            is executed.
+            Exceptions are only allowed for:
+            - Abstract test classes.
+        </description>
+        <cypher><![CDATA[
+            // Hibernate Search nested classes named "<prefix>IT" or "<prefix>Test"
+            MATCH (nestedTestType:Class:Test:HibernateSearch)
+            WHERE
+                (nestedTestType.nameWithoutContainingTypeName =~ ".*IT$"
+                        OR nestedTestType.nameWithoutContainingTypeName =~ ".*Test$")
+                AND nestedTestType.nameWithoutContainingTypeName <> nestedTestType.name
+                // Exceptions
+                AND (NOT nestedTestType.abstract OR nestedTestType.abstract IS NULL)
+            // The Nested annotation
+            OPTIONAL MATCH (nestedTestType:Type)-[:ANNOTATED_BY]->()-[:OF_TYPE]->(nestedAnnotation:Type)
+            WHERE
+                nestedAnnotation.fqn = "org.hibernate.search.util.impl.test.runner.nested.Nested"
+            WITH nestedTestType, nestedAnnotation
+            WHERE
+                nestedAnnotation IS NULL
+            RETURN nestedTestType.fqn AS Test
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:StandalonePojoAPIAndSPIShouldBeAnnotatedWithIncubating">
+        <requiresConcept refId="hsearch:TypeMetadata" />
+        <requiresConcept refId="hsearch:Spi" />
+        <requiresConcept refId="hsearch:Api" />
+        <requiresConcept refId="hsearch:HibernateSearch" />
+        <description>
+            All API/SPI types of the mapper-pojo-standalone module should be annotated with @Incubating,
+            because the whole module is incubating.
+            Exceptions are only allowed for:
+            - Nested/inner classes.
+        </description>
+        <cypher><![CDATA[
+            // Hibernate Search nested classes named "<prefix>IT" or "<prefix>Test"
+            MATCH
+                (standalonePojoModule:Maven:Artifact:HibernateSearch)-[:CONTAINS]->(type:Type:HibernateSearch)
+            WHERE
+                (type:Api OR type:Spi)
+                AND standalonePojoModule.name = 'hibernate-search-mapper-pojo-standalone'
+                // Exceptions
+                AND NOT (type.nameWithoutContainingTypeName <> type.name) // Not nested
+            // The Incubating annotation
+            OPTIONAL MATCH (type)-[:ANNOTATED_BY]->()-[:OF_TYPE]->(incubatingAnnotation:Type)
+            WHERE
+                incubatingAnnotation.fqn = "org.hibernate.search.util.common.annotation.Incubating"
+            WITH type, incubatingAnnotation
+            WHERE
+                incubatingAnnotation IS NULL
+            RETURN type.fqn AS NonAnnotatedType
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:JBossLoggerTypesMustBeInLoggingPackages">
+        <requiresConcept refId="hsearch:Impl" />
+        <description>
+            All internal (impl) JBoss Logger types
+            must be in packages matching org.hibernate.search.*.logging.impl,
+            so that they are correctly exported to the JBoss Logging module in module-info.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type:Impl)<-[:CONTAINS]-(package:Package)
+            WHERE
+                type.name ENDS WITH "_$logger"
+                AND NOT package.fqn =~ "org\\.hibernate\\.search\\..*\\.logging\\.impl"
+            SET
+                type:Impl
+            RETURN
+                type
+        ]]></cypher>
+    </constraint>
+
+    <constraint id="hsearch:JBossMessageTypesMustBeInReportingPackages">
+        <requiresConcept refId="hsearch:Impl" />
+        <description>
+            All internal (impl) JBoss Message types
+            must be in packages matching org.hibernate.search.*.reporting.impl,
+            so that they are correctly exported to the JBoss Logging module in module-info.
+        </description>
+        <cypher><![CDATA[
+            MATCH
+                (type:Type:Impl)<-[:CONTAINS]-(package:Package)
+            WHERE
+                type.name ENDS WITH "_$bundle"
+                AND NOT package.fqn =~ "org\\.hibernate\\.search\\..*\\.reporting\\.impl"
+            SET
+                type:Impl
+            RETURN
+                type
+        ]]></cypher>
+    </constraint>
+
+    <group id="default">
+        <includeConstraint refId="hsearch:PublicTypesMayNotExposeInternalTypes" />
+        <includeConstraint refId="hsearch:PublicTypesMayNotDeclareMethodsWithGetOrSetPrefix" />
+        <includeConstraint refId="hsearch:APITypesMayNotExposeSPITypes" />
+        <includeConstraint refId="hsearch:APITypesMayNotExposeForbiddenTypes" />
+        <includeConstraint refId="hsearch:TypesMayNotDependOnImplementationTypeFromOtherModules" />
+        <includeConstraint refId="hsearch:TypesShouldUseImplSuffixWithRestraint" />
+        <includeConstraint refId="hsearch:AbstractTypesShouldUseAbstractPrefix" />
+        <includeConstraint refId="hsearch:TypesExtendingTypeFromAnotherModuleMustHaveModuleSpecificKeywordInName" />
+        <includeConstraint refId="hsearch:TypeNamesShouldBeUniqueInInterdependentModules" />
+        <includeConstraint refId="hsearch:UnitTestsMustHaveProperSuffix" />
+        <includeConstraint refId="hsearch:IntegrationTestsMustHaveProperSuffix" />
+        <includeConstraint refId="hsearch:ImplPackagesMustNotHaveSubPackages" />
+        <includeConstraint refId="hsearch:NestedTestTypesShouldBeAnnotatedWithNested" />
+        <includeConstraint refId="hsearch:StandalonePojoAPIAndSPIShouldBeAnnotatedWithIncubating" />
+        <includeConstraint refId="hsearch:JBossLoggerTypesMustBeInLoggingPackages" />
+        <includeConstraint refId="hsearch:JBossMessageTypesMustBeInReportingPackages" />
+    </group>
+
+    <group id="cycles">
+        <includeConstraint refId="hsearch:PackagesShouldNotHaveCyclicDependencies" />
+    </group>
+
+</jqa:jqassistant-rules>

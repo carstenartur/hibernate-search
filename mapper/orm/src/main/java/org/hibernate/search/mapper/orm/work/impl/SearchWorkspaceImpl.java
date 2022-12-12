@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.orm.work.SearchWorkspace;
 import org.hibernate.search.mapper.pojo.work.spi.PojoScopeWorkspace;
 import org.hibernate.search.util.common.impl.Futures;
@@ -23,12 +24,12 @@ public class SearchWorkspaceImpl implements SearchWorkspace {
 
 	@Override
 	public void mergeSegments() {
-		Futures.unwrappedExceptionJoin( mergeSegmentsAsync() );
+		Futures.unwrappedExceptionJoin( delegate.mergeSegments( OperationSubmitter.BLOCKING ) );
 	}
 
 	@Override
 	public CompletableFuture<?> mergeSegmentsAsync() {
-		return delegate.mergeSegments();
+		return delegate.mergeSegments( OperationSubmitter.REJECTED_EXECUTION_EXCEPTION );
 	}
 
 	@Override
@@ -43,31 +44,31 @@ public class SearchWorkspaceImpl implements SearchWorkspace {
 
 	@Override
 	public void purge(Set<String> routingKeys) {
-		Futures.unwrappedExceptionJoin( purgeAsync( routingKeys ) );
+		Futures.unwrappedExceptionJoin( delegate.purge( routingKeys, OperationSubmitter.BLOCKING ) );
 	}
 
 	@Override
 	public CompletableFuture<?> purgeAsync(Set<String> routingKeys) {
-		return delegate.purge( routingKeys );
+		return delegate.purge( routingKeys, OperationSubmitter.REJECTED_EXECUTION_EXCEPTION );
 	}
 
 	@Override
 	public void flush() {
-		Futures.unwrappedExceptionJoin( flushAsync() );
+		Futures.unwrappedExceptionJoin( delegate.flush( OperationSubmitter.BLOCKING ) );
 	}
 
 	@Override
 	public CompletableFuture<?> flushAsync() {
-		return delegate.flush();
+		return delegate.flush( OperationSubmitter.REJECTED_EXECUTION_EXCEPTION );
 	}
 
 	@Override
 	public void refresh() {
-		Futures.unwrappedExceptionJoin( refreshAsync() );
+		Futures.unwrappedExceptionJoin( delegate.refresh( OperationSubmitter.BLOCKING ) );
 	}
 
 	@Override
 	public CompletableFuture<?> refreshAsync() {
-		return delegate.refresh();
+		return delegate.refresh( OperationSubmitter.REJECTED_EXECUTION_EXCEPTION );
 	}
 }

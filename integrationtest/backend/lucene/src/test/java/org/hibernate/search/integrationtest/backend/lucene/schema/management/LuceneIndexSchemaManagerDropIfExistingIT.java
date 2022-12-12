@@ -13,6 +13,7 @@ import java.io.IOException;
 
 import org.hibernate.search.backend.lucene.lowlevel.common.impl.MetadataFields;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.integrationtest.backend.lucene.testsupport.util.LuceneIndexContentUtils;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.impl.Futures;
@@ -41,13 +42,17 @@ public class LuceneIndexSchemaManagerDropIfExistingIT {
 
 		// The setup currently creates the index: work around that.
 		Futures.unwrappedExceptionJoin(
-				LuceneIndexSchemaManagerOperation.DROP_IF_EXISTING.apply( index.schemaManager() )
+				LuceneIndexSchemaManagerOperation.DROP_IF_EXISTING.apply( index.schemaManager(),
+						OperationSubmitter.BLOCKING
+				)
 		);
 
 		assertThat( indexExists() ).isFalse();
 
 		Futures.unwrappedExceptionJoin(
-				LuceneIndexSchemaManagerOperation.DROP_IF_EXISTING.apply( index.schemaManager() )
+				LuceneIndexSchemaManagerOperation.DROP_IF_EXISTING.apply( index.schemaManager(),
+						OperationSubmitter.BLOCKING
+				)
 		);
 
 		// No exception was thrown and the index still doesn't exist.
@@ -61,7 +66,9 @@ public class LuceneIndexSchemaManagerDropIfExistingIT {
 
 		setup();
 		Futures.unwrappedExceptionJoin(
-				LuceneIndexSchemaManagerOperation.CREATE_IF_MISSING.apply( index.schemaManager() )
+				LuceneIndexSchemaManagerOperation.CREATE_IF_MISSING.apply( index.schemaManager(),
+						OperationSubmitter.BLOCKING
+				)
 		);
 
 		assertThat( indexExists() ).isTrue();
@@ -69,12 +76,14 @@ public class LuceneIndexSchemaManagerDropIfExistingIT {
 		IndexIndexingPlan plan = index.createIndexingPlan();
 		plan.add( referenceProvider( "1" ), document -> {
 		} );
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 
 		assertThat( countDocsOnDisk() ).isEqualTo( 1 );
 
 		Futures.unwrappedExceptionJoin(
-				LuceneIndexSchemaManagerOperation.DROP_IF_EXISTING.apply( index.schemaManager() )
+				LuceneIndexSchemaManagerOperation.DROP_IF_EXISTING.apply( index.schemaManager(),
+						OperationSubmitter.BLOCKING
+				)
 		);
 
 		assertThat( indexExists() ).isFalse();

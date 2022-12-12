@@ -12,9 +12,10 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
+import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.hibernate.search.engine.backend.types.dsl.IndexFieldTypeOptionsStep;
@@ -24,6 +25,7 @@ import org.hibernate.search.mapper.pojo.extractor.ContainerExtractor;
 import org.hibernate.search.mapper.pojo.logging.spi.PojoConstructorModelFormatter;
 import org.hibernate.search.mapper.pojo.logging.spi.PojoModelPathFormatter;
 import org.hibernate.search.mapper.pojo.logging.spi.PojoTypeModelFormatter;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.ObjectPath;
 import org.hibernate.search.mapper.pojo.mapping.impl.PojoContainedTypeManager;
 import org.hibernate.search.mapper.pojo.mapping.impl.PojoIndexedTypeManager;
 import org.hibernate.search.mapper.pojo.model.path.PojoModelPathValueNode;
@@ -31,11 +33,13 @@ import org.hibernate.search.mapper.pojo.model.spi.PojoConstructorModel;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
 import org.hibernate.search.mapper.pojo.model.spi.PojoTypeModel;
+import org.hibernate.search.mapper.pojo.search.definition.impl.ConstructorProjectionApplicationException;
 import org.hibernate.search.mapper.pojo.search.definition.impl.PojoConstructorProjectionDefinition;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.common.data.impl.LinkedNode;
 import org.hibernate.search.util.common.logging.impl.CommaSeparatedClassesFormatter;
 import org.hibernate.search.util.common.logging.impl.ClassFormatter;
+import org.hibernate.search.util.common.logging.impl.EventContextFormatter;
 import org.hibernate.search.util.common.logging.impl.MessageConstants;
 import org.hibernate.search.util.common.logging.impl.SimpleNameClassFormatter;
 import org.hibernate.search.util.common.logging.impl.ToStringTreeMultilineFormatter;
@@ -44,6 +48,8 @@ import org.hibernate.search.util.common.reporting.EventContext;
 
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.Logger;
+
+import static org.hibernate.search.mapper.pojo.search.definition.impl.PojoConstructorProjectionDefinition.ProjectionConstructorPath;
 import static org.jboss.logging.Logger.Level.ERROR;
 import static org.jboss.logging.Logger.Level.INFO;
 import org.jboss.logging.annotations.Cause;
@@ -142,10 +148,12 @@ public interface Log extends BasicLogger {
 			@FormatWith(PojoModelPathFormatter.class) PojoModelPathValueNode path);
 
 	@Message(id = ID_OFFSET_LEGACY_ENGINE + 234,
-			value = "Invalid target types: %1$s"
-					+ " These types are not indexed, nor is any of their subtypes."
+			value = "No matching indexed entity types for types: %1$s"
+					+ " These types are not indexed entity types, nor is any of their subtypes."
+					+ " Valid indexed entity classes, superclasses and superinterfaces are: %2$s."
 	)
-	SearchException invalidScopeTarget(Collection<PojoRawTypeIdentifier<?>> nonIndexedTypes);
+	SearchException invalidScopeTarget(Collection<PojoRawTypeIdentifier<?>> nonIndexedTypes,
+			Collection<PojoRawTypeIdentifier<?>> validSuperTypes);
 
 	@Message(id = ID_OFFSET_LEGACY_ENGINE + 295, value = "Invalid value for type '$2%s': '$1%s'. %3$s")
 	SearchException parseException(String text, @FormatWith(SimpleNameClassFormatter.class) Class<?> readerClass,
@@ -323,9 +331,11 @@ public interface Log extends BasicLogger {
 			@FormatWith(ClassFormatter.class) Class<?> expectedContextType);
 
 	@Message(id = ID_OFFSET + 37,
-			value = "Invalid type '%1$s' in an indexing plan:"
-					+ " this type is not indexed, neither directly nor as a contained entity in another indexed type.")
-	SearchException nonIndexedNorContainedTypeInIndexingPlan(PojoRawTypeIdentifier<?> targetedType);
+			value = "No matching entity type for type identifier '%1$s'."
+					+ " Either this type is not an entity type, or the entity type is not mapped in Hibernate Search."
+					+ " Valid identifiers for mapped entity types are: %2$s")
+	SearchException unknownTypeIdentifierForMappedEntityType(PojoRawTypeIdentifier<?> invalidTypeId,
+			Collection<PojoRawTypeIdentifier<?>> validTypeIds);
 
 	@Message(id = ID_OFFSET + 38, value = "The entity identifier must not be null." )
 	SearchException nullProvidedIdentifier();
@@ -335,8 +345,11 @@ public interface Log extends BasicLogger {
 			@FormatWith(ClassFormatter.class) Class<?> requestedType);
 
 	@Message(id = ID_OFFSET + 40,
-			value = "Invalid type '%1$s' in an indexer: this type is not indexed.")
-	SearchException nonIndexedTypeInIndexer(PojoRawTypeIdentifier<?> targetedType);
+			value = "No matching indexed entity type for type identifier '%1$s'."
+					+ " Either this type is not an entity type, or the entity type is not indexed in Hibernate Search."
+					+ " Valid identifiers for indexed entity types are: %2$s")
+	SearchException unknownTypeIdentifierForIndexedEntityType(PojoRawTypeIdentifier<?> invalidTypeId,
+			Collection<PojoRawTypeIdentifier<?>> validTypeIds);
 
 	@Message(id = ID_OFFSET + 41,
 			value = "Invalid reference to default extractors:"
@@ -597,8 +610,10 @@ public interface Log extends BasicLogger {
 	SearchException nullEntityForIndexerAddOrUpdate();
 
 	@Message(id = ID_OFFSET + 89,
-			value = "Invalid entity name '%1$s' in an indexing event: this entity does not exist or is not indexed.")
-	SearchException nonIndexedTypeInIndexingEvent(String entityName);
+			value = "No matching entity type for name '%1$s'."
+					+ " Either this is not the name of an entity type, or the entity type is not mapped in Hibernate Search."
+					+ " Valid names for mapped entity types are: %2$s")
+	SearchException unknownEntityNameForMappedEntityType(String invalidName, Collection<String> validNames);
 
 	@Message(id = ID_OFFSET + 90, value = "The required identifier type '%1$s'"
 			+ " does not match the actual identifier type '%2$s':"
@@ -721,7 +736,35 @@ public interface Log extends BasicLogger {
 			String fieldPath);
 
 	@Message(id = ID_OFFSET + 119,
-			value = "Exception while retrieving the Jandex index for JAR '%1$s': %2$s")
-	SearchException errorDiscoveringJandexIndex(Path jarPath, String causeMessage, @Cause Exception cause);
+			value = "Exception while retrieving the Jandex index for code source location '%1$s': %2$s")
+	SearchException errorDiscoveringJandexIndex(URL codeSourceLocation, String causeMessage, @Cause Exception cause);
 
+	@LogMessage(level = Logger.Level.WARN)
+	@Message(id = ID_OFFSET + 120,
+			value = "Both \"dropAndCreateSchemaOnStart()\" and \"purgeAllOnStart()\" are enabled. " +
+					"Consider having just one setting enabled as after the index is recreated there is nothing to purge.")
+	void redundantPurgeAfterDrop();
+
+	@Message(id = ID_OFFSET + 121,
+			value = "Invalid ObjectPath encountered '%1$s': %2$s")
+	SearchException invalidObjectPath(ObjectPath path, String causeMessage, @Cause Exception cause);
+
+	@LogMessage(level = Logger.Level.WARN)
+	@Message(id = ID_OFFSET + 122,
+			value = "An unexpected failure occurred while configuring resolution of association inverse side for reindexing."
+					+ " This may lead to incomplete reindexing and thus out-of-sync indexes."
+					+ " The exception is being ignored to preserve backwards compatibility with earlier versions of Hibernate Search."
+					+ " Failure: %3$s"
+					+ " %2$s" // Context
+					+ " Association inverse side: %1$s.")
+	void failedToCreateImplicitReindexingAssociationInverseSideResolverNode(
+			Map<PojoRawTypeModel<?>, PojoModelPathValueNode> inversePathByInverseType, @FormatWith(EventContextFormatter.class) EventContext context,
+			String causeMessage, @Cause Exception cause);
+
+	@Message(id = ID_OFFSET + 123,
+			value = "Could not apply projection constructor: %1$s")
+	ConstructorProjectionApplicationException errorApplyingProjectionConstructor(
+			String causeMessage,
+			@Cause Exception cause,
+			@Param ProjectionConstructorPath path);
 }

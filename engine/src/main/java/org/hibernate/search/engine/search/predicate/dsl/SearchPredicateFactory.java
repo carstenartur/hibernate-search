@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 
 import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.engine.search.common.BooleanOperator;
+import org.hibernate.search.engine.search.predicate.SearchPredicate;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.common.annotation.Incubating;
 
@@ -83,6 +84,55 @@ public interface SearchPredicateFactory {
 	PredicateFinalStep bool(Consumer<? super BooleanPredicateClausesStep<?>> clauseContributor);
 
 	/**
+	 * Match documents if they match all inner clauses.
+	 *
+	 * @return The initial step of a DSL where predicates that must match can be added and options can be set.
+	 * @see GenericSimpleBooleanPredicateClausesStep
+	 */
+	SimpleBooleanPredicateClausesStep<?> and();
+
+	/**
+	 * Match documents if they match all previously-built {@link SearchPredicate}.
+	 *
+	 * @return The step of a DSL where options can be set.
+	 */
+	SimpleBooleanPredicateOptionsStep<?> and(
+			SearchPredicate firstSearchPredicate,
+			SearchPredicate... otherSearchPredicates);
+
+	/**
+	 * Match documents if they match all clauses.
+	 *
+	 * @return The step of a DSL where options can be set.
+	 */
+	SimpleBooleanPredicateOptionsStep<?> and(PredicateFinalStep firstSearchPredicate,
+			PredicateFinalStep... otherSearchPredicates);
+
+	/**
+	 * Match documents if they match any inner clause.
+	 *
+	 * @return The initial step of a DSL where predicates that should match can be added and options can be set.
+	 * @see GenericSimpleBooleanPredicateClausesStep
+	 */
+	SimpleBooleanPredicateClausesStep<?> or();
+
+	/**
+	 * Match documents if they match any previously-built {@link SearchPredicate}.
+	 *
+	 * @return The step of a DSL where options can be set.
+	 */
+	SimpleBooleanPredicateOptionsStep<?> or(SearchPredicate firstSearchPredicate,
+			SearchPredicate... otherSearchPredicates);
+
+	/**
+	 * Match documents if they match any clause.
+	 *
+	 * @return The step of a DSL where options can be set.
+	 */
+	SimpleBooleanPredicateOptionsStep<?> or(PredicateFinalStep firstSearchPredicate,
+			PredicateFinalStep... otherSearchPredicates);
+
+	/**
 	 * Match documents where targeted fields have a value that "matches" a given single value.
 	 * <p>
 	 * Note that "value matching" may be exact or approximate depending on the type of the targeted fields:
@@ -152,6 +202,9 @@ public interface SearchPredicateFactory {
 	/**
 	 * Match documents where a {@link ObjectStructure#NESTED nested object} matches inner predicates
 	 * to be defined in the next steps.
+	 * <p>
+	 * The resulting nested predicate must match <em>all</em> inner clauses,
+	 * similarly to an {@link #and() "and" predicate}.
 	 *
 	 * @param objectFieldPath The <a href="#field-paths">path</a> to the (nested) object field that must match.
 	 * @return The initial step of a DSL where the "nested" predicate can be defined.

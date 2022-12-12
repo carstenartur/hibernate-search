@@ -7,8 +7,7 @@
 package org.hibernate.search.mapper.orm.common.spi;
 
 import java.lang.invoke.MethodHandles;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.NotSupportedException;
@@ -37,21 +36,22 @@ public final class TransactionHelper {
 
 	private final TransactionManager transactionManager;
 	private final boolean useJta;
+	private final Integer transactionTimeout;
 
-	public TransactionHelper(SessionFactoryImplementor sessionFactory) {
+	public TransactionHelper(SessionFactoryImplementor sessionFactory, Integer transactionTimeout) {
 		ServiceRegistryImplementor serviceRegistry = sessionFactory.getServiceRegistry();
 		transactionManager = HibernateOrmUtils.getServiceOrFail( serviceRegistry, JtaPlatform.class )
 				.retrieveTransactionManager();
 		TransactionCoordinatorBuilder transactionCoordinatorBuilder =
 				HibernateOrmUtils.getServiceOrFail( serviceRegistry, TransactionCoordinatorBuilder.class );
 		this.useJta = shouldUseJta( transactionManager, transactionCoordinatorBuilder );
+		this.transactionTimeout = transactionTimeout;
 	}
 
-	public void inTransaction(SharedSessionContractImplementor session, Integer transactionTimeout,
-			Consumer<SharedSessionContractImplementor> procedure) {
-		begin( session, transactionTimeout );
+	public void inTransaction(SharedSessionContractImplementor session, Runnable action) {
+		begin( session );
 		try {
-			procedure.accept( session );
+			action.run();
 		}
 		catch (Exception e) {
 			rollbackSafely( session, e );
@@ -60,13 +60,12 @@ public final class TransactionHelper {
 		commit( session );
 	}
 
-	public <T> T inTransaction(SharedSessionContractImplementor session, Integer transactionTimeout,
-			Function<SharedSessionContractImplementor, T> function) {
-		begin( session, transactionTimeout );
+	public <T> T inTransaction(SharedSessionContractImplementor session, Supplier<T> action) {
+		begin( session );
 
 		T result;
 		try {
-			result = function.apply( session );
+			result = action.get();
 		}
 		catch (Exception e) {
 			rollbackSafely( session, e );
@@ -76,7 +75,7 @@ public final class TransactionHelper {
 		return result;
 	}
 
-	public void begin(SharedSessionContractImplementor session, Integer transactionTimeout) {
+	public void begin(SharedSessionContractImplementor session) {
 		try {
 			if ( useJta ) {
 				if ( transactionTimeout != null ) {

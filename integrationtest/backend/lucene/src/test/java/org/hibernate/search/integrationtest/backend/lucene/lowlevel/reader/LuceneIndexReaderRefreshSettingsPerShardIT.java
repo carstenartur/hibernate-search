@@ -15,6 +15,7 @@ import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.search.query.SearchQuery;
 import org.hibernate.search.integrationtest.backend.lucene.sharding.AbstractSettingsPerShardIT;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
@@ -58,7 +59,7 @@ public class LuceneIndexReaderRefreshSettingsPerShardIT extends AbstractSettings
 		for ( int i = 0; i < 400; i++ ) {
 			plan.add( referenceProvider( String.valueOf( i ), routingKey( i ) ), document -> { } );
 		}
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 
 		// Readers should be up-to-date immediately after indexing finishes for shard 2
 		// but not (yet) for shards 0, 1 and 3,

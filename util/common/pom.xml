@@ -5,7 +5,7 @@
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-parent-public</artifactId>
         <version>6.2.0-SNAPSHOT</version>
-        <relativePath>../../parents/public</relativePath>
+        <relativePath>../../build/parents/public</relativePath>
     </parent>
     <artifactId>hibernate-search-util-common</artifactId>
 
@@ -28,7 +28,7 @@
         <dependency>
             <groupId>org.jboss</groupId>
             <artifactId>jandex</artifactId>
-            <!-- DO NOT REMOVE and DO NOT MANAGE this dependency. See the version property declaration. -->
+            <!-- DO NOT REMOVE and DO NOT MANAGE the version of this dependency. See the version property declaration. -->
             <version>${version.org.jboss.jandex}</version>
         </dependency>
 
@@ -38,8 +38,19 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-math3</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-loader</artifactId>
+            <version>${version.org.springframework.boot}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -56,7 +67,7 @@
                             <module>
                                 <moduleInfo>
                                     <exports combine.self="override">
-                                        org.hibernate.search.*.impl to org.hibernate.search.util.common, org.hibernate.search.engine, org.hibernate.search.backend.elasticsearch, org.hibernate.search.backend.elasticsearch.aws, org.hibernate.search.mapper.pojo, org.hibernate.search.mapper.pojo.standalone, org.hibernate.search.mapper.orm, org.hibernate.search.mapper.orm.coordination.outboxpolling, org.hibernate.search.batch.jsr352.core, org.jboss.logging;
+                                        org.hibernate.search.*.impl to org.hibernate.search.util.common, org.hibernate.search.engine, org.hibernate.search.backend.lucene, org.hibernate.search.backend.elasticsearch, org.hibernate.search.backend.elasticsearch.aws, org.hibernate.search.mapper.pojo, org.hibernate.search.mapper.pojo.standalone, org.hibernate.search.mapper.orm, org.hibernate.search.mapper.orm.coordination.outboxpolling, org.hibernate.search.batch.jsr352.core, org.jboss.logging;
                                         *;
                                     </exports>
                                 </moduleInfo>

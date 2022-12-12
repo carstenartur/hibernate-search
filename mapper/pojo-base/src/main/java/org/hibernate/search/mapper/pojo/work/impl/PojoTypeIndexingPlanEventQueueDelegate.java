@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.pojo.route.DocumentRouteDescriptor;
 import org.hibernate.search.mapper.pojo.route.DocumentRoutesDescriptor;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingQueueEventPayload;
@@ -48,7 +49,7 @@ final class PojoTypeIndexingPlanEventQueueDelegate<I, E> implements PojoTypeInde
 		// if the dirty paths require the entity itself OR a containing entity to be reindexed.
 		// In both cases, we will send an event so that the reindexing is done in a background process.
 		return forceSelfDirty || forceContainingDirty
-				|| dirtyPathsOrNull != null && typeContext.dirtySelfOrContainingFilter().test( dirtyPathsOrNull );
+				|| dirtyPathsOrNull != null && typeContext.reindexingResolver().dirtySelfOrContainingFilter().test( dirtyPathsOrNull );
 	}
 
 	@Override
@@ -101,7 +102,7 @@ final class PojoTypeIndexingPlanEventQueueDelegate<I, E> implements PojoTypeInde
 
 	@Override
 	public <R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory) {
+			EntityReferenceFactory<R> entityReferenceFactory, OperationSubmitter operationSubmitter) {
 		throw new AssertionFailure( "executeAndReport() should be handled at the strategy level" );
 	}
 

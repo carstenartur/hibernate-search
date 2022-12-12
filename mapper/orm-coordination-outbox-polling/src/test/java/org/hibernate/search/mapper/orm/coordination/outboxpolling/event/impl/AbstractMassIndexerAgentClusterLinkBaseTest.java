@@ -9,6 +9,8 @@ package org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentRepository;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentState;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentType;
@@ -61,8 +63,8 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		return expect( link );
 	}
 
-	protected final MassIndexerAgentClusterLinkPulseExpectations expectInitialStateAndPulseASAP() {
-		return expect().pulseAgain( NOW.plus( POLLING_INTERVAL ) )
+	protected final MassIndexerAgentClusterLinkPulseExpectations expectInitialStateAndPulseAfterDelay(Duration delay) {
+		return expect().pulseAgain( NOW.plus( delay ) )
 				.agent( SELF_ID, repositoryMockHelper.selfInitialState() != null
 						// If self created before this pulse:
 						? repositoryMockHelper.selfInitialState()
@@ -125,7 +127,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 	public void noOtherAgent() {
 		repositoryMockHelper.defineOtherAgents();
 
-		onNoOtherAgents().verify( link.pulse( repositoryMock ) );
+		onNoOtherAgents().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -141,7 +143,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Do not update the agent, in order to avoid locks on Oracle in particular (maybe others);
 		// see the comment in AbstractAgentClusterLink#pulse.
 		// We will assess the situation in the next pulse.
-		expectInitialStateAndPulseASAP().verify( link.pulse( repositoryMock ) );
+		expectInitialStateAndPulseAfterDelay( POLLING_INTERVAL ).verify( link.pulse( contextMock ) );
 
 		verify( repositoryMock ).delete( repositoryMockHelper.agentsInIdOrder( other2Id(), other3Id() ) );
 	}
@@ -156,7 +158,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 				.other( other3Id(), otherType(), LATER, AgentState.WAITING,
 						otherShardAssignmentIn4NodeCluster( 3 ) );
 
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -169,7 +171,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 				.other( other3Id(), otherType(), LATER, AgentState.RUNNING,
 						otherShardAssignmentIn4NodeCluster( 3 ) );
 
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -182,7 +184,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 				.other( other3Id(), otherType(), LATER, AgentState.WAITING,
 						otherShardAssignmentIn4NodeCluster( 3 ) );
 
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -195,7 +197,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 				.other( other3Id(), otherType(), LATER, AgentState.WAITING,
 						otherShardAssignmentIn4NodeCluster( 3 ) );
 
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -208,7 +210,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 				.other( other3Id(), otherType(), LATER, AgentState.SUSPENDED,
 						isOtherStatic() ? otherShardAssignmentIn4NodeCluster( 3 ) : null );
 
-		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( repositoryMock ) );
+		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -221,7 +223,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 				.other( other3Id(), otherType(), LATER, AgentState.WAITING,
 						otherShardAssignmentIn4NodeCluster( 3 ) );
 
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -234,7 +236,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 				.other( other3Id(), otherType(), LATER, AgentState.RUNNING,
 						otherShardAssignmentIn4NodeCluster( 3 ) );
 
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -251,7 +253,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Do not update the agent, in order to avoid locks on Oracle in particular (maybe others);
 		// see the comment in AbstractAgentClusterLink#pulse.
 		// We will assess the situation in the next pulse.
-		expectInitialStateAndPulseASAP().verify( link.pulse( repositoryMock ) );
+		expectInitialStateAndPulseAfterDelay( POLLING_INTERVAL ).verify( link.pulse( contextMock ) );
 
 		// Cleaning up expired agents takes precedence over suspending because a mass indexing agent exists.
 		verify( repositoryMock ).delete( repositoryMockHelper.agentsInIdOrder( other2Id(), other3Id() ) );
@@ -270,7 +272,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 
 		// The presence of a mass indexing agent is more important than rebalancing:
 		// we expect the agent to suspend itself.
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -286,7 +288,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 
 		// We should ignore concurrent mass indexer agents:
 		// the user is responsible for checking they don't reindex the same entity concurrently.
-		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( repositoryMock ) );
+		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -303,7 +305,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Suspended mass indexing agents should not exist,
 		// but just for the sake of fully defining the behavior,
 		// we'll say we ignore them.
-		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( repositoryMock ) );
+		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -320,7 +322,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Rebalancing mass indexing agents should not exist,
 		// but just for the sake of fully defining the behavior,
 		// we'll say we ignore them.
-		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( repositoryMock ) );
+		onClusterWith3NodesAll3NodesSuspended().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -337,7 +339,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Do not update the agent, in order to avoid locks on Oracle in particular (maybe others);
 		// see the comment in AbstractAgentClusterLink#pulse.
 		// We will assess the situation in the next pulse.
-		expectInitialStateAndPulseASAP().verify( link.pulse( repositoryMock ) );
+		expectInitialStateAndPulseAfterDelay( POLLING_INTERVAL ).verify( link.pulse( contextMock ) );
 
 		verify( repositoryMock ).delete( repositoryMockHelper.agentsInIdOrder( MASS_INDEXING_ID ) );
 	}
@@ -353,7 +355,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 						otherShardAssignmentIn4NodeCluster( 3 ) )
 				.other( MASS_INDEXING_ID, AgentType.MASS_INDEXING, LATER, AgentState.RUNNING );
 
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -370,7 +372,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Suspended mass indexing agents should not exist,
 		// but just for the sake of fully defining the behavior,
 		// we'll say we ignore them.
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -387,7 +389,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Rebalancing mass indexing agents should not exist,
 		// but just for the sake of fully defining the behavior,
 		// we'll say we ignore them.
-		expectWaiting().verify( link.pulse( repositoryMock ) );
+		expectWaiting().verify( link.pulse( contextMock ) );
 	}
 
 	@Test
@@ -404,7 +406,7 @@ abstract class AbstractMassIndexerAgentClusterLinkBaseTest extends AbstractMassI
 		// Do not update the agent, in order to avoid locks on Oracle in particular (maybe others);
 		// see the comment in AbstractAgentClusterLink#pulse.
 		// We will assess the situation in the next pulse.
-		expectInitialStateAndPulseASAP().verify( link.pulse( repositoryMock ) );
+		expectInitialStateAndPulseAfterDelay( POLLING_INTERVAL ).verify( link.pulse( contextMock ) );
 
 		verify( repositoryMock ).delete( repositoryMockHelper.agentsInIdOrder( MASS_INDEXING_ID ) );
 	}

@@ -88,8 +88,8 @@ public class SearchQueryBaseIT {
 		backendMock.expectAnySchema( Book.NAME );
 		backendMock.expectAnySchema( Author.NAME );
 
-		setupContext.withAnnotatedTypes( Book.class, Author.class );
-		dataClearConfig.clearOrder( Book.class, Author.class );
+		setupContext.withAnnotatedTypes( Book.class, Author.class, NotIndexed.class );
+		dataClearConfig.clearOrder( Book.class, Author.class, NotIndexed.class );
 	}
 
 	@Before
@@ -302,8 +302,13 @@ public class SearchQueryBaseIT {
 			Class<?> invalidClass = String.class;
 
 			assertThatThrownBy( () -> searchSession.scope( invalidClass ) )
-					.hasMessageContainingAll( "Invalid target types: [" + invalidClass.getName() + "]",
-							"These types are not indexed, nor is any of their subtypes" );
+					.hasMessageContainingAll( "No matching indexed entity types for types: [" + invalidClass.getName() + "]",
+							"These types are not indexed entity types, nor is any of their subtypes",
+							"Valid indexed entity classes, superclasses and superinterfaces are: ["
+									+ Object.class.getName() + ", "
+									+ Author.class.getName() + ", "
+									+ Book.class.getName()
+									+ "]" );
 		} );
 	}
 
@@ -392,14 +397,16 @@ public class SearchQueryBaseIT {
 					Book.class, invalidName
 			) )
 					.hasMessageContainingAll(
-							"Unknown entity name: '" + invalidName + "'",
-							"Available entity names: ["
-									// Hibernate ORM entity names
-									+ Author.class.getName() + ", "
-									+ Book.class.getName() + ", "
-									// JPA entity names
+							"No matching entity type for name '" + invalidName + "'",
+							"This is not the name of a Hibernate ORM entity type",
+							"Valid names for Hibernate ORM entity types are: ["
+									// JPA entity names + Hibernate ORM entity names
 									+ Author.NAME + ", "
-									+ Book.NAME
+									+ Author.class.getName() + ", "
+									+ Book.NAME + ", "
+									+ Book.class.getName() + ", "
+									+ NotIndexed.NAME + ", "
+									+ NotIndexed.class.getName()
 									+ "]"
 					);
 		} );
@@ -756,6 +763,28 @@ public class SearchQueryBaseIT {
 
 		public List<Book> getBooks() {
 			return books;
+		}
+	}
+
+	@Entity(name = NotIndexed.NAME)
+	public static class NotIndexed {
+
+		public static final String NAME = "NotInd";
+
+		@Id
+		private Integer id;
+
+		private String name;
+
+		public NotIndexed() {
+		}
+
+		public Integer getId() {
+			return id;
+		}
+
+		public String getName() {
+			return name;
 		}
 	}
 

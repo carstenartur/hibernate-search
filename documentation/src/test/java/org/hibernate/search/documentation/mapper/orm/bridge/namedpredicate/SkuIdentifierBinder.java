@@ -13,8 +13,8 @@ import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaObjectF
 import org.hibernate.search.engine.backend.types.IndexFieldType;
 import org.hibernate.search.engine.search.predicate.SearchPredicate;
 import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
-import org.hibernate.search.engine.search.predicate.factories.NamedPredicateProvider;
-import org.hibernate.search.engine.search.predicate.factories.NamedPredicateProviderContext;
+import org.hibernate.search.engine.search.predicate.definition.PredicateDefinition;
+import org.hibernate.search.engine.search.predicate.definition.PredicateDefinitionContext;
 import org.hibernate.search.mapper.pojo.bridge.PropertyBridge;
 import org.hibernate.search.mapper.pojo.bridge.binding.PropertyBindingContext;
 import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.PropertyBinder;
@@ -45,7 +45,7 @@ public class SkuIdentifierBinder implements PropertyBinder {
 
 		skuIdObjectField.namedPredicate( // <1>
 				"skuIdMatch", // <2>
-				new SkuIdentifierMatchPredicateProvider() // <3>
+				new SkuIdentifierMatchPredicateDefinition() // <3>
 		);
 	}
 
@@ -85,32 +85,32 @@ public class SkuIdentifierBinder implements PropertyBinder {
 
 	// ... class continues below
 	//end::bridge[]
-	//tag::named-predicate-provider[]
+	//tag::predicate-definition[]
 	// ... class SkuIdentifierBinder (continued)
 
-	private static class SkuIdentifierMatchPredicateProvider implements NamedPredicateProvider { // <1>
+	private static class SkuIdentifierMatchPredicateDefinition implements PredicateDefinition { // <1>
 		@Override
-		public SearchPredicate create(NamedPredicateProviderContext context) {
+		public SearchPredicate create(PredicateDefinitionContext context) {
 			SearchPredicateFactory f = context.predicate(); // <2>
 
 			String pattern = (String) context.param( "pattern" ); // <3>
 
-			return f.bool().with( b -> { // <4>
+			return f.and().with( and -> { // <4>
 				// An SKU identifier pattern is formatted this way: "<department code>.<collection code>.<item code>".
 				// Each part supports * and ? wildcards.
 				String[] patternParts = pattern.split( "\\." );
 				if ( patternParts.length > 0 ) {
-					b.must( f.wildcard()
+					and.add( f.wildcard()
 							.field( "departmentCode" ) // <5>
 							.matching( patternParts[0] ) );
 				}
 				if ( patternParts.length > 1 ) {
-					b.must( f.wildcard()
+					and.add( f.wildcard()
 							.field( "collectionCode" )
 							.matching( patternParts[1] ) );
 				}
 				if ( patternParts.length > 2 ) {
-					b.must( f.wildcard()
+					and.add( f.wildcard()
 							.field( "itemCode" )
 							.matching( patternParts[2] ) );
 				}
@@ -118,4 +118,4 @@ public class SkuIdentifierBinder implements PropertyBinder {
 		}
 	}
 }
-//end::named-predicate-provider[]
+//end::predicate-definition[]

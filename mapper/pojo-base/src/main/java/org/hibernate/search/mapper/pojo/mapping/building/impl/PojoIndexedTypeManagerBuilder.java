@@ -30,11 +30,8 @@ import org.hibernate.search.mapper.pojo.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoIndexedTypeExtendedMappingCollector;
 import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoIndexMappingCollectorTypeNode;
 import org.hibernate.search.mapper.pojo.mapping.impl.PojoIndexedTypeManager;
-import org.hibernate.search.mapper.pojo.mapping.impl.PojoIndexedTypeManagerContainer;
-import org.hibernate.search.mapper.pojo.model.additionalmetadata.impl.PojoTypeAdditionalMetadata;
+import org.hibernate.search.mapper.pojo.mapping.impl.PojoTypeManagerContainer;
 import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPath;
-import org.hibernate.search.mapper.pojo.model.path.impl.PojoPathFilterProvider;
-import org.hibernate.search.mapper.pojo.model.path.impl.PojoPathOrdinals;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
 import org.hibernate.search.mapper.pojo.processing.building.impl.PojoIndexingProcessorOriginalTypeNodeBuilder;
 import org.hibernate.search.mapper.pojo.processing.impl.PojoIndexingProcessor;
@@ -121,9 +118,8 @@ class PojoIndexedTypeManagerBuilder<E> {
 				.orElseGet( PojoIndexingProcessor::noOp );
 	}
 
-	void buildAndAddTo(PojoIndexedTypeManagerContainer.Builder typeManagersBuilder,
-			PojoImplicitReindexingResolverBuildingHelper reindexingResolverBuildingHelper,
-			PojoTypeAdditionalMetadata typeAdditionalMetadata) {
+	void buildAndAddTo(PojoTypeManagerContainer.Builder typeManagerContainerBuilder,
+			PojoImplicitReindexingResolverBuildingHelper reindexingResolverBuildingHelper) {
 		if ( preBuiltIndexingProcessor == null ) {
 			throw new AssertionFailure( "Internal error - preBuild should be called before buildAndAddTo" );
 		}
@@ -131,15 +127,12 @@ class PojoIndexedTypeManagerBuilder<E> {
 		IdentifierMappingImplementor<?, E> identifierMapping = identityMappingCollector
 				.buildAndContributeTo( extendedMappingCollector, IdentityMappingMode.REQUIRED );
 
-		PojoPathOrdinals pathOrdinals = new PojoPathOrdinals();
-		PojoPathFilterProvider pathFilterProvider = new PojoPathFilterProvider( pathOrdinals,
-				typeAdditionalMetadata.getEntityTypeMetadata()
-						.orElseThrow( () -> log.missingEntityTypeMetadata( typeModel ) )
-						.getPathsDefinition() );
 		PojoImplicitReindexingResolver<E> reindexingResolver =
-				reindexingResolverBuildingHelper.build( typeModel, pathFilterProvider );
+				reindexingResolverBuildingHelper.build( typeModel );
 
 		extendedMappingCollector.dirtyFilter( reindexingResolver.dirtySelfOrContainingFilter() );
+		extendedMappingCollector.dirtyContainingAssociationFilter(
+				reindexingResolver.associationInverseSideResolver().dirtyContainingAssociationFilter() );
 
 		MappedIndexManager indexManager = indexManagerBuilder.build();
 		extendedMappingCollector.indexManager( indexManager );
@@ -151,14 +144,14 @@ class PojoIndexedTypeManagerBuilder<E> {
 				identifierMapping,
 				routingBridge == null ? NoOpDocumentRouter.INSTANCE
 						: new RoutingBridgeDocumentRouter<>( routingBridge.getBridgeHolder() ),
-				pathOrdinals,
+				reindexingResolverBuildingHelper.runtimePathsBuildingHelper( typeModel ).pathOrdinals(),
 				preBuiltIndexingProcessor,
 				indexManager,
 				reindexingResolver
 		);
 		log.indexedTypeManager( typeModel, typeManager );
 
-		typeManagersBuilder.add( typeModel, typeManager );
+		typeManagerContainerBuilder.addIndexed( typeModel, typeManager );
 
 		closed = true;
 	}

@@ -18,6 +18,7 @@ import org.hibernate.search.engine.backend.types.Sortable;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
 import org.hibernate.search.engine.environment.bean.BeanReference;
 import org.hibernate.search.engine.environment.bean.BeanRetrieval;
@@ -120,7 +121,7 @@ public class LuceneCleanupIT {
 				document.addValue( binding.integer.reference, id );
 			} );
 		}
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 	}
 
 	private StubMapping setup(OpenResourceTracker tracker) {

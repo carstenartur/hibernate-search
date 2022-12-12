@@ -26,9 +26,11 @@ import org.hibernate.search.engine.backend.types.TermVector;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.common.impl.Futures;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingSchemaManagementStrategy;
+import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -351,7 +353,7 @@ public class ElasticsearchIndexSchemaManagerValidationMappingAttributeIT {
 		List<String> nextFormats = elasticSearchClient.getDialect().getAllLocalDateDefaultMappingFormats()
 				.stream().skip( 1 ).collect( Collectors.toList() );
 		assumeFalse(
-				"Skipping this test as we don't have a type with multiple default formats in " + elasticSearchClient.getDialect(),
+				"Skipping this test as we don't have a type with multiple default formats in " + ElasticsearchTestDialect.getActualVersion(),
 				nextFormats.isEmpty()
 		);
 
@@ -574,6 +576,57 @@ public class ElasticsearchIndexSchemaManagerValidationMappingAttributeIT {
 						.indexFieldContext( "myField" )
 						.mappingAttributeContext( "search_analyzer" )
 						.failure( "Invalid value. Expected 'italian', actual is 'english'" ) );
+	}
+
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4652")
+	public void attribute_searchAnalyzer_sameAsAnalyzer_valid() {
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable(
+				root -> root.field( "myField", f -> f.asString()
+						.analyzer( "keyword" ).searchAnalyzer( "keyword" ) ).toReference()
+		);
+
+		elasticSearchClient.index( index.name() ).deleteAndCreate();
+		elasticSearchClient.index( index.name() ).type().putMapping(
+				simpleMappingForInitialization(
+						"'myField': {"
+								+ "'type': 'text',"
+								+ "'index': true,"
+								+ "'analyzer': 'keyword',"
+								+ "'search_analyzer': 'keyword'"
+								+ "}"
+				)
+		);
+
+		setupAndValidate( index );
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4652")
+	public void attribute_searchAnalyzer_sameAsAnalyzer_invalid() {
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable(
+				root -> root.field( "myField", f -> f.asString().analyzer( "keyword" ).searchAnalyzer( "keyword" ) ).toReference()
+		);
+
+		elasticSearchClient.index( index.name() ).deleteAndCreate();
+		elasticSearchClient.index( index.name() ).type().putMapping(
+				simpleMappingForInitialization(
+						"'myField': {"
+								+ "'type': 'text',"
+								+ "'index': true,"
+								+ "'analyzer': 'keyword',"
+								+ "'search_analyzer': 'english'"
+								+ "}"
+				)
+		);
+
+		assertThatThrownBy( () -> setupAndValidate( index ) )
+				.isInstanceOf( Exception.class )
+				.satisfies( hasValidationFailureReport()
+						.indexFieldContext( "myField" )
+						.mappingAttributeContext( "search_analyzer" )
+						.failure( "Invalid value. Expected 'keyword', actual is 'english'" ) );
 	}
 
 	@Test

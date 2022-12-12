@@ -15,14 +15,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.search.engine.backend.orchestration.spi.SingletonTask;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingMappingContext;
+import org.hibernate.search.mapper.orm.common.spi.SessionHelper;
 import org.hibernate.search.mapper.orm.common.spi.TransactionHelper;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.HibernateOrmMapperOutboxPollingSettings;
-import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentRepository;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentRepositoryProvider;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.massindexing.spi.PojoMassIndexerAgent;
@@ -111,14 +110,11 @@ public final class OutboxPollingMassIndexerAgent implements PojoMassIndexerAgent
 
 	private final String name;
 	private final ScheduledExecutorService executor;
-	private final AutomaticIndexingMappingContext mapping;
-	private final String tenantId;
 	private final long pollingInterval;
 
 	private final AtomicReference<Status> status = new AtomicReference<>( Status.STOPPED );
-	private final AgentRepositoryProvider agentRepositoryProvider;
 	private final OutboxPollingMassIndexerAgentClusterLink clusterLink;
-	private final TransactionHelper transactionHelper;
+	private final AgentClusterLinkContextProvider clusterLinkContextProvider;
 	private final Worker worker;
 	private final SingletonTask processingTask;
 
@@ -128,13 +124,16 @@ public final class OutboxPollingMassIndexerAgent implements PojoMassIndexerAgent
 			OutboxPollingMassIndexerAgentClusterLink clusterLink) {
 		this.name = name;
 		this.executor = executor;
-		this.mapping = factory.mapping;
+		AutomaticIndexingMappingContext mapping = factory.mapping;
 		this.pollingInterval = factory.pollingInterval.toMillis();
-		this.tenantId = factory.tenantId;
-		this.agentRepositoryProvider = agentRepositoryProvider;
+		String tenantId = factory.tenantId;
 		this.clusterLink = clusterLink;
 
-		transactionHelper = new TransactionHelper( mapping.sessionFactory() );
+		TransactionHelper transactionHelper = new TransactionHelper( mapping.sessionFactory(), null );
+		SessionHelper sessionHelper = new SessionHelper( mapping.sessionFactory(), tenantId );
+		this.clusterLinkContextProvider = new AgentClusterLinkContextProvider( transactionHelper, sessionHelper,
+				agentRepositoryProvider );
+
 		worker = new Worker();
 		processingTask = new SingletonTask(
 				name,
@@ -169,21 +168,7 @@ public final class OutboxPollingMassIndexerAgent implements PojoMassIndexerAgent
 	}
 
 	private void leaveCluster() {
-		try ( SessionImplementor session = openSession() ) {
-			transactionHelper.begin( session, null );
-			try {
-				AgentRepository agentRepository = agentRepositoryProvider.create( session );
-				clusterLink.leaveCluster( agentRepository );
-				transactionHelper.commit( session );
-			}
-			catch (RuntimeException e) {
-				transactionHelper.rollbackSafely( session, e );
-			}
-		}
-	}
-
-	private SessionImplementor openSession() {
-		return (SessionImplementor) mapping.sessionFactory().withOptions().tenantIdentifier( tenantId ).openSession();
+		clusterLinkContextProvider.inTransaction( clusterLink::leaveCluster );
 	}
 
 	private class Worker implements SingletonTask.Worker {
@@ -199,18 +184,12 @@ public final class OutboxPollingMassIndexerAgent implements PojoMassIndexerAgent
 				return CompletableFuture.completedFuture( null );
 			}
 
-			try ( SessionImplementor session = openSession() ) {
-				transactionHelper.inTransaction( session, null, s -> {
-					if ( instructions == null || !instructions.isStillValid() ) {
-						AgentRepository agentRepository = agentRepositoryProvider.create( session );
-						instructions = clusterLink.pulse( agentRepository );
-						if ( instructions.considerEventProcessingSuspended ) {
-							agentFullyStartedFuture.complete( null );
-						}
-					}
-				} );
-				return CompletableFuture.completedFuture( null );
+			instructions = clusterLinkContextProvider.inTransaction( clusterLink::pulse );
+			if ( instructions.considerEventProcessingSuspended ) {
+				agentFullyStartedFuture.complete( null );
 			}
+
+			return CompletableFuture.completedFuture( null );
 		}
 
 		@Override

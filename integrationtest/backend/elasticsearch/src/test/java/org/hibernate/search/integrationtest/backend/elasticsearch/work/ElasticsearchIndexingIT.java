@@ -11,13 +11,14 @@ import static org.hibernate.search.util.impl.integrationtest.backend.elasticsear
 import static org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMapperUtils.referenceProvider;
 
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchBackendSettings;
-import org.hibernate.search.backend.elasticsearch.cfg.spi.ElasticsearchBackendSpiSettings;
+import org.hibernate.search.backend.elasticsearch.cfg.spi.ElasticsearchBackendImplSettings;
 import org.hibernate.search.backend.elasticsearch.client.impl.Paths;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
 import org.hibernate.search.backend.elasticsearch.util.spi.URLEncodedString;
 import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.configuration.StubSingleIndexLayoutStrategy;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchClientSpy;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchRequestAssertionMode;
@@ -71,7 +72,7 @@ public class ElasticsearchIndexingIT {
 	public void setup() {
 		setupHelper.start()
 				.withBackendProperty(
-						ElasticsearchBackendSpiSettings.CLIENT_FACTORY, clientSpy.factoryReference()
+						ElasticsearchBackendImplSettings.CLIENT_FACTORY, clientSpy.factoryReference()
 				)
 				.withBackendProperty(
 						ElasticsearchBackendSettings.LAYOUT_STRATEGY, layoutStrategy
@@ -99,7 +100,7 @@ public class ElasticsearchIndexingIT {
 						.build(),
 				ElasticsearchRequestAssertionMode.EXTENSIBLE
 		);
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 		clientSpy.verifyExpectationsMet();
 
 		plan.addOrUpdate( referenceProvider( "1" ), document -> {
@@ -115,7 +116,7 @@ public class ElasticsearchIndexingIT {
 						.build(),
 				ElasticsearchRequestAssertionMode.EXTENSIBLE
 		);
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 		clientSpy.verifyExpectationsMet();
 
 		plan.delete( referenceProvider( "1" ) );
@@ -128,7 +129,7 @@ public class ElasticsearchIndexingIT {
 						.build(),
 				ElasticsearchRequestAssertionMode.EXTENSIBLE
 		);
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 		clientSpy.verifyExpectationsMet();
 	}
 
@@ -153,7 +154,7 @@ public class ElasticsearchIndexingIT {
 						.build(),
 				ElasticsearchRequestAssertionMode.EXTENSIBLE
 		);
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 		clientSpy.verifyExpectationsMet();
 
 		plan.addOrUpdate( referenceProvider( "1", routingKey ), document -> {
@@ -170,7 +171,7 @@ public class ElasticsearchIndexingIT {
 						.build(),
 				ElasticsearchRequestAssertionMode.EXTENSIBLE
 		);
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 		clientSpy.verifyExpectationsMet();
 
 		plan.delete( referenceProvider( "1", routingKey ) );
@@ -184,7 +185,7 @@ public class ElasticsearchIndexingIT {
 						.build(),
 				ElasticsearchRequestAssertionMode.EXTENSIBLE
 		);
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 		clientSpy.verifyExpectationsMet();
 	}
 

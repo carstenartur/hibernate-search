@@ -14,7 +14,10 @@ import org.hibernate.search.mapper.pojo.model.path.PojoModelPathValueNode;
 
 /**
  * A static definition of POJO paths for a given entity type, allowing the creation of path filters.
+ *
+ * @deprecated Implement {@link PojoPathDefinitionProvider} instead.
  */
+@Deprecated
 public interface PojoPathsDefinition {
 
 	/**

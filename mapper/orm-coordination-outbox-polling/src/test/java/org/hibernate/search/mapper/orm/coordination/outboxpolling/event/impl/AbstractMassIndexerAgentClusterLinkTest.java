@@ -6,7 +6,9 @@
  */
 package org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl;
 
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -61,6 +63,9 @@ abstract class AbstractMassIndexerAgentClusterLinkTest {
 	@Mock
 	public AgentRepository repositoryMock;
 
+	@Mock(stubOnly = true, strictness = Mock.Strictness.LENIENT)
+	public AgentClusterLinkContext contextMock;
+
 	private final List<Object> allMocks = new ArrayList<>();
 
 	protected AgentRepositoryMockingHelper repositoryMockHelper;
@@ -69,6 +74,10 @@ abstract class AbstractMassIndexerAgentClusterLinkTest {
 	public final void initMocks() {
 		repositoryMockHelper = new AgentRepositoryMockingHelper( repositoryMock );
 		Collections.addAll( allMocks, failureHandlerMock, clockMock, repositoryMock );
+
+		when( contextMock.agentRepository() ).thenReturn( repositoryMock );
+		// We're not interested in transaction control here
+		doNothing().when( contextMock ).commitAndBeginNewTransaction();
 	}
 
 	@After
@@ -77,13 +86,13 @@ abstract class AbstractMassIndexerAgentClusterLinkTest {
 	}
 
 	protected void defineSelfNotCreatedYet(OutboxPollingMassIndexerAgentClusterLink link) {
-		link.agentPersister.setSelfReferenceForTests( null );
+		link.getAgentPersisterForTests().setSelfReferenceForTests( null );
 		repositoryMockHelper.defineSelfCreatedByPulse( SELF_ID );
 	}
 
 	protected void defineSelfCreatedAndStillPresent(OutboxPollingMassIndexerAgentClusterLink link,
 			AgentState state) {
-		link.agentPersister.setSelfReferenceForTests( SELF_REF );
+		link.getAgentPersisterForTests().setSelfReferenceForTests( SELF_REF );
 		Agent self = new Agent( AgentType.MASS_INDEXING, SELF_REF.name, NOW, state, null );
 		self.setId( SELF_ID );
 		repositoryMockHelper.defineSelfPreExisting( self );

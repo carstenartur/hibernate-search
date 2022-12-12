@@ -16,6 +16,7 @@ import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
 import org.hibernate.search.engine.backend.common.DocumentReference;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.search.query.SearchQuery;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.SimpleMappedIndex;
@@ -52,7 +53,7 @@ public abstract class AbstractDirectoryIT {
 		plan.add( referenceProvider( DOCUMENT_3 ), document -> {
 			document.addValue( index.binding().string, "text 3" );
 		} );
-		plan.execute().join();
+		plan.execute( OperationSubmitter.BLOCKING ).join();
 
 		// Check that all documents are searchable
 		StubMappingScope scope = index.createScope();

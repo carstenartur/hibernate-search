@@ -10,6 +10,7 @@ import java.util.BitSet;
 import java.util.concurrent.CompletableFuture;
 
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.pojo.standalone.common.EntityReference;
 import org.hibernate.search.mapper.pojo.standalone.work.SearchIndexingPlan;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
@@ -77,7 +78,7 @@ public class SearchIndexingPlanImpl implements SearchIndexingPlan {
 			boolean forceSelfDirty, boolean forceContainingDirty, String... dirtyPathsAsStrings) {
 		PojoRawTypeIdentifier<?> typeIdentifier = getTypeIdentifier( entity );
 		SearchIndexingPlanTypeContext<?> typeContext = typeContextProvider.forExactType( typeIdentifier );
-		BitSet dirtyPaths = typeContext == null ? null : typeContext.dirtyFilter().filter( dirtyPathsAsStrings );
+		BitSet dirtyPaths = typeContext.dirtyFilter().filter( dirtyPathsAsStrings );
 		delegate.addOrUpdate( typeIdentifier, providedId, providedRoutes, entity,
 				forceSelfDirty, forceContainingDirty, dirtyPaths );
 	}
@@ -107,15 +108,14 @@ public class SearchIndexingPlanImpl implements SearchIndexingPlan {
 	@Override
 	public void addOrUpdateOrDelete(Class<?> entityClass, Object providedId, DocumentRoutesDescriptor providedRoutes,
 			boolean forceSelfDirty, boolean forceContainingDirty, String... dirtyPathsAsStrings) {
-		PojoRawTypeIdentifier<?> typeIdentifier = getTypeIdentifier( entityClass );
-		SearchIndexingPlanTypeContext<?> typeContext = typeContextProvider.forExactType( typeIdentifier );
-		BitSet dirtyPaths = typeContext == null ? null : typeContext.dirtyFilter().filter( dirtyPathsAsStrings );
-		delegate.addOrUpdateOrDelete( typeIdentifier, providedId, providedRoutes,
+		SearchIndexingPlanTypeContext<?> typeContext = typeContextProvider.forExactClass( entityClass );
+		BitSet dirtyPaths = typeContext.dirtyFilter().filter( dirtyPathsAsStrings );
+		delegate.addOrUpdateOrDelete( typeContext.typeIdentifier(), providedId, providedRoutes,
 				forceSelfDirty, forceContainingDirty, dirtyPaths );
 	}
 
 	public CompletableFuture<?> execute() {
-		return delegate.executeAndReport( entityReferenceFactory ).thenApply( report -> {
+		return delegate.executeAndReport( entityReferenceFactory, OperationSubmitter.BLOCKING ).thenApply( report -> {
 			report.throwable().ifPresent( t -> {
 				throw Throwables.toRuntimeException( t );
 			} );
@@ -128,6 +128,6 @@ public class SearchIndexingPlanImpl implements SearchIndexingPlan {
 	}
 
 	private <T> PojoRawTypeIdentifier<T> getTypeIdentifier(Class<T> entityType) {
-		return PojoRawTypeIdentifier.of( entityType );
+		return typeContextProvider.forExactClass( entityType ).typeIdentifier();
 	}
 }

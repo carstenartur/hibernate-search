@@ -16,6 +16,7 @@ import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecut
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.pojo.processing.spi.PojoIndexingProcessorRootContext;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingQueueEventSendingPlan;
 import org.hibernate.search.mapper.pojo.work.spi.PojoWorkSessionContext;
@@ -44,14 +45,15 @@ public class PojoIndexingPlanEventProcessingStrategy implements PojoIndexingPlan
 	@Override
 	public <R> CompletableFuture<MultiEntityOperationExecutionReport<R>> doExecuteAndReport(
 			Collection<PojoIndexedTypeIndexingPlan<?, ?>> indexedTypeDelegates,
-			PojoLoadingPlanProvider loadingPlanProvider, EntityReferenceFactory<R> entityReferenceFactory) {
+			PojoLoadingPlanProvider loadingPlanProvider, EntityReferenceFactory<R> entityReferenceFactory,
+			OperationSubmitter operationSubmitter) {
 		List<CompletableFuture<MultiEntityOperationExecutionReport<R>>> futures = new ArrayList<>();
 		// Each type has its own index indexing plan to execute.
 		for ( PojoIndexedTypeIndexingPlan<?, ?> delegate : indexedTypeDelegates ) {
-			futures.add( delegate.executeAndReport( entityReferenceFactory ) );
+			futures.add( delegate.executeAndReport( entityReferenceFactory, operationSubmitter ) );
 		}
 		// Additionally, we have a global sending plan for reindexing resolution.
-		futures.add( sendingPlan.sendAndReport( entityReferenceFactory ) );
+		futures.add( sendingPlan.sendAndReport( entityReferenceFactory, operationSubmitter ) );
 		return MultiEntityOperationExecutionReport.allOf( futures );
 	}
 
@@ -66,7 +68,7 @@ public class PojoIndexingPlanEventProcessingStrategy implements PojoIndexingPlan
 	}
 
 	@Override
-	public <I, E> PojoIndexedTypeIndexingPlan<I, E> createDelegate(PojoWorkIndexedTypeContext<I, E> typeContext,
+	public <I, E> PojoIndexedTypeIndexingPlan<I, E> createIndexedDelegate(PojoWorkIndexedTypeContext<I, E> typeContext,
 			PojoWorkSessionContext sessionContext,
 			PojoIndexingProcessorRootContext processorContext) {
 		// Will process indexing events locally, and send additional events upon reindexing resolution.

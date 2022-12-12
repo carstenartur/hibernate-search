@@ -6,35 +6,27 @@
  */
 package org.hibernate.search.mapper.pojo.work.impl;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.pojo.identity.impl.IdentifierMappingImplementor;
-import org.hibernate.search.mapper.pojo.logging.impl.Log;
+import org.hibernate.search.mapper.pojo.work.spi.DirtinessDescriptor;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingPlan;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingQueueEventPayload;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingQueueEventProcessingPlan;
 import org.hibernate.search.mapper.pojo.work.spi.PojoWorkSessionContext;
-import org.hibernate.search.mapper.pojo.work.spi.DirtinessDescriptor;
-import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 public final class PojoIndexingQueueEventProcessingPlanImpl implements PojoIndexingQueueEventProcessingPlan {
 
-	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
-
-	private final PojoWorkIndexedTypeContextProvider indexedTypeContextProvider;
-	private final PojoWorkContainedTypeContextProvider containedTypeContextProvider;
+	private final PojoWorkTypeContextProvider typeContextProvider;
 	private final PojoWorkSessionContext sessionContext;
 	private final PojoIndexingPlan delegate;
 
-	public PojoIndexingQueueEventProcessingPlanImpl(PojoWorkIndexedTypeContextProvider indexedTypeContextProvider,
-			PojoWorkContainedTypeContextProvider containedTypeContextProvider,
+	public PojoIndexingQueueEventProcessingPlanImpl(PojoWorkTypeContextProvider typeContextProvider,
 			PojoWorkSessionContext sessionContext, PojoIndexingPlan delegate) {
-		this.indexedTypeContextProvider = indexedTypeContextProvider;
-		this.containedTypeContextProvider = containedTypeContextProvider;
+		this.typeContextProvider = typeContextProvider;
 		this.sessionContext = sessionContext;
 		this.delegate = delegate;
 	}
@@ -56,8 +48,8 @@ public final class PojoIndexingQueueEventProcessingPlanImpl implements PojoIndex
 
 	@Override
 	public <R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory) {
-		return delegate.executeAndReport( entityReferenceFactory );
+			EntityReferenceFactory<R> entityReferenceFactory, OperationSubmitter operationSubmitter) {
+		return delegate.executeAndReport( entityReferenceFactory, operationSubmitter );
 	}
 
 	@Override
@@ -75,13 +67,6 @@ public final class PojoIndexingQueueEventProcessingPlanImpl implements PojoIndex
 	}
 
 	private PojoWorkTypeContext<?, ?> typeContext(String entityName) {
-		Optional<? extends PojoWorkTypeContext<?, ?>> optional = indexedTypeContextProvider.forEntityName( entityName );
-		if ( !optional.isPresent() ) {
-			optional = containedTypeContextProvider.forEntityName( entityName );
-			if ( !optional.isPresent() ) {
-				throw log.nonIndexedTypeInIndexingEvent( entityName );
-			}
-		}
-		return optional.get();
+		return typeContextProvider.byEntityName().getOrFail( entityName );
 	}
 }

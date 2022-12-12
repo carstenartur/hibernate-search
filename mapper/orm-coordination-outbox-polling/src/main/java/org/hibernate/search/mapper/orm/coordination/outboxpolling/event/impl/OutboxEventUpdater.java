@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.hibernate.engine.spi.SessionImplementor;
@@ -26,16 +27,18 @@ public class OutboxEventUpdater {
 	private static final int MAX_RETRIES = 3;
 
 	private final FailureHandler failureHandler;
+	private final OutboxEventLoader loader;
 	private final OutboxEventProcessingPlan processingPlan;
 	private final SessionImplementor session;
 	private final String processorName;
 	private final int retryAfter;
-	private final Set<Long> eventsIds;
-	private final Set<Long> failedEventIds;
+	private final Set<UUID> eventsIds;
+	private final Set<UUID> failedEventIds;
 
-	public OutboxEventUpdater(FailureHandler failureHandler, OutboxEventProcessingPlan processingPlan,
-			SessionImplementor session, String processorName, int retryAfter) {
+	public OutboxEventUpdater(FailureHandler failureHandler, OutboxEventLoader loader,
+			OutboxEventProcessingPlan processingPlan, SessionImplementor session, String processorName, int retryAfter) {
 		this.failureHandler = failureHandler;
+		this.loader = loader;
 		this.processingPlan = processingPlan;
 		this.session = session;
 		this.processorName = processorName;
@@ -51,11 +54,11 @@ public class OutboxEventUpdater {
 	}
 
 	public void process() {
-		List<OutboxEvent> lockedEvents = OutboxEventLoader.loadLocking( session, eventsIds, processorName );
+		List<OutboxEvent> lockedEvents = loader.loadLocking( session, eventsIds, processorName );
 		List<OutboxEvent> eventToDelete = new ArrayList<>( lockedEvents );
 
 		for ( OutboxEvent event : lockedEvents ) {
-			Long id = event.getId();
+			UUID id = event.getId();
 			// Make sure we consider the event as processed in "thereAreStillEventsToProcess()"
 			eventsIds.remove( id );
 

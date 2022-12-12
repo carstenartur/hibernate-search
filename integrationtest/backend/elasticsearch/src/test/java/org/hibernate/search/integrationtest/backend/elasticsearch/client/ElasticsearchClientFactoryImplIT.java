@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.hibernate.search.util.impl.test.JsonHelper.assertJsonEquals;
+import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -34,12 +35,11 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchBackendSettings;
-import org.hibernate.search.backend.elasticsearch.client.impl.ElasticsearchClientFactoryImpl;
-import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClient;
-import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClientFactory;
-import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClientImplementor;
 import org.hibernate.search.backend.elasticsearch.client.ElasticsearchHttpClientConfigurationContext;
 import org.hibernate.search.backend.elasticsearch.client.ElasticsearchHttpClientConfigurer;
+import org.hibernate.search.backend.elasticsearch.client.impl.ElasticsearchClientFactoryImpl;
+import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClient;
+import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClientImplementor;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchResponse;
 import org.hibernate.search.backend.elasticsearch.gson.spi.GsonProvider;
@@ -53,10 +53,10 @@ import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.environment.bean.spi.BeanConfigurer;
 import org.hibernate.search.engine.environment.thread.impl.EmbeddedThreadProvider;
 import org.hibernate.search.engine.environment.thread.impl.ThreadPoolProviderImpl;
-import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.categories.RequiresNoAutomaticAuthenticationHeader;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendHelper;
 import org.hibernate.search.util.common.AssertionFailure;
 import org.hibernate.search.util.common.SearchException;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchTestHostConnectionConfiguration;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.util.impl.integrationtest.common.TestConfigurationProvider;
 import org.hibernate.search.util.impl.test.annotation.PortedFromSearch5;
@@ -67,7 +67,6 @@ import org.hibernate.search.util.impl.test.rule.Retry;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.extension.Parameters;
@@ -81,12 +80,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.Level;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.elasticsearch.client.RestClient;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
@@ -113,8 +114,7 @@ public class ElasticsearchClientFactoryImplIT {
 	private final TestConfigurationProvider testConfigurationProvider = new TestConfigurationProvider();
 
 	private final ThreadPoolProviderImpl threadPoolProvider = new ThreadPoolProviderImpl(
-			BeanHolder.of( new EmbeddedThreadProvider( ElasticsearchClientFactoryImplIT.class.getName() + ": " ) )
-	);
+			BeanHolder.of( new EmbeddedThreadProvider( ElasticsearchClientFactoryImplIT.class.getName() + ": " ) ) );
 
 	private final ScheduledExecutorService timeoutExecutorService =
 			threadPoolProvider.newScheduledExecutor( 1, "Timeout - " );
@@ -833,8 +833,13 @@ public class ElasticsearchClientFactoryImplIT {
 
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-2453")
-	@Category(RequiresNoAutomaticAuthenticationHeader.class)
 	public void authentication() {
+		assumeFalse(
+				"This test only is only relevant if Elasticsearch request are *NOT* automatically" +
+						" augmented with an \"Authentication:\" header." +
+						" \"Authentication:\" headers are added by the AWS integration in particular.",
+				ElasticsearchTestHostConnectionConfiguration.get().isAws()
+		);
 		String username = "ironman";
 		String password = "j@rV1s";
 
@@ -970,6 +975,38 @@ public class ElasticsearchClientFactoryImplIT {
 				);
 	}
 
+	@Test
+	public void clientInstance() throws IOException {
+		try ( RestClient myRestClient = RestClient.builder( HttpHost.create( httpUrisFor( wireMockRule1 ) ) ).build() ) {
+			String payload = "{ \"foo\": \"bar\" }";
+			String statusMessage = "StatusMessage";
+			String responseBody = "{ \"foo\": \"bar\" }";
+			wireMockRule1.stubFor( post( urlPathMatching( "/myIndex/myType" ) )
+					.withRequestBody( equalToJson( payload ) )
+					.andMatching( httpProtocol() )
+					.willReturn( elasticsearchResponse().withStatus( 200 )
+							.withStatusMessage( statusMessage )
+							.withBody( responseBody ) ) );
+
+			try ( ElasticsearchClientImplementor client = createClient( properties -> {
+				properties.accept( ElasticsearchBackendSettings.CLIENT_INSTANCE, BeanReference.ofInstance( myRestClient ) );
+			} ) ) {
+				ElasticsearchResponse result = doPost( client, "/myIndex/myType", payload );
+				assertThat( result.statusCode() ).as( "status code" ).isEqualTo( 200 );
+				assertThat( result.statusMessage() ).as( "status message" ).isEqualTo( statusMessage );
+				assertJsonEquals( responseBody, result.body().toString() );
+
+				wireMockRule1.verify(
+						postRequestedFor( urlPathMatching( "/myIndex/myType" ) )
+								.andMatching( httpProtocol() )
+				);
+			}
+
+			// Hibernate Search must not close provided client instances
+			assertThat( myRestClient ).returns( true, RestClient::isRunning );
+		}
+	}
+
 	private ElasticsearchClientImplementor createClient() {
 		return createClient( ignored -> { } );
 	}
@@ -1008,13 +1045,10 @@ public class ElasticsearchClientFactoryImplIT {
 				AllAwareConfigurationPropertySource.fromMap( beanResolverConfiguration )
 
 		);
-		try ( BeanHolder<ElasticsearchClientFactory> factoryHolder =
-				beanResolver.resolve( ElasticsearchClientFactoryImpl.REFERENCE ) ) {
-			return factoryHolder.get().create( beanResolver, clientPropertySource,
-					threadPoolProvider.threadProvider(), "Client",
-					timeoutExecutorService,
-					GsonProvider.create( GsonBuilder::new, true ) );
-		}
+		return new ElasticsearchClientFactoryImpl().create( beanResolver, clientPropertySource,
+				threadPoolProvider.threadProvider(), "Client",
+				timeoutExecutorService,
+				GsonProvider.create( GsonBuilder::new, true ) );
 	}
 
 	private ElasticsearchResponse doPost(ElasticsearchClient client, String path, String payload) {

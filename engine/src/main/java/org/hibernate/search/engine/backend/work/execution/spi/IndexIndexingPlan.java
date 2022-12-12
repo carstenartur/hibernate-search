@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.util.common.impl.Throwables;
 
 /**
@@ -17,7 +18,7 @@ import org.hibernate.search.util.common.impl.Throwables;
  * <p>
  * Works are accumulated when methods such as {@link #add(DocumentReferenceProvider, DocumentContributor)}
  * or {@link #addOrUpdate(DocumentReferenceProvider, DocumentContributor)} are called,
- * and executed only when {@link #execute()} is called.
+ * and executed only when {@link #execute(OperationSubmitter)} is called.
  * <p>
  * Relative ordering of works within a plan will be preserved.
  * <p>
@@ -54,8 +55,8 @@ public interface IndexIndexingPlan {
 	 * @return A {@link CompletableFuture} that will be completed when all the works are complete.
 	 * The future will be completed with an exception if a work failed.
 	 */
-	default CompletableFuture<?> execute() {
-		return executeAndReport( EntityReferenceFactory.asString() ).thenApply( report -> {
+	default CompletableFuture<?> execute(OperationSubmitter operationSubmitter) {
+		return executeAndReport( EntityReferenceFactory.asString(), operationSubmitter ).thenApply( report -> {
 				report.throwable().ifPresent( t -> {
 					throw Throwables.toRuntimeException( t );
 				} );
@@ -68,12 +69,13 @@ public interface IndexIndexingPlan {
 	 *
 	 * @param <R> The type of entity references in the returned execution report.
 	 * @param entityReferenceFactory A factory for entity references in the returned execution report.
+	 * @param operationSubmitter How to handle request to submit operation when the queue is full
 	 * @return A {@link CompletableFuture} that will hold an execution report when all the works are complete.
 	 * The future will be completed normally even if a work failed,
 	 * but the report will contain an exception.
 	 */
 	<R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory);
+			EntityReferenceFactory<R> entityReferenceFactory, OperationSubmitter operationSubmitter);
 
 	/**
 	 * Discard all works that are present in this plan.

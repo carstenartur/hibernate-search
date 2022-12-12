@@ -23,31 +23,32 @@ import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.search.engine.backend.Backend;
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.index.IndexManager;
-import org.hibernate.search.engine.backend.session.spi.DetachedBackendSessionContext;
+import org.hibernate.search.engine.backend.reporting.spi.BackendMappingHints;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.common.spi.SearchIntegration;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
-import org.hibernate.search.engine.environment.thread.spi.ThreadPoolProvider;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingImplementor;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingPreStopContext;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingStartContext;
-import org.hibernate.search.engine.reporting.FailureHandler;
+import org.hibernate.search.engine.search.projection.spi.ProjectionMappedTypeContext;
 import org.hibernate.search.mapper.orm.automaticindexing.impl.AutomaticIndexingQueueEventProcessingPlanImpl;
 import org.hibernate.search.mapper.orm.automaticindexing.session.impl.ConfiguredAutomaticIndexingSynchronizationStrategy;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingMappingContext;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingQueueEventProcessingPlan;
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
-import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrategy;
 import org.hibernate.search.mapper.orm.common.EntityReference;
 import org.hibernate.search.mapper.orm.common.impl.EntityReferenceImpl;
 import org.hibernate.search.mapper.orm.common.impl.HibernateOrmUtils;
+import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrategy;
 import org.hibernate.search.mapper.orm.entity.SearchIndexedEntity;
 import org.hibernate.search.mapper.orm.event.impl.HibernateOrmListenerContextProvider;
+import org.hibernate.search.mapper.orm.reporting.impl.HibernateOrmMappingHints;
 import org.hibernate.search.mapper.orm.logging.impl.Log;
 import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.mapping.context.HibernateOrmMappingContext;
 import org.hibernate.search.mapper.orm.mapping.spi.CoordinationStrategyContext;
+import org.hibernate.search.mapper.orm.model.impl.HibernateOrmRawTypeIdentifierResolver;
 import org.hibernate.search.mapper.orm.schema.management.SchemaManagementStrategyName;
 import org.hibernate.search.mapper.orm.schema.management.impl.SchemaManagementListener;
 import org.hibernate.search.mapper.orm.scope.SearchScope;
@@ -70,7 +71,6 @@ import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 import org.hibernate.search.mapper.pojo.schema.management.spi.PojoScopeSchemaManager;
 import org.hibernate.search.mapper.pojo.scope.spi.PojoScopeDelegate;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingPlan;
-import org.hibernate.search.util.common.AssertionFailure;
 import org.hibernate.search.util.common.impl.Closer;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
@@ -210,18 +210,23 @@ public class HibernateOrmMapping extends AbstractPojoMappingImplementor<Hibernat
 	}
 
 	@Override
+	public BackendMappingHints hints() {
+		return HibernateOrmMappingHints.INSTANCE;
+	}
+
+	@Override
+	public ProjectionMappedTypeContext mappedTypeContext(String mappedTypeName) {
+		return typeContextContainer.indexedByJpaEntityName().getOrFail( mappedTypeName );
+	}
+
+	@Override
 	public EntityReferenceFactory<EntityReference> entityReferenceFactory() {
 		return this;
 	}
 
 	@Override
 	public EntityReference createEntityReference(String typeName, Object identifier) {
-		HibernateOrmSessionTypeContext<?> typeContext = typeContextContainer.forJpaEntityName( typeName );
-		if ( typeContext == null ) {
-			throw new AssertionFailure(
-					"Type " + typeName + " refers to an unknown type"
-			);
-		}
+		HibernateOrmSessionTypeContext<?> typeContext = typeContextContainer.byJpaEntityName().getOrFail( typeName );
 		return new EntityReferenceImpl( typeContext.typeIdentifier(), typeContext.jpaEntityName(), identifier );
 	}
 
@@ -247,24 +252,12 @@ public class HibernateOrmMapping extends AbstractPojoMappingImplementor<Hibernat
 
 	@Override
 	public <E> SearchIndexedEntity<E> indexedEntity(Class<E> entityType) {
-		PojoRawTypeIdentifier<E> typeIdentifier =
-				typeContextContainer.typeIdentifierForJavaClass( entityType );
-		SearchIndexedEntity<E> type = typeContextContainer.indexedForExactType( typeIdentifier );
-		if ( type == null ) {
-			throw log.notIndexedEntityType( entityType );
-		}
-		return type;
+		return typeContextContainer.indexedForExactClass( entityType );
 	}
 
 	@Override
 	public SearchIndexedEntity<?> indexedEntity(String entityName) {
-		PojoRawTypeIdentifier<?> typeIdentifier =
-				typeContextContainer.typeIdentifierForEntityName( entityName );
-		SearchIndexedEntity<?> type = typeContextContainer.indexedForExactType( typeIdentifier );
-		if ( type == null ) {
-			throw log.notIndexedEntityName( entityName );
-		}
-		return type;
+		return typeContextContainer.indexedByEntityName().getOrFail( entityName );
 	}
 
 	@Override
@@ -308,23 +301,8 @@ public class HibernateOrmMapping extends AbstractPojoMappingImplementor<Hibernat
 	}
 
 	@Override
-	public ThreadPoolProvider threadPoolProvider() {
-		return delegate().threadPoolProvider();
-	}
-
-	@Override
-	public FailureHandler failureHandler() {
-		return delegate().failureHandler();
-	}
-
-	@Override
 	public HibernateOrmScopeSessionContext sessionContext(EntityManager entityManager) {
 		return HibernateOrmSearchSession.get( this, HibernateOrmUtils.toSessionImplementor( entityManager ) );
-	}
-
-	@Override
-	public DetachedBackendSessionContext detachedBackendSessionContext(String tenantId) {
-		return DetachedBackendSessionContext.of( this, tenantId );
 	}
 
 	@Override
@@ -382,7 +360,7 @@ public class HibernateOrmMapping extends AbstractPojoMappingImplementor<Hibernat
 	public <T> SearchScopeImpl<T> createScope(Collection<? extends Class<? extends T>> classes) {
 		List<PojoRawTypeIdentifier<? extends T>> typeIdentifiers = new ArrayList<>( classes.size() );
 		for ( Class<? extends T> clazz : classes ) {
-			typeIdentifiers.add( typeContextContainer.typeIdentifierForJavaClass( clazz ) );
+			typeIdentifiers.add( typeContextContainer.typeIdentifierResolver().resolveByJavaClass( clazz ) );
 		}
 		return doCreateScope( typeIdentifiers );
 	}
@@ -420,8 +398,11 @@ public class HibernateOrmMapping extends AbstractPojoMappingImplementor<Hibernat
 
 	private <T> PojoRawTypeIdentifier<? extends T> entityTypeIdentifier(Class<T> expectedSuperType,
 			String entityName) {
-		PojoRawTypeIdentifier<?> typeIdentifier =
-				typeContextContainer.typeIdentifierForEntityName( entityName );
+		HibernateOrmRawTypeIdentifierResolver resolver = typeContextContainer.typeIdentifierResolver();
+		PojoRawTypeIdentifier<?> typeIdentifier = resolver.resolveByJpaOrHibernateOrmEntityName( entityName );
+		if ( typeIdentifier == null ) {
+			throw log.unknownEntityNameForEntityType( entityName, resolver.allKnownJpaOrHibernateOrmEntityNames() );
+		}
 		Class<?> actualJavaType = typeIdentifier.javaClass();
 		if ( !expectedSuperType.isAssignableFrom( actualJavaType ) ) {
 			throw log.invalidEntitySuperType( entityName, expectedSuperType, actualJavaType );

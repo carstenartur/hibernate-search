@@ -10,16 +10,27 @@ import static org.hibernate.search.util.impl.integrationtest.common.assertion.St
 
 import java.util.Objects;
 
+import org.hibernate.search.util.common.impl.ToStringTreeBuilder;
+import org.hibernate.search.util.impl.integrationtest.common.stub.StubTreeNodeDiffer;
+import org.hibernate.search.util.impl.integrationtest.common.stub.backend.document.StubDocumentNode;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.index.StubDocumentWork;
 
 class DocumentWorkCreateCall extends Call<DocumentWorkCreateCall> {
 
 	private final DocumentKey documentKey;
 	private final StubDocumentWork work;
+	private final StubTreeNodeDiffer<StubDocumentNode> documentDiffer;
 
-	DocumentWorkCreateCall(String indexName, StubDocumentWork work) {
+	// Constructor for expected call
+	DocumentWorkCreateCall(String indexName, StubDocumentWork work, StubTreeNodeDiffer<StubDocumentNode> documentDiffer) {
 		this.documentKey = new DocumentKey( indexName, work.getTenantIdentifier(), work.getIdentifier() );
 		this.work = work;
+		this.documentDiffer = documentDiffer;
+	}
+
+	// Constructor for actual call
+	DocumentWorkCreateCall(String indexName, StubDocumentWork work) {
+		this( indexName, work, null );
 	}
 
 	public DocumentKey documentKey() {
@@ -29,6 +40,7 @@ class DocumentWorkCreateCall extends Call<DocumentWorkCreateCall> {
 	public CallBehavior<Void> verify(DocumentWorkCreateCall actualCall) {
 		assertThatDocumentWork( actualCall.work )
 				.as( "Incorrect work when the creation of a work on document '" + documentKey + "' was expected:\n" )
+				.documentDiffer( documentDiffer )
 				.matches( work );
 		return () -> null;
 	}
@@ -39,7 +51,13 @@ class DocumentWorkCreateCall extends Call<DocumentWorkCreateCall> {
 	}
 
 	@Override
-	public String toString() {
+	protected String summary() {
 		return "creation of a " + work.getType() + " work on document '" + documentKey + "'";
+	}
+
+	@Override
+	protected void details(ToStringTreeBuilder builder) {
+		builder.attribute( "documentKey", documentKey );
+		builder.attribute( "work", work );
 	}
 }

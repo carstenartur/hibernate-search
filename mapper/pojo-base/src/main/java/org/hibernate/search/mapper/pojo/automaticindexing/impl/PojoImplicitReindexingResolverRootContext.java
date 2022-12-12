@@ -9,6 +9,7 @@ package org.hibernate.search.mapper.pojo.automaticindexing.impl;
 import org.hibernate.search.mapper.pojo.automaticindexing.spi.PojoImplicitReindexingResolverSessionContext;
 import org.hibernate.search.mapper.pojo.extractor.ContainerExtractionContext;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoPathFilter;
+import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 
 /**
  * The context passed to a {@link PojoImplicitReindexingResolver}
@@ -30,6 +31,8 @@ public interface PojoImplicitReindexingResolverRootContext extends ContainerExtr
 	 * @return Whether the root is dirty according to the given filter.
 	 */
 	boolean isDirtyForReindexingResolution(PojoPathFilter filter);
+
+	PojoRawTypeIdentifier<?> detectContainingEntityType(Object containingEntity);
 
 	/**
 	 * Propagates (rethrows) a {@link RuntimeException} thrown while accessing a property (getter or field access),

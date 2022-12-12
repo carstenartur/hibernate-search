@@ -5,7 +5,7 @@
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-parent-integrationtest-jakarta</artifactId>
         <version>6.2.0-SNAPSHOT</version>
-        <relativePath>../parents/integrationtest</relativePath>
+        <relativePath>../build/parents/integrationtest</relativePath>
     </parent>
     <artifactId>hibernate-search-integrationtest-jakarta</artifactId>
     <packaging>pom</packaging>
@@ -33,7 +33,9 @@
                 </property>
             </activation>
             <modules>
-                <module>java/modules</module>
+                <module>java/modules/orm-elasticsearch</module>
+                <module>java/modules/orm-lucene</module>
+                <module>java/modules/orm-coordination-outbox-polling-elasticsearch</module>
             </modules>
         </profile>
     </profiles>

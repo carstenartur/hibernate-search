@@ -6,6 +6,8 @@
  */
 package org.hibernate.search.mapper.pojo.automaticindexing.impl;
 
+import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
+
 /**
  * A collector of entities to be reindexed.
  * <p>
@@ -13,6 +15,6 @@ package org.hibernate.search.mapper.pojo.automaticindexing.impl;
  */
 public interface PojoReindexingCollector {
 
-	void markForReindexing(Object dirtyEntity);
+	void updateBecauseOfContained(PojoRawTypeIdentifier<?> typeIdentifier, Object containingEntity);
 
 }

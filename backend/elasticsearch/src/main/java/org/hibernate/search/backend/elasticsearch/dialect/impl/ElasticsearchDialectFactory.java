@@ -166,7 +166,7 @@ public class ElasticsearchDialectFactory {
 	}
 
 	private ElasticsearchProtocolDialect createProtocolDialectElasticV8(ElasticsearchVersion version, int minor) {
-		if ( minor > 3 ) {
+		if ( minor > 5 ) {
 			log.unknownElasticsearchVersion( version );
 		}
 		else if ( minor == 0 ) {
@@ -206,7 +206,7 @@ public class ElasticsearchDialectFactory {
 	}
 
 	private ElasticsearchProtocolDialect createProtocolDialectOpenSearchV2(ElasticsearchVersion version, int minor) {
-		if ( minor > 0 ) {
+		if ( minor > 4 ) {
 			log.unknownElasticsearchVersion( version );
 		}
 		return new Elasticsearch70ProtocolDialect();

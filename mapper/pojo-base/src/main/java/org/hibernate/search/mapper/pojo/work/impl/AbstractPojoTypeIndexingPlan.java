@@ -6,6 +6,7 @@
  */
 package org.hibernate.search.mapper.pojo.work.impl;
 
+import java.lang.invoke.MethodHandles;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,23 +15,33 @@ import java.util.function.Supplier;
 
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.mapper.pojo.automaticindexing.impl.PojoImplicitReindexingAssociationInverseSideResolverRootContext;
+import org.hibernate.search.mapper.pojo.automaticindexing.impl.PojoReindexingAssociationInverseSideCollector;
 import org.hibernate.search.mapper.pojo.automaticindexing.impl.PojoImplicitReindexingResolverRootContext;
 import org.hibernate.search.mapper.pojo.automaticindexing.impl.PojoReindexingCollector;
 import org.hibernate.search.mapper.pojo.automaticindexing.spi.PojoImplicitReindexingResolverSessionContext;
 import org.hibernate.search.mapper.pojo.bridge.runtime.impl.DocumentRouter;
 import org.hibernate.search.mapper.pojo.bridge.runtime.impl.NoOpDocumentRouter;
+import org.hibernate.search.mapper.pojo.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoPathFilter;
+import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
+import org.hibernate.search.mapper.pojo.model.spi.PojoRuntimeIntrospector;
 import org.hibernate.search.mapper.pojo.route.DocumentRouteDescriptor;
 import org.hibernate.search.mapper.pojo.route.DocumentRoutesDescriptor;
 import org.hibernate.search.mapper.pojo.work.spi.PojoWorkSessionContext;
+import org.hibernate.search.util.common.AssertionFailure;
 import org.hibernate.search.util.common.SearchException;
+import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 /**
  * @param <I> The type of identifiers of entities in this plan.
  * @param <E> The type of entities in this plan.
  * @param <S> The type of per-instance state.
  */
-abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeIndexingPlan<I, E, S>.AbstractEntityState> {
+abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeIndexingPlan<I, E, S>.AbstractEntityState>
+		implements PojoImplicitReindexingAssociationInverseSideResolverRootContext {
+	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
 	final PojoWorkSessionContext sessionContext;
 	final PojoTypeIndexingPlanDelegate<I, E> delegate;
@@ -76,6 +87,21 @@ abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeInde
 		state.providedRoutes( providedRoutes );
 	}
 
+	void resolveDirtyAssociationInverseSide(PojoReindexingAssociationInverseSideCollector collector,
+			BitSet dirtyAssociationPaths, Object[] oldState, Object[] newState) {
+		typeContext().reindexingResolver().associationInverseSideResolver()
+				.resolveEntitiesToReindex( collector, dirtyAssociationPaths, oldState, newState, this );
+	}
+
+	void updateBecauseOfContainedAssociation(Object entity, int dirtyAssociationPathOrdinal) {
+		Supplier<E> entitySupplier = typeContext().toEntitySupplier( sessionContext, entity );
+		I identifier = typeContext().identifierMapping().getIdentifier( null, entitySupplier );
+		BitSet dirtyPaths = typeContext().reindexingResolver().dirtySelfOrContainingFilter().filter( dirtyAssociationPathOrdinal );
+		if ( dirtyPaths != null ) {
+			getState( identifier ).addOrUpdate( entitySupplier, dirtyPaths, false, false );
+		}
+	}
+
 	void planLoading(PojoLoadingPlanProvider loadingPlanProvider) {
 		for ( S state : statesPerId.values() ) {
 			state.planLoading( loadingPlanProvider );
@@ -108,8 +134,8 @@ abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeInde
 	}
 
 	<R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory) {
-		return delegate.executeAndReport( entityReferenceFactory );
+			EntityReferenceFactory<R> entityReferenceFactory, OperationSubmitter operationSubmitter) {
+		return delegate.executeAndReport( entityReferenceFactory, operationSubmitter );
 	}
 
 	abstract PojoWorkTypeContext<I, E> typeContext();
@@ -127,6 +153,52 @@ abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeInde
 			statesPerId.put( identifier, state );
 		}
 		return state;
+	}
+
+	@Override
+	public PojoRuntimeIntrospector runtimeIntrospector() {
+		return sessionContext.runtimeIntrospector();
+	}
+
+	@Override
+	public PojoRawTypeIdentifier<?> detectContainingEntityType(Object containingEntity) {
+		PojoRawTypeIdentifier<?> typeIdentifier = runtimeIntrospector().detectEntityType( containingEntity );
+		if ( typeIdentifier == null ) {
+			throw new AssertionFailure(
+					"Attempted to detect entity type of object " + containingEntity + " because a contained entity was modified,"
+							+ " but this object does not seem to be an entity."
+			);
+		}
+		return typeIdentifier;
+	}
+
+	// This is used for reindexing resolution only:
+	// for indexing, we always propagate exceptions.
+	@Override
+	public void propagateOrIgnoreContainerExtractionException(RuntimeException exception) {
+		if ( isIgnorableDataAccessThrowable( exception ) ) {
+			return;
+		}
+		throw exception;
+	}
+
+	// This is used for reindexing resolution only:
+	// for indexing, we always propagate exceptions.
+	@Override
+	public void propagateOrIgnorePropertyAccessException(RuntimeException exception) {
+		if ( isIgnorableDataAccessThrowable( exception ) ) {
+			return;
+		}
+		throw exception;
+	}
+
+	private boolean isIgnorableDataAccessThrowable(RuntimeException exception) {
+		Throwable firstNonSearchThrowable = exception;
+		while ( firstNonSearchThrowable instanceof SearchException ) {
+			firstNonSearchThrowable = exception.getCause();
+		}
+		return firstNonSearchThrowable != null &&
+				sessionContext.runtimeIntrospector().isIgnorableDataAccessThrowable( firstNonSearchThrowable );
 	}
 
 	protected abstract S createState(I identifier);
@@ -174,33 +246,23 @@ abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeInde
 			return forceContainingDirty || dirtyPaths != null && filter.test( dirtyPaths );
 		}
 
+		@Override
+		public PojoRawTypeIdentifier<?> detectContainingEntityType(Object containingEntity) {
+			return AbstractPojoTypeIndexingPlan.this.detectContainingEntityType( containingEntity );
+		}
+
 		// This is used for reindexing resolution only:
 		// for indexing, we always propagate exceptions.
 		@Override
 		public void propagateOrIgnoreContainerExtractionException(RuntimeException exception) {
-			if ( isIgnorableDataAccessThrowable( exception ) ) {
-				return;
-			}
-			throw exception;
+			AbstractPojoTypeIndexingPlan.this.propagateOrIgnoreContainerExtractionException( exception );
 		}
 
 		// This is used for reindexing resolution only:
 		// for indexing, we always propagate exceptions.
 		@Override
 		public void propagateOrIgnorePropertyAccessException(RuntimeException exception) {
-			if ( isIgnorableDataAccessThrowable( exception ) ) {
-				return;
-			}
-			throw exception;
-		}
-
-		private boolean isIgnorableDataAccessThrowable(RuntimeException exception) {
-			Throwable firstNonSearchThrowable = exception;
-			while ( firstNonSearchThrowable instanceof SearchException ) {
-				firstNonSearchThrowable = exception.getCause();
-			}
-			return firstNonSearchThrowable != null &&
-					sessionContext.runtimeIntrospector().isIgnorableDataAccessThrowable( firstNonSearchThrowable );
+			AbstractPojoTypeIndexingPlan.this.propagateOrIgnorePropertyAccessException( exception );
 		}
 
 		void add(Supplier<E> entitySupplier) {
@@ -238,9 +300,6 @@ abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeInde
 
 		void doAddOrUpdate(Supplier<E> entitySupplier) {
 			this.entitySupplier = entitySupplier;
-			if ( EntityStatus.UNKNOWN.equals( initialStatus ) ) {
-				initialStatus = EntityStatus.PRESENT;
-			}
 			currentStatus = EntityStatus.PRESENT;
 		}
 
@@ -268,12 +327,7 @@ abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeInde
 		protected void doUpdateDirty(BitSet dirtyPaths, boolean forceSelfDirty, boolean forceContainingDirty) {
 			this.forceSelfDirty = this.forceSelfDirty || forceSelfDirty;
 			this.forceContainingDirty = this.forceContainingDirty || forceContainingDirty;
-			if ( this.forceSelfDirty && this.forceContainingDirty ) {
-				this.dirtyPaths = null;
-			}
-			else {
-				addDirtyPaths( dirtyPaths );
-			}
+			addDirtyPaths( dirtyPaths );
 		}
 
 		abstract void providedRoutes(DocumentRoutesDescriptor routes);
@@ -301,6 +355,15 @@ abstract class AbstractPojoTypeIndexingPlan<I, E, S extends AbstractPojoTypeInde
 				// We couldn't retrieve the entity.
 				// Assume it was deleted before the current transaction started and there's nothing to resolve.
 				return;
+			}
+			try {
+				typeContext().reindexingResolver().resolveEntitiesToReindex( collector, entitySupplier.get(), this );
+			}
+			catch (RuntimeException e) {
+				EntityReferenceFactory<?> entityReferenceFactory = sessionContext.mappingContext().entityReferenceFactory();
+				Object entityReference = EntityReferenceFactory.safeCreateEntityReference(
+						entityReferenceFactory, typeContext().entityName(), identifier, e::addSuppressed );
+				throw log.errorResolvingEntitiesToReindex( entityReference, e.getMessage(), e );
 			}
 			typeContext().resolveEntitiesToReindex( collector, sessionContext, identifier,
 					entitySupplier, this );

@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.hibernate.search.util.impl.test.file.FileUtils;
@@ -25,20 +26,24 @@ public final class JarTestUtils {
 	private JarTestUtils() {
 	}
 
-	public static Path determineJarOrDirectoryLocation(Class<?> classFromJar, String jarName) {
-		URL url = classFromJar.getProtectionDomain().getCodeSource().getLocation();
-		if ( !url.getProtocol().equals( "file" ) ) {
-			throw new IllegalStateException( jarName + " JAR is not a local file? " + url );
-		}
+	private static Path toPath(URL codeSourceLocation) {
 		try {
-			return Paths.get( url.toURI() );
+			return Paths.get( codeSourceLocation.toURI() );
 		}
 		catch (URISyntaxException e) {
-			throw new IllegalStateException( e );
+			throw new RuntimeException( "Cannot convert URL '" + codeSourceLocation + "' to Path", e );
 		}
 	}
 
+	public static Path toJar(TemporaryFolder temporaryFolder, URL codeSourceLocation) {
+			return toJar( temporaryFolder, toPath( codeSourceLocation ) );
+	}
+
 	public static Path toJar(TemporaryFolder temporaryFolder, Path jarOrDirectoryPath) {
+		return toJar( temporaryFolder, jarOrDirectoryPath, null );
+	}
+
+	public static Path toJar(TemporaryFolder temporaryFolder, Path jarOrDirectoryPath, Map<String, String> additionalZipFsEnv) {
 		if ( Files.isRegularFile( jarOrDirectoryPath ) ) {
 			return jarOrDirectoryPath;
 		}
@@ -46,7 +51,11 @@ public final class JarTestUtils {
 			Path tempDir = temporaryFolder.newFolder().toPath();
 			Path jarPath = tempDir.resolve( jarOrDirectoryPath.getFileName() + ".jar" ).toAbsolutePath();
 			URI jarUri = new URI( "jar:file", null, jarPath.toUri().getPath(), null );
-			Map<String, String> zipFsEnv = Collections.singletonMap( "create", "true" );
+			Map<String, String> zipFsEnv = new HashMap<>();
+			zipFsEnv.put( "create", "true" );
+			if ( additionalZipFsEnv != null ) {
+				zipFsEnv.putAll( additionalZipFsEnv );
+			}
 			try ( FileSystem jarFs = FileSystems.newFileSystem( jarUri, zipFsEnv ) ) {
 				FileUtils.copyRecursively( jarOrDirectoryPath, jarFs.getRootDirectories().iterator().next() );
 			}
@@ -56,6 +65,10 @@ public final class JarTestUtils {
 			throw new IllegalStateException(
 					"Exception turning " + jarOrDirectoryPath + " into a JAR: " + e.getMessage(), e );
 		}
+	}
+
+	public static Path toDirectory(TemporaryFolder temporaryFolder, URL codeSourceLocation) {
+		return toDirectory( temporaryFolder, toPath( codeSourceLocation ) );
 	}
 
 	public static Path toDirectory(TemporaryFolder temporaryFolder, Path jarOrDirectoryPath) {

@@ -7,7 +7,7 @@
 package org.hibernate.search.mapper.pojo.mapping.definition.annotation.impl;
 
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Path;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -106,7 +106,7 @@ public class AnnotationMappingConfigurationContextImpl implements AnnotationMapp
 			MappingConfigurationCollector<PojoTypeMetadataContributor> collector) {
 		BeanResolver beanResolver = buildContext.beanResolver();
 		FailureCollector failureCollector = buildContext.failureCollector();
-		AnnotationHelper annotationHelper = new AnnotationHelper( introspector.annotationValueReadHandleFactory() );
+		AnnotationHelper annotationHelper = new AnnotationHelper( introspector.annotationValueHandleFactory() );
 		AnnotationPojoTypeMetadataContributorFactory contributorFactory =
 				new AnnotationPojoTypeMetadataContributorFactory( beanResolver, failureCollector, configurationContext,
 						annotationHelper );
@@ -163,34 +163,54 @@ public class AnnotationMappingConfigurationContextImpl implements AnnotationMapp
 
 		if ( discoverJandexIndexesFromAddedTypes ) {
 			IndexView compositeOfExplicitJandexIndexes = JandexUtils.compositeIndex( jandexIndexes );
-			Set<Path> discoveredJarPaths = new LinkedHashSet<>();
+			Set<URL> discoveredBuildingAllowedCodeSourceLocations = new LinkedHashSet<>();
+			Set<URL> discoveredBuildingForbiddenCodeSourceLocations = new LinkedHashSet<>();
 			for ( Class<?> annotatedType : explicitAnnotatedTypes ) {
 				DotName dotName = DotName.createSimple( annotatedType.getName() );
 				// Optimization: if a class is already in the Jandex index,
 				// there's no need to discover the Jandex index of its JAR.
 				if ( compositeOfExplicitJandexIndexes.getClassByName( dotName ) == null ) {
-					JarUtils.jarOrDirectoryPath( annotatedType ).ifPresent( discoveredJarPaths::add );
+					Set<URL> targetSet = isJandexBuildingAllowed( annotatedType )
+							? discoveredBuildingAllowedCodeSourceLocations
+							: discoveredBuildingForbiddenCodeSourceLocations;
+					JarUtils.codeSourceLocation( annotatedType ).ifPresent( targetSet::add );
 				}
 			}
-			for ( Path path : discoveredJarPaths ) {
-				jandexIndexForJar( path ).ifPresent( jandexIndexes::add );
+			for ( URL codeSourceLocation : discoveredBuildingAllowedCodeSourceLocations ) {
+				jandexIndexForCodeSourceLocation( codeSourceLocation, true ).ifPresent( jandexIndexes::add );
+			}
+			for ( URL codeSourceLocation : discoveredBuildingForbiddenCodeSourceLocations ) {
+				jandexIndexForCodeSourceLocation( codeSourceLocation, false ).ifPresent( jandexIndexes::add );
 			}
 		}
 
 		return jandexIndexes.isEmpty() ? null : JandexUtils.compositeIndex( jandexIndexes );
 	}
 
-	private Optional<Index> jandexIndexForJar(Path path) {
+	private boolean isJandexBuildingAllowed(Class<?> annotatedType) {
+		if ( buildMissingJandexIndexes ) {
+			Package pakkage = annotatedType.getPackage();
+			// We expect Hibernate projects to always provide a Jandex index if one is needed.
+			return pakkage != null
+					&& !pakkage.getName().equals( "org.hibernate" )
+					&& !pakkage.getName().startsWith( "org.hibernate." );
+		}
+		else {
+			return false;
+		}
+	}
+
+	private static Optional<Index> jandexIndexForCodeSourceLocation(URL codeSourceLocation, boolean buildIfMissing) {
 		try {
-			if ( buildMissingJandexIndexes ) {
-				return Optional.of( JandexUtils.readOrBuildIndex( path ) );
+			if ( buildIfMissing ) {
+				return Optional.of( JandexUtils.readOrBuildIndex( codeSourceLocation ) );
 			}
 			else {
-				return JandexUtils.readIndex( path );
+				return JandexUtils.readIndex( codeSourceLocation );
 			}
 		}
 		catch (RuntimeException e) {
-			throw log.errorDiscoveringJandexIndex( path, e.getMessage(), e );
+			throw log.errorDiscoveringJandexIndex( codeSourceLocation, e.getMessage(), e );
 		}
 	}
 

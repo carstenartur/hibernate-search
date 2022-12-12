@@ -25,6 +25,7 @@ import org.hibernate.search.batch.jsr352.core.massindexing.impl.JobContextData;
 import org.hibernate.search.batch.jsr352.core.massindexing.util.impl.MassIndexingPartitionProperties;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.orm.Search;
 import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.spi.BatchMappingContext;
@@ -80,7 +81,7 @@ public class EntityWriter extends AbstractItemWriter {
 		emf = jobContextData.getEntityManagerFactory();
 		searchMapping = Search.mapping( emf );
 		mappingContext = (BatchMappingContext) searchMapping;
-		typeIdentifier = mappingContext.typeContextProvider().typeIdentifierForEntityName( entityName );
+		typeIdentifier = mappingContext.typeContextProvider().byEntityName().getOrFail( entityName ).typeIdentifier();
 		workspace = searchMapping.scope( typeIdentifier.javaClass(), entityName ).workspace( tenantId );
 
 		/*
@@ -153,13 +154,13 @@ public class EntityWriter extends AbstractItemWriter {
 		if ( WriteMode.ADD.equals( writeMode ) ) {
 			return indexer.add( typeIdentifier, null, null, entity,
 					// Commit and refresh are handled globally after all documents are indexed.
-					DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+					DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE, OperationSubmitter.BLOCKING
 			);
 		}
 
 		return indexer.addOrUpdate( typeIdentifier, null, null, entity,
 				// Commit and refresh are handled globally after all documents are indexed.
-				DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+				DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE, OperationSubmitter.BLOCKING
 		);
 	}
 

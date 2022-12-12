@@ -40,7 +40,7 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing
  * </ul>
  * <p>
  * If you want to index a non-String value, use the {@link GenericField} annotation instead.
- * If you want to index a String value, but don't want the field to be analyzed, or want it to be sortable,
+ * If you want to index a String value, but don't want the field to be analyzed, or want it to be sortable or aggregable,
  * use the {@link KeywordField} annotation instead.
  */
 @Documented
@@ -91,7 +91,7 @@ public @interface FullTextField {
 
 	/**
 	 * @return Whether this field should be searchable.
-	 * @see GenericField#sortable()
+	 * @see GenericField#searchable()
 	 * @see Searchable
 	 */
 	Searchable searchable() default Searchable.DEFAULT;

@@ -6,84 +6,70 @@
  */
 package org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect;
 
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isAtMost;
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isBetween;
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isLessThan;
+
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
-import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
+import org.hibernate.search.backend.elasticsearch.client.impl.Paths;
 import org.hibernate.search.backend.elasticsearch.util.spi.URLEncodedString;
 
-import com.google.gson.JsonObject;
+public class ElasticsearchTestDialect {
 
-public interface ElasticsearchTestDialect {
+	private static final ElasticsearchVersion ACTUAL_VERSION = ElasticsearchVersion.of(
+			System.getProperty( "org.hibernate.search.integrationtest.backend.elasticsearch.version" )
+	);
 
-	static ElasticsearchTestDialect get() {
-		String dialectClassName = System.getProperty( "org.hibernate.search.integrationtest.backend.elasticsearch.testdialect" );
-		try {
-			@SuppressWarnings("unchecked")
-			Class<? extends ElasticsearchTestDialect> dialectClass =
-					(Class<? extends ElasticsearchTestDialect>) Class.forName( dialectClassName );
-			return dialectClass.getConstructor().newInstance();
-		}
-		catch (Exception | LinkageError e) {
-			throw new IllegalStateException(
-					"Unexpected error while initializing the ElasticsearchTestDialect with name '" + dialectClassName + "'."
-							+ " Did you properly set the appropriate elasticsearch-x.x/opensearch-x.x profile?",
-					e
-			);
-		}
+	private static final ElasticsearchTestDialect INSTANCE = new ElasticsearchTestDialect();
+
+	public static ElasticsearchTestDialect get() {
+		return INSTANCE;
 	}
 
-	static ElasticsearchVersion getActualVersion() {
-		return ElasticsearchVersion.of( System.getProperty( "org.hibernate.search.integrationtest.backend.elasticsearch.version" ) );
+	public static ElasticsearchVersion getActualVersion() {
+		return ACTUAL_VERSION;
 	}
 
-	boolean isEmptyMappingPossible();
+	public boolean isEmptyMappingPossible() {
+		return isAtMost( ACTUAL_VERSION, "elastic:6.8" );
+	}
 
-	URLEncodedString getTypeKeywordForNonMappingApi();
+	@SuppressWarnings("deprecation")
+	public Optional<URLEncodedString> getTypeNameForMappingAndBulkApi() {
+		if ( isAtMost( ACTUAL_VERSION, "elastic:6.8" ) ) {
+			return Optional.of( Paths.DOC );
+		}
+		return Optional.empty();
+	}
 
-	Optional<URLEncodedString> getTypeNameForMappingAndBulkApi();
+	public Boolean getIncludeTypeNameParameterForMappingApi() {
+		if ( isBetween( ACTUAL_VERSION, "elastic:6.7", "elastic:6.8" ) ) {
+			return Boolean.TRUE;
+		}
+		return null;
+	}
 
-	Boolean getIncludeTypeNameParameterForMappingApi();
+	public List<String> getAllLocalDateDefaultMappingFormats() {
+		if ( isAtMost( ACTUAL_VERSION, "elastic:6.8" ) ) {
+			return Arrays.asList( "yyyy-MM-dd", "yyyyyyyyy-MM-dd" );
+		}
+		return Collections.singletonList( "uuuu-MM-dd" );
+	}
 
-	ElasticsearchRequest createTemplatePutRequest(String templateName, String pattern, int priority, JsonObject settings);
+	public boolean supportsIsWriteIndex() {
+		return !isLessThan( ACTUAL_VERSION, "elastic:6.4.0" );
+	}
 
-	ElasticsearchRequest createTemplateDeleteRequest(String templateName);
-
-	List<String> getAllLocalDateDefaultMappingFormats();
-
-	default String getFirstLocalDateDefaultMappingFormat() {
+	public String getFirstLocalDateDefaultMappingFormat() {
 		return getAllLocalDateDefaultMappingFormats().get( 0 );
 	}
 
-	default String getConcatenatedLocalDateDefaultMappingFormats() {
+	public String getConcatenatedLocalDateDefaultMappingFormats() {
 		return String.join( "||", getAllLocalDateDefaultMappingFormats() );
 	}
-
-	boolean supportsGeoPointIndexNullAs();
-
-	boolean supportsStrictGreaterThanRangedQueriesOnScaledFloatField();
-
-	boolean zonedDateTimeDocValueHasUTCZoneId();
-
-	boolean supportsIsWriteIndex();
-
-	boolean hasBugForSortMaxOnNegativeFloats();
-
-	boolean hasBugForBigIntegerValuesForDynamicField();
-
-	boolean hasBugForBigDecimalValuesForDynamicField();
-
-	boolean normalizesStringArgumentToWildcardPredicateForAnalyzedStringField();
-
-	boolean supportsSkipOrLimitingTotalHitCount();
-
-	boolean hasBugForExistsOnNullGeoPointFieldWithoutDocValues();
-
-	boolean supportMoreThan1024Terms();
-
-	boolean supportsIgnoreUnmappedForGeoPointField();
-
-	boolean ignoresFieldSortWhenNestedFieldMissing();
-
 }

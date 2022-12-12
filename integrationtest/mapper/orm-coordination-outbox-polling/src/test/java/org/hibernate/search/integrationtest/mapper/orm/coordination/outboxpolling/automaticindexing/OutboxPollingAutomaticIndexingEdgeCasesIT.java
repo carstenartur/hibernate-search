@@ -10,8 +10,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 
 import org.hibernate.search.integrationtest.mapper.orm.coordination.outboxpolling.FilteringOutboxEventFinder;
@@ -51,6 +53,7 @@ public class OutboxPollingAutomaticIndexingEdgeCasesIT {
 		backendMock.expectSchema( IndexedEntity.NAME, b -> b
 				.field( "text", String.class )
 				.objectField( "contained", b2 -> b2
+						.multiValued( true )
 						.field( "text", String.class ) ) );
 		backendMock.expectSchema( IndexedAndContainedEntity.NAME, b -> b
 				.field( "text", String.class ) );
@@ -144,7 +147,7 @@ public class OutboxPollingAutomaticIndexingEdgeCasesIT {
 		setupHolder.runInTransaction( session -> {
 			IndexedEntity containing = session.getReference( IndexedEntity.class, 1 );
 			IndexedAndContainedEntity contained = new IndexedAndContainedEntity( 2, "initialValue" );
-			containing.setContained( contained );
+			containing.getContained().add( contained );
 			contained.setContaining( containing );
 			session.persist( contained );
 
@@ -159,9 +162,9 @@ public class OutboxPollingAutomaticIndexingEdgeCasesIT {
 		} );
 
 		// Make events visible one by one, so that they are processed in separate batches.
-		List<Long> eventIds = setupHolder.applyInTransaction( outboxEventFinder::findOutboxEventIdsNoFilter );
+		List<UUID> eventIds = setupHolder.applyInTransaction( outboxEventFinder::findOutboxEventIdsNoFilter );
 		assertThat( eventIds ).hasSize( 2 );
-		for ( Long eventId : eventIds ) {
+		for ( UUID eventId : eventIds ) {
 			outboxEventFinder.showOnlyEvents( Collections.singletonList( eventId ) );
 			outboxEventFinder.awaitUntilNoMoreVisibleEvents( setupHolder.sessionFactory() );
 		}
@@ -185,9 +188,9 @@ public class OutboxPollingAutomaticIndexingEdgeCasesIT {
 		private Integer id;
 		@KeywordField
 		private String text;
-		@OneToOne(mappedBy = "containing")
+		@OneToMany(mappedBy = "containing")
 		@IndexedEmbedded
-		private IndexedAndContainedEntity contained;
+		private List<IndexedAndContainedEntity> contained;
 
 		public IndexedEntity() {
 		}
@@ -209,12 +212,8 @@ public class OutboxPollingAutomaticIndexingEdgeCasesIT {
 			this.text = text;
 		}
 
-		public IndexedAndContainedEntity getContained() {
+		public List<IndexedAndContainedEntity> getContained() {
 			return contained;
-		}
-
-		public void setContained(IndexedAndContainedEntity contained) {
-			this.contained = contained;
 		}
 	}
 

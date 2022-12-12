@@ -112,10 +112,10 @@ public class ObjectStructureIT {
 
 		query = scope.query()
 				.where( f -> f.nested( "nestedObject" )
-						.must( f.match().field( "nestedObject.string" ).matching( MATCHING_STRING ) )
-						.must( f.match().field( "nestedObject.string_analyzed" ).matching( MATCHING_STRING_ANALYZED ) )
-						.must( f.match().field( "nestedObject.integer" ).matching( MATCHING_INTEGER ) )
-						.must( f.match().field( "nestedObject.localDate" ).matching( MATCHING_LOCAL_DATE ) )
+						.add( f.match().field( "nestedObject.string" ).matching( MATCHING_STRING ) )
+						.add( f.match().field( "nestedObject.string_analyzed" ).matching( MATCHING_STRING_ANALYZED ) )
+						.add( f.match().field( "nestedObject.integer" ).matching( MATCHING_INTEGER ) )
+						.add( f.match().field( "nestedObject.localDate" ).matching( MATCHING_LOCAL_DATE ) )
 				)
 				.toQuery();
 		assertThatQuery( query )
@@ -146,13 +146,13 @@ public class ObjectStructureIT {
 
 		query = scope.query()
 				.where( f -> f.nested( "nestedObject" )
-						.must( f.range().field( "nestedObject.string" )
+						.add( f.range().field( "nestedObject.string" )
 								.between( MATCHING_STRING, MATCHING_STRING )
 						)
-						.must( f.range().field( "nestedObject.integer" )
+						.add( f.range().field( "nestedObject.integer" )
 								.between( MATCHING_INTEGER - 1, MATCHING_INTEGER + 1 )
 						)
-						.must( f.range().field( "nestedObject.localDate" )
+						.add( f.range().field( "nestedObject.localDate" )
 								.between( MATCHING_LOCAL_DATE.minusDays( 1 ), MATCHING_LOCAL_DATE.plusDays( 1 ) )
 						)
 				)
@@ -170,9 +170,9 @@ public class ObjectStructureIT {
 			scope.predicate().nested( "flattenedObject" )
 		)
 				.isInstanceOf( SearchException.class )
-				.hasMessageContainingAll( "Cannot use 'predicate:nested' on field 'flattenedObject'.",
-						"Some object field features require a nested structure; "
-								+ "try setting the field structure to 'NESTED' and reindexing all your data" );
+				.hasMessageContainingAll( "Cannot use 'predicate:nested' on field 'flattenedObject'",
+						"Some object field features require a nested structure",
+						"try setting the field structure to 'NESTED' and reindexing all your data" );
 	}
 
 	@Test
@@ -183,7 +183,7 @@ public class ObjectStructureIT {
 				scope.predicate().nested( "flattenedObject.string" )
 		)
 				.isInstanceOf( SearchException.class )
-				.hasMessageContainingAll( "Cannot use 'predicate:nested' on field 'flattenedObject.string'.",
+				.hasMessageContainingAll( "Cannot use 'predicate:nested' on field 'flattenedObject.string'",
 						"'predicate:nested' is not available for fields of this type" );
 	}
 

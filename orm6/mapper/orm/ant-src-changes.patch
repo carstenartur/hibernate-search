@@ -90,10 +90,10 @@ index d6ed099098..e3fee26f2c 100644
  			}
  		}
 diff --git a/main/java/org/hibernate/search/mapper/orm/event/impl/HibernateSearchEventListener.java b/main/java/org/hibernate/search/mapper/orm/event/impl/HibernateSearchEventListener.java
-index ca9492a6a8..6875a0c582 100644
+index 128fc8cf1a..ed6a3ca1d1 100644
 --- a/main/java/org/hibernate/search/mapper/orm/event/impl/HibernateSearchEventListener.java
 +++ b/main/java/org/hibernate/search/mapper/orm/event/impl/HibernateSearchEventListener.java
-@@ -318,7 +318,7 @@ private void processCollectionEvent(AbstractCollectionEvent event) {
+@@ -344,7 +344,7 @@ private void processCollectionEvent(AbstractCollectionEvent event) {
  	 */
  	@Override
  	@SuppressWarnings("deprecation") // Deprecated but abstract, so we have to implement it...
@@ -132,7 +132,7 @@ index 21503d08be..45b9fc0a50 100644
  		}
  		return result;
 diff --git a/main/java/org/hibernate/search/mapper/orm/loading/impl/HibernateOrmMassIdentifierLoader.java b/main/java/org/hibernate/search/mapper/orm/loading/impl/HibernateOrmMassIdentifierLoader.java
-index 39df0c5a24..159eb3207c 100644
+index 61cf2863dc..033ccecf9e 100644
 --- a/main/java/org/hibernate/search/mapper/orm/loading/impl/HibernateOrmMassIdentifierLoader.java
 +++ b/main/java/org/hibernate/search/mapper/orm/loading/impl/HibernateOrmMassIdentifierLoader.java
 @@ -29,7 +29,7 @@
@@ -223,10 +223,10 @@ index 82c86985ab..3abdf72591 100644
  		}
  		else {
 diff --git a/main/java/org/hibernate/search/mapper/orm/logging/impl/Log.java b/main/java/org/hibernate/search/mapper/orm/logging/impl/Log.java
-index 9f1bcb8256..30de76aa99 100644
+index 00903ee7b9..50009c9e37 100644
 --- a/main/java/org/hibernate/search/mapper/orm/logging/impl/Log.java
 +++ b/main/java/org/hibernate/search/mapper/orm/logging/impl/Log.java
-@@ -246,14 +246,10 @@ SearchException foundMultipleEntitiesForDocumentId(String entityName, String doc
+@@ -254,14 +254,10 @@ SearchException foundMultipleEntitiesForDocumentId(String entityName, String doc
  			+ " Currently configured tenant identifiers: %2$s." )
  	SearchException invalidTenantId(String tenantId, Set<String> allTenantIds, String tenantIdsConfigurationPropertyKey);
  
@@ -242,7 +242,7 @@ index 9f1bcb8256..30de76aa99 100644
  			+ " If you want to define the size of batches for entity loading, set loading options when defining the query instead,"
  			+ " for example with .loading(o -> o.fetchSize(50))."
 diff --git a/main/java/org/hibernate/search/mapper/orm/mapping/impl/AbstractHibernateOrmTypeContext.java b/main/java/org/hibernate/search/mapper/orm/mapping/impl/AbstractHibernateOrmTypeContext.java
-index 17e33f2c15..565a56d897 100644
+index c09968682b..057510b863 100644
 --- a/main/java/org/hibernate/search/mapper/orm/mapping/impl/AbstractHibernateOrmTypeContext.java
 +++ b/main/java/org/hibernate/search/mapper/orm/mapping/impl/AbstractHibernateOrmTypeContext.java
 @@ -10,7 +10,7 @@
@@ -254,7 +254,7 @@ index 17e33f2c15..565a56d897 100644
  import org.hibernate.persister.entity.EntityPersister;
  import org.hibernate.search.mapper.orm.event.impl.HibernateOrmListenerTypeContext;
  import org.hibernate.search.mapper.orm.loading.impl.HibernateOrmEntityIdEntityLoadingStrategy;
-@@ -43,8 +43,8 @@
+@@ -45,8 +45,8 @@
  	AbstractHibernateOrmTypeContext(AbstractBuilder<E> builder, SessionFactoryImplementor sessionFactory) {
  		this.typeIdentifier = builder.typeIdentifier;
  		this.jpaEntityName = builder.jpaEntityName;
@@ -266,7 +266,7 @@ index 17e33f2c15..565a56d897 100644
  		this.ascendingSuperTypes = builder.ascendingSuperTypes;
  		if ( builder.documentIdSourcePropertyName != null ) {
 diff --git a/main/java/org/hibernate/search/mapper/orm/mapping/impl/HibernateOrmMappingConfigurationContributor.java b/main/java/org/hibernate/search/mapper/orm/mapping/impl/HibernateOrmMappingConfigurationContributor.java
-index 0318ea858d..b2bf030782 100644
+index b24077bcaf..1bee40f7fd 100644
 --- a/main/java/org/hibernate/search/mapper/orm/mapping/impl/HibernateOrmMappingConfigurationContributor.java
 +++ b/main/java/org/hibernate/search/mapper/orm/mapping/impl/HibernateOrmMappingConfigurationContributor.java
 @@ -59,9 +59,8 @@ public void configure(MappingBuildContext buildContext, PojoMappingConfiguration
@@ -538,41 +538,50 @@ index 77d7b8f982..d03fcba6e2 100644
  		HibernateOrmBasicTypeMetadataProvider build() {
  			return new HibernateOrmBasicTypeMetadataProvider( this );
  		}
-diff --git a/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathsDefinition.java b/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathsDefinition.java
-index 355980c45a..6489423a9c 100644
---- a/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathsDefinition.java
-+++ b/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathsDefinition.java
-@@ -16,6 +16,7 @@
+diff --git a/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathDefinitionProvider.java b/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathDefinitionProvider.java
+index 1e978c8d18..e99b682d70 100644
+--- a/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathDefinitionProvider.java
++++ b/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathDefinitionProvider.java
+@@ -7,7 +7,6 @@
+ package org.hibernate.search.mapper.orm.model.impl;
+ 
+ import java.util.ArrayList;
+-import java.util.Iterator;
+ import java.util.List;
+ 
+ import org.hibernate.mapping.PersistentClass;
+@@ -38,8 +37,7 @@ public HibernateOrmPathDefinitionProvider(PojoRawTypeModel<?> typeModel, Persist
+ 		this.typeModel = typeModel;
+ 		this.persistentClass = persistentClass;
+ 		this.propertyStringRepresentationByOrdinal = new ArrayList<>();
+-		for ( Iterator<Property> iterator = persistentClass.getPropertyClosureIterator(); iterator.hasNext(); ) {
+-			Property property = iterator.next();
++		for ( Property property : persistentClass.getPropertyClosure() ) {
+ 			propertyStringRepresentationByOrdinal.add( property.getName() );
+ 		}
+ 	}
+diff --git a/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathInterpreter.java b/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathInterpreter.java
+index 434c1e7bc3..099cee2604 100644
+--- a/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathInterpreter.java
++++ b/main/java/org/hibernate/search/mapper/orm/model/impl/HibernateOrmPathInterpreter.java
+@@ -17,6 +17,7 @@
  import org.hibernate.MappingException;
  import org.hibernate.event.spi.PostUpdateEvent;
  import org.hibernate.mapping.Any;
 +import org.hibernate.mapping.BasicValue;
  import org.hibernate.mapping.Component;
+ import org.hibernate.mapping.ManyToOne;
  import org.hibernate.mapping.OneToMany;
- import org.hibernate.mapping.PersistentClass;
-@@ -166,11 +167,9 @@ public HibernateOrmPathsDefinition(PersistentClass persistentClass) {
- 	}
- 
- 	@Override
--	@SuppressWarnings("unchecked")
- 	public List<String> preDefinedOrdinals() {
- 		List<String> preDefinedOrdinals = new ArrayList<>();
--		for ( Iterator<Property> iterator = persistentClass.getPropertyClosureIterator(); iterator.hasNext(); ) {
--			Property property = iterator.next();
-+		for ( Property property : persistentClass.getPropertyClosure() ) {
- 			preDefinedOrdinals.add( property.getName() );
- 		}
- 		return preDefinedOrdinals;
-@@ -252,7 +251,7 @@ private Optional<Value> resolveValueNode(Set<String> pathsAsStrings, PojoModelPa
- 				return Optional.of( baseValue );
+@@ -351,7 +352,7 @@ public Value value(Context context, Property property, PojoModelPathValueNode pa
+ 				return baseValue;
  			}
  		}
 -		else if ( SimpleValue.class.equals( valueClass ) ) { // equals() and not isAssignableFrom(), we mean it.
 +		else if ( BasicValue.class.isAssignableFrom( valueClass ) ) {
- 			pathsAsStrings.add( propertyNode.toPropertyString() );
- 			// The string representation of the path was added, we can stop here
- 			return Optional.empty();
-@@ -309,7 +308,7 @@ private Optional<Value> resolveExtractorPath(Set<String> pathsAsStrings, PojoMod
+ 			// The path as a whole (and not just a prefix) was resolved to a non-component, non-association value
+ 			context.resolvedStringRepresentation( propertyNode.toPropertyString() );
+ 			// We don't need state extraction in this case
+@@ -413,7 +414,7 @@ private Value resolveExtractorPath(Context context, PojoModelPathValueNode path,
  		if ( !extractorNameIterator.hasNext() ) {
  			// We managed to resolve the whole container value extractor list
  			Class<? extends Value> containedValueClass = containedValue.getClass();
@@ -580,12 +589,12 @@ index 355980c45a..6489423a9c 100644
 +			if ( BasicValue.class.isAssignableFrom( containedValueClass )
  					|| Component.class.isAssignableFrom( containedValueClass )
  					|| isWholePath && isAssociation( containedValueClass ) ) {
- 				pathsAsStrings.add( propertyNode.toPropertyString() );
+ 				String stringRepresentationAsProperty = propertyNode.toPropertyString();
 diff --git a/main/java/org/hibernate/search/mapper/orm/search/query/impl/HibernateOrmSearchQueryAdapter.java b/main/java/org/hibernate/search/mapper/orm/search/query/impl/HibernateOrmSearchQueryAdapter.java
-index c8ca89a1e0..9b2ef89c32 100644
+index c8ca89a1e0..f7140b4d52 100644
 --- a/main/java/org/hibernate/search/mapper/orm/search/query/impl/HibernateOrmSearchQueryAdapter.java
 +++ b/main/java/org/hibernate/search/mapper/orm/search/query/impl/HibernateOrmSearchQueryAdapter.java
-@@ -7,52 +7,45 @@
+@@ -7,52 +7,48 @@
  package org.hibernate.search.mapper.orm.search.query.impl;
  
  import java.lang.invoke.MethodHandles;
@@ -637,24 +646,25 @@ index c8ca89a1e0..9b2ef89c32 100644
  import org.hibernate.search.mapper.orm.search.query.spi.HibernateOrmSearchScrollableResultsAdapter;
 -import org.hibernate.search.mapper.orm.search.query.spi.HibernateOrmSearchScrollableResultsAdapter.ScrollHitExtractor;
  import org.hibernate.search.util.common.SearchTimeoutException;
--import org.hibernate.search.util.common.annotation.impl.SuppressForbiddenApis;
+ import org.hibernate.search.util.common.annotation.impl.SuppressForbiddenApis;
  import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 -import org.hibernate.transform.ResultTransformer;
 -import org.hibernate.type.Type;
  
 -@SuppressForbiddenApis(reason = "We need to extend the internal AbstractProducedQuery"
--		+ " in order to implement a org.hibernate.query.Query")
 +import jakarta.persistence.LockModeType;
 +import jakarta.persistence.PersistenceException;
 +import jakarta.persistence.QueryTimeoutException;
 +
++@SuppressForbiddenApis(reason = "We need to use the internal QueryOptionsImpl"
+ 		+ " in order to implement a org.hibernate.query.Query")
  @SuppressWarnings("unchecked") // For some reason javac issues warnings for all methods returning this; IDEA doesn't.
 -public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQuery<R> {
 +public final class HibernateOrmSearchQueryAdapter<R> extends AbstractQuery<R> {
  
  	public static <R> HibernateOrmSearchQueryAdapter<R> create(SearchQuery<R> query) {
  		return query.extension( HibernateOrmSearchQueryAdapterExtension.get() );
-@@ -61,15 +54,16 @@ public static <R> HibernateOrmSearchQueryAdapter<R> create(SearchQuery<R> query)
+@@ -61,15 +57,16 @@ public static <R> HibernateOrmSearchQueryAdapter<R> create(SearchQuery<R> query)
  	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
  
  	private final SearchQueryImplementor<R> delegate;
@@ -675,7 +685,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  		this.loadingOptions = loadingOptions;
  	}
  
-@@ -84,83 +78,26 @@ public String toString() {
+@@ -84,83 +81,26 @@ public String toString() {
  
  	@Override
  	@SuppressWarnings("unchecked")
@@ -766,7 +776,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  	}
  
  	@Override
-@@ -168,6 +105,11 @@ public String getQueryString() {
+@@ -168,6 +108,11 @@ public String getQueryString() {
  		return delegate.queryString();
  	}
  
@@ -778,7 +788,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  	@Override
  	public HibernateOrmSearchQueryAdapter<R> setHint(String hintName, Object value) {
  		switch ( hintName ) {
-@@ -180,14 +122,12 @@ public HibernateOrmSearchQueryAdapter<R> setHint(String hintName, Object value)
+@@ -180,14 +125,12 @@ public HibernateOrmSearchQueryAdapter<R> setHint(String hintName, Object value)
  				break;
  			case HibernateOrmSearchQueryHints.JAVAX_FETCHGRAPH:
  			case HibernateOrmSearchQueryHints.JAKARTA_FETCHGRAPH:
@@ -795,7 +805,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  				break;
  		}
  		return this;
-@@ -200,148 +140,104 @@ public HibernateOrmSearchQueryAdapter<R> setTimeout(int timeout) {
+@@ -200,148 +143,104 @@ public HibernateOrmSearchQueryAdapter<R> setTimeout(int timeout) {
  	}
  
  	@Override
@@ -996,7 +1006,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  		throw parametersNoSupported();
  	}
  
-@@ -350,18 +246,16 @@ private UnsupportedOperationException parametersNoSupported() {
+@@ -350,18 +249,16 @@ private UnsupportedOperationException parametersNoSupported() {
  	}
  
  	@Override
@@ -1020,7 +1030,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  		return new UnsupportedOperationException( "Result transformers are not supported in Hibernate Search queries" );
  	}
  
-@@ -391,7 +285,12 @@ private UnsupportedOperationException lockOptionsNotSupported() {
+@@ -391,7 +288,12 @@ private UnsupportedOperationException lockOptionsNotSupported() {
  	}
  
  	@Override
@@ -1034,7 +1044,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  		throw new UnsupportedOperationException( "executeUpdate is not supported in Hibernate Search queries" );
  	}
  
-@@ -400,30 +299,6 @@ public HibernateOrmSearchQueryAdapter<R> setLockMode(String alias, LockMode lock
+@@ -400,30 +302,6 @@ public HibernateOrmSearchQueryAdapter<R> setLockMode(String alias, LockMode lock
  		throw lockOptionsNotSupported();
  	}
  
@@ -1065,7 +1075,7 @@ index c8ca89a1e0..9b2ef89c32 100644
  	private static long hintValueToLong(Object value) {
  		if ( value instanceof Number ) {
  			return ( (Number) value ).longValue();
-@@ -442,8 +317,4 @@ private static int hintValueToInteger(Object value) {
+@@ -442,8 +320,4 @@ private static int hintValueToInteger(Object value) {
  		}
  	}
  

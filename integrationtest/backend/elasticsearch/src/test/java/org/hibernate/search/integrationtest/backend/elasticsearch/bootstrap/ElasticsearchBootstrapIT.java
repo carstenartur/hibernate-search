@@ -8,8 +8,10 @@ package org.hibernate.search.integrationtest.backend.elasticsearch.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isAtMost;
 import static org.hibernate.search.util.impl.integrationtest.common.assertion.SearchResultAssert.assertThatQuery;
 import static org.hibernate.search.util.impl.test.JsonHelper.assertJsonEqualsIgnoringUnknownFields;
+import static org.junit.Assume.assumeFalse;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,11 +19,11 @@ import java.util.Map;
 import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchBackendSettings;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
-import org.hibernate.search.backend.elasticsearch.cfg.spi.ElasticsearchBackendSpiSettings;
+import org.hibernate.search.backend.elasticsearch.cfg.spi.ElasticsearchBackendImplSettings;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.cfg.BackendSettings;
 import org.hibernate.search.engine.cfg.spi.AllAwareConfigurationPropertySource;
-import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.categories.RequiresSingleModelDialectForMajorVersion;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchClientSpy;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchRequestAssertionMode;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
@@ -35,7 +37,6 @@ import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 public class ElasticsearchBootstrapIT {
 
@@ -62,7 +63,7 @@ public class ElasticsearchBootstrapIT {
 						ElasticsearchBackendSettings.VERSION, ElasticsearchTestDialect.getActualVersion().toString()
 				)
 				.withBackendProperty(
-						ElasticsearchBackendSpiSettings.CLIENT_FACTORY,
+						ElasticsearchBackendImplSettings.CLIENT_FACTORY,
 						elasticsearchClientSpy.factoryReference()
 				)
 				.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -95,7 +96,7 @@ public class ElasticsearchBootstrapIT {
 								ElasticsearchBackendSettings.VERSION_CHECK_ENABLED, false
 						)
 						.withBackendProperty(
-								ElasticsearchBackendSpiSettings.CLIENT_FACTORY,
+								ElasticsearchBackendImplSettings.CLIENT_FACTORY,
 								elasticsearchClientSpy.factoryReference()
 						)
 						.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -118,9 +119,16 @@ public class ElasticsearchBootstrapIT {
 	 * while specifying only the major number of the Elasticsearch version.
 	 */
 	@Test
-	@Category(RequiresSingleModelDialectForMajorVersion.class)
 	@TestForIssue(jiraKey = "HSEARCH-3841")
 	public void noVersionCheck_incompleteVersion() {
+		assumeFalse(
+				"This test only is only relevant" +
+						" for Elasticsearch major versions where all minor versions" +
+						" use the same model dialect." +
+						" It is not the case on ES 5 in particular, since 5.6 has a dialect" +
+						" but 5.0, 5.1, etc. don't have one.",
+				isAtMost( ElasticsearchTestDialect.getActualVersion(), "elastic:5.6" )
+		);
 		ElasticsearchVersion actualVersion = ElasticsearchTestDialect.getActualVersion();
 		String versionWithMajorOnly = actualVersion.distribution() + ":" + actualVersion.major();
 
@@ -133,7 +141,7 @@ public class ElasticsearchBootstrapIT {
 								ElasticsearchBackendSettings.VERSION, versionWithMajorOnly
 						)
 						.withBackendProperty(
-								ElasticsearchBackendSpiSettings.CLIENT_FACTORY,
+								ElasticsearchBackendImplSettings.CLIENT_FACTORY,
 								elasticsearchClientSpy.factoryReference()
 						)
 						.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -167,7 +175,7 @@ public class ElasticsearchBootstrapIT {
 						ElasticsearchBackendSettings.VERSION, versionWithMajorAndMinorOnly
 				)
 				.withBackendProperty(
-						ElasticsearchBackendSpiSettings.CLIENT_FACTORY,
+						ElasticsearchBackendImplSettings.CLIENT_FACTORY,
 						elasticsearchClientSpy.factoryReference()
 				)
 				.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -192,9 +200,16 @@ public class ElasticsearchBootstrapIT {
 	 * and specifying a version on backend creation, and a different one on backend start.
 	 */
 	@Test
-	@Category(RequiresSingleModelDialectForMajorVersion.class)
 	@TestForIssue(jiraKey = "HSEARCH-4214")
 	public void noVersionCheck_versionOverrideOnStart_incompatibleVersion() {
+		assumeFalse(
+				"This test only is only relevant" +
+						" for Elasticsearch major versions where all minor versions" +
+						" use the same model dialect." +
+						" It is not the case on ES 5 in particular, since 5.6 has a dialect" +
+						" but 5.0, 5.1, etc. don't have one.",
+				isAtMost( ElasticsearchTestDialect.getActualVersion(), "elastic:5.6" )
+		);
 		ElasticsearchVersion actualVersion = ElasticsearchTestDialect.getActualVersion();
 		String versionWithMajorOnly = actualVersion.distribution() + ":" + actualVersion.major();
 		String incompatibleVersionWithMajorAndMinorOnly = actualVersion.distribution() + ":"
@@ -205,7 +220,7 @@ public class ElasticsearchBootstrapIT {
 						ElasticsearchBackendSettings.VERSION, versionWithMajorOnly
 				)
 				.withBackendProperty(
-						ElasticsearchBackendSpiSettings.CLIENT_FACTORY,
+						ElasticsearchBackendImplSettings.CLIENT_FACTORY,
 						elasticsearchClientSpy.factoryReference()
 				)
 				.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -239,9 +254,16 @@ public class ElasticsearchBootstrapIT {
 	 * and specifying a version on backend creation, and a more precise one on backend start.
 	 */
 	@Test
-	@Category(RequiresSingleModelDialectForMajorVersion.class)
 	@TestForIssue(jiraKey = "HSEARCH-4214")
 	public void noVersionCheck_versionOverrideOnStart_compatibleVersion() {
+		assumeFalse(
+				"This test only is only relevant" +
+						" for Elasticsearch major versions where all minor versions" +
+						" use the same model dialect." +
+						" It is not the case on ES 5 in particular, since 5.6 has a dialect" +
+						" but 5.0, 5.1, etc. don't have one.",
+				isAtMost( ElasticsearchTestDialect.getActualVersion(), "elastic:5.6" )
+		);
 		ElasticsearchVersion actualVersion = ElasticsearchTestDialect.getActualVersion();
 		String versionWithMajorOnly = actualVersion.distribution() + ":" + actualVersion.major();
 		String versionWithMajorAndMinorOnly = actualVersion.distribution() + ":"
@@ -252,7 +274,7 @@ public class ElasticsearchBootstrapIT {
 						ElasticsearchBackendSettings.VERSION, versionWithMajorOnly
 				)
 				.withBackendProperty(
-						ElasticsearchBackendSpiSettings.CLIENT_FACTORY,
+						ElasticsearchBackendImplSettings.CLIENT_FACTORY,
 						elasticsearchClientSpy.factoryReference()
 				)
 				.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -287,7 +309,7 @@ public class ElasticsearchBootstrapIT {
 
 		SearchSetupHelper.PartialSetup partialSetup = setupHelper.start()
 				.withBackendProperty( ElasticsearchBackendSettings.VERSION, versionWithMajorAndMinorOnly )
-				.withBackendProperty( ElasticsearchBackendSpiSettings.CLIENT_FACTORY,
+				.withBackendProperty( ElasticsearchBackendImplSettings.CLIENT_FACTORY,
 						elasticsearchClientSpy.factoryReference() )
 				.withBackendProperty( ElasticsearchIndexSettings.SCHEMA_MANAGEMENT_SETTINGS_FILE,
 						"bootstrap-it/custom-settings.json" )
@@ -317,7 +339,7 @@ public class ElasticsearchBootstrapIT {
 	}
 
 	private void checkBackendWorks() {
-		index.schemaManager().createIfMissing().join();
+		index.schemaManager().createIfMissing( OperationSubmitter.BLOCKING ).join();
 		assertThatQuery( index.query().where( f -> f.matchAll() ) ).hasNoHits();
 		index.index( "1", document -> { } );
 		assertThatQuery( index.query().where( f -> f.matchAll() ) ).hasDocRefHitsAnyOrder( index.typeName(), "1" );

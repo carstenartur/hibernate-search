@@ -79,9 +79,9 @@ public class FieldPathsIT {
 			// tag::nested_explicit[]
 			List<Book> hits = searchSession.search( Book.class )
 					.where( f -> f.nested( "writers" )
-							.must( f.match().field( "writers.firstName" ) // <1>
+							.add( f.match().field( "writers.firstName" ) // <1>
 									.matching( "isaac" ) )
-							.must( f.match().field( "writers.lastName" )
+							.add( f.match().field( "writers.lastName" )
 									.matching( "asimov" ) )
 					)
 					.fetchHits( 20 );
@@ -99,11 +99,11 @@ public class FieldPathsIT {
 			List<Book> hits = searchSession.search( Book.class )
 					.where( f -> f.bool()
 							.should( f.nested( "writers" )
-									.must( matchFirstAndLastName( // <1>
+									.add( matchFirstAndLastName( // <1>
 											f.withRoot( "writers" ), // <2>
 											"bob", "kane" ) ) )
 							.should( f.nested( "artists" )
-									.must( matchFirstAndLastName( // <3>
+									.add( matchFirstAndLastName( // <3>
 											f.withRoot( "artists" ), // <4>
 											"bill", "finger" ) ) ) )
 					.fetchHits( 20 );
@@ -117,11 +117,12 @@ public class FieldPathsIT {
 	// tag::withRoot_method[]
 	private SearchPredicate matchFirstAndLastName(SearchPredicateFactory f,
 			String firstName, String lastName) {
-		return f.bool()
-				.must( f.match().field( "firstName" ) // <1>
-						.matching( firstName ) )
-				.must( f.match().field( "lastName" )
-						.matching( lastName ) )
+		return f.and(
+						f.match().field( "firstName" ) // <1>
+								.matching( firstName ),
+						f.match().field( "lastName" )
+								.matching( lastName )
+				)
 				.toPredicate();
 	}
 	// end::withRoot_method[]

@@ -6,31 +6,39 @@
  */
 package org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util;
 
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isBetween;
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isMatching;
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isLessThan;
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isAtMost;
+import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchVersionUtils.isOpenSearch;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
 import org.hibernate.search.engine.search.common.SortMode;
 import org.hibernate.search.engine.spatial.GeoPoint;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TestedFieldStructure;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchTestHostConnectionConfiguration;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendFeatures;
 
 class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 
-	private final ElasticsearchTestDialect dialect;
+	private final ElasticsearchVersion actualVersion;
 
-	ElasticsearchTckBackendFeatures(ElasticsearchTestDialect dialect) {
-		this.dialect = dialect;
+	ElasticsearchTckBackendFeatures() {
+		this.actualVersion = ElasticsearchTestDialect.getActualVersion();
 	}
 
 	@Override
 	public boolean geoPointIndexNullAs() {
-		return dialect.supportsGeoPointIndexNullAs();
+		return !isLessThan( actualVersion, "elastic:6.3.0" );
 	}
 
 	@Override
 	public boolean worksFineWithStrictAboveRangedQueriesOnDecimalScaledField() {
-		return dialect.supportsStrictGreaterThanRangedQueriesOnScaledFloatField();
+		return !isLessThan( actualVersion, "elastic:6.0.0" );
 	}
 
 	@Override
@@ -42,7 +50,10 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 
 	@Override
 	public boolean normalizesStringArgumentToWildcardPredicateForAnalyzedStringField() {
-		return dialect.normalizesStringArgumentToWildcardPredicateForAnalyzedStringField();
+		// In ES 7.7 through 7.11, wildcard predicates on analyzed fields get their pattern normalized,
+		// but that was deemed a bug and fixed in 7.12.2+: https://github.com/elastic/elasticsearch/pull/53127
+		return isBetween( actualVersion, "elastic:7.7", "elastic:7.12.1" ) ||
+				isOpenSearch( actualVersion );
 	}
 
 	@Override
@@ -54,7 +65,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 
 	@Override
 	public boolean zonedDateTimeDocValueHasUTCZoneId() {
-		return dialect.zonedDateTimeDocValueHasUTCZoneId();
+		return isAtMost( actualVersion, "elastic:6.8" );
 	}
 
 	@Override
@@ -86,7 +97,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 			// and it is fixed in ES 6.x.
 			// Since 5.6 is really old and EOL'd anyway, it's unlikely to ever get a fix.
 			// We'll just ignore tests that fail because of this.
-			return ! dialect.hasBugForSortMaxOnNegativeFloats();
+			return !isLessThan( actualVersion, "elastic:6.0.0" );
 		}
 		else {
 			return true;
@@ -99,14 +110,13 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 			// For some reason, ES 5.6 to 7.2 fail to index BigInteger values
 			// with "No matching token for number_type [BIG_INTEGER]".
 			// It's fixed in Elasticsearch 7.3, though.
-			return ! dialect.hasBugForBigIntegerValuesForDynamicField();
+			return !isLessThan( actualVersion, "elastic:7.3.0" );
 		}
 		else if ( BigDecimal.class.equals( javaType ) ) {
 			// For some reason, ES 5.6 and 6.x sometimes fails to index BigDecimal values
 			// in dynamic fields.
-			// See https://hibernate.atlassian.net/browse/HSEARCH-4310,
-			// https://hibernate.atlassian.net/browse/HSEARCH-4310
-			return ! dialect.hasBugForBigDecimalValuesForDynamicField();
+			// See https://hibernate.atlassian.net/browse/HSEARCH-4310
+			return !isAtMost( actualVersion, "elastic:6.8" );
 		}
 		else {
 			return true;
@@ -120,7 +130,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 
 	@Override
 	public boolean supportsTotalHitsThresholdForSearch() {
-		return dialect.supportsSkipOrLimitingTotalHitCount();
+		return !isAtMost( actualVersion, "elastic:6.8" );
 	}
 
 	@Override
@@ -140,7 +150,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 	public boolean supportsExistsForFieldWithoutDocValues(Class<?> fieldType) {
 		if ( GeoPoint.class.equals( fieldType ) ) {
 			// See https://github.com/elastic/elasticsearch/issues/65306
-			return !dialect.hasBugForExistsOnNullGeoPointFieldWithoutDocValues();
+			return isAtMost( actualVersion, "elastic:7.9" );
 		}
 		return true;
 	}
@@ -171,13 +181,18 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 
 	@Override
 	public boolean supportMoreThan1024TermsOnMatchingAny() {
-		return dialect.supportMoreThan1024Terms();
+		return !isLessThan( actualVersion, "elastic:6.0.0" );
 	}
 
 	@Override
 	public boolean supportsDistanceSortWhenFieldMissingInSomeTargetIndexes() {
 		// Not supported in older versions of Elasticsearch
-		return dialect.supportsIgnoreUnmappedForGeoPointField();
+		//
+		// Support for ignore_unmapped in geo_distance sorts added in 6.4:
+		// https://github.com/elastic/elasticsearch/pull/31153
+		// In 6.3 and below, we just can't ignore unmapped fields,
+		// which means sorts will fail when the geo_point field is not present in all indexes.
+		return !isLessThan( actualVersion, "elastic:6.4.0" );
 	}
 
 	@Override
@@ -193,25 +208,47 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 
 	@Override
 	public boolean supportsFieldSortWhenFieldMissingInSomeTargetIndexes(Class<?> fieldType) {
-		if ( BigInteger.class.equals( fieldType ) || BigDecimal.class.equals( fieldType ) ) {
-			// We cannot use unmapped_type for scaled floats:
-			// Elasticsearch complains it needs a scaling factor, but we don't have any way to provide it.
-			// See https://hibernate.atlassian.net/browse/HSEARCH-4176
-			return false;
-		}
-		else {
-			return true;
-		}
+		// We cannot use unmapped_type for scaled floats:
+		// Elasticsearch complains it needs a scaling factor, but we don't have any way to provide it.
+		// See https://hibernate.atlassian.net/browse/HSEARCH-4176
+		return !BigInteger.class.equals( fieldType ) && !BigDecimal.class.equals( fieldType );
 	}
 
 	@Override
 	public boolean supportsFieldSortWhenNestedFieldMissingInSomeTargetIndexes() {
 		// Not supported in older versions of Elasticsearch
-		return dialect.ignoresFieldSortWhenNestedFieldMissing();
+		//
+		// Support for ignoring field sorts when a nested field is missing was added in 6.8.1/7.1.2:
+		// https://github.com/elastic/elasticsearch/pull/42451
+		// In 6.8.0 and below, we just can't ignore unmapped nested fields in field sorts,
+		// which means sorts will fail when the nested field is not present in all indexes.
+		// -----------------------------------------------------------------------------------------
+		// AWS apparently didn't apply this patch, which solves the problem in 6.8.1/7.1.2,
+		// to their 6.8 branch:
+		// https://github.com/elastic/elasticsearch/pull/42451
+
+		return !isAtMost( actualVersion, "elastic:6.7" ) &&
+				( !ElasticsearchTestHostConnectionConfiguration.get().isAws() ||
+						!isMatching( actualVersion, "elastic:6.8" ) );
 	}
 
 	@Override
-	public boolean reliesOnNestedDocumentsForObjectProjection() {
+	public boolean reliesOnNestedDocumentsForMultiValuedObjectProjection() {
 		return false;
+	}
+
+	@Override
+	public boolean supportsYearType() {
+		// https://github.com/elastic/elasticsearch/issues/90187
+		// Seems like this was fixed in 8.5.1 and they won't backport to 8.4:
+		// https://github.com/elastic/elasticsearch/pull/90458
+		return !isBetween( actualVersion, "elastic:8.4.2", "elastic:8.5.0" );
+	}
+
+	@Override
+	public boolean supportsMatchOnScaledNumericLossOfPrecision() {
+		// https://github.com/elastic/elasticsearch/issues/91246
+		// Hopefully this will get fixed in 8.5.4.
+		return !isBetween( actualVersion, "elastic:8.5.0", "elastic:8.5.3" );
 	}
 }

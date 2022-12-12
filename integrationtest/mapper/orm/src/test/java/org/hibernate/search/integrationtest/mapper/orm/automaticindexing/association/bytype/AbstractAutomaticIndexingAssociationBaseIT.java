@@ -17,7 +17,12 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.hibernate.search.integrationtest.mapper.orm.automaticindexing.association.bytype.accessor.MultiValuedPropertyAccessor;
+import org.hibernate.search.integrationtest.mapper.orm.automaticindexing.association.bytype.accessor.PropertyAccessor;
+import org.hibernate.search.util.common.AssertionFailure;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
+import org.hibernate.search.util.impl.integrationtest.common.stub.StubTreeNodeDiffer;
+import org.hibernate.search.util.impl.integrationtest.common.stub.backend.document.StubDocumentNode;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.document.model.StubIndexSchemaDataNode;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmSetupHelper;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.ReusableOrmSetupHolder;
@@ -32,7 +37,9 @@ import org.junit.rules.MethodRule;
  * Abstract base for tests of automatic indexing caused by association updates
  * or by updates of associated (contained) entities.
  * <p>
- * We use a contrived design based on a {@link ModelPrimitives} class that defines all the factory methods,
+ * We use a contrived design based on "primitives" classes
+ * ({@link IndexedEntityPrimitives}, {@link ContainingEntityPrimitives}, {@link ContainingEntityPrimitives})
+ * that define all the factory methods,
  * setters and getters we need,
  * because we want to have separate model classes for every test,
  * in order to avoid introducing exotic situations that would arise
@@ -74,6 +81,11 @@ import org.junit.rules.MethodRule;
  *                 directly on the indexed entity,
  *                 but implicitly through a delete of the contained entity,
  *                 without updating the containing side of the association explicitly.
+ *             </li>
+ *             <li>
+ *                 directEmbeddedAssociationReplace: replace the entire embedded holding the association
+ *                 (not clear/add, but really use a different embedded object, with a different collection if relevant)
+ *                 directly on the indexed entity
  *             </li>
  *             <li>
  *                 directMultiValuedAssociationUpdate: set the value of the association
@@ -123,8 +135,11 @@ import org.junit.rules.MethodRule;
  *      </li>
  *     <li>
  *         the second token defines how the association between TContaining and TContained is indexed:
- *         indexed-embedded, non-indexed-embedded, indexed-embbedded with ReindexOnUpdate.NO,
- *         indexed as a side effect of being used in a cross-entity derived property.
+ *         indexed-embedded, non-indexed-embedded, indexed-embbedded with ReindexOnUpdate.SHALLOW,
+ *         indexed-embbedded with ReindexOnUpdate.NO,
+ *         indexed as a side effect of being used in a cross-entity derived property,
+ *         in an embeddable (embeddedAssociations) and indexed-embbedded,
+ *         in an embeddable (embeddedAssociations) and non-indexed-embbedded.
  *     </li>
  *     <li>
  *         the third token (if any) defines which type of value is being updated/replaced:
@@ -137,8 +152,23 @@ import org.junit.rules.MethodRule;
  * </ul>
  */
 public abstract class AbstractAutomaticIndexingAssociationBaseIT<
-				TIndexed extends TContaining, TContaining, TContained
+				TIndexed extends TContaining, TContaining, TContainingEmbeddable, TContained, TContainedEmbeddable
 		> {
+
+	/*
+	 * Make sure that the values are in lexicographical order, so that SortedMap tests
+	 * using these values as keys work correctly.
+	 */
+	protected final String VALUE_1 = "1 - firstValue";
+	protected final String VALUE_2 = "2 - secondValue";
+	protected final String VALUE_3 = "3 - thirdValue";
+	protected final String VALUE_4 = "4 - fourthValue";
+
+	protected static AssertionFailure primitiveNotSupported() {
+		throw new AssertionFailure(
+				"This primitive is not supported for this association type and this method should not have been called."
+						+ " There is most likely a bug in the implementation of tests (missing primitive or test not ignored properly)." );
+	}
 
 	@ClassRule
 	public static BackendMock backendMock = new BackendMock();
@@ -149,21 +179,86 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Rule
 	public MethodRule setupHolderMethodRule = setupHolder.methodRule();
 
-	private final ModelPrimitives<TIndexed, TContaining, TContained> primitives;
+	private final IndexedEntityPrimitives<TIndexed> indexedPrimitives;
 
-	public AbstractAutomaticIndexingAssociationBaseIT(
-			ModelPrimitives<TIndexed, TContaining, TContained> primitives) {
-		this.primitives = primitives;
+	private final ContainingEntityPrimitives<TContaining, TContainingEmbeddable, TContained> containingPrimitives;
+	private final ContainingEmbeddablePrimitives<TContainingEmbeddable, TContained> containingEmbeddablePrimitives;
+
+	private final ContainedEntityPrimitives<TContained, TContainedEmbeddable, TContaining> containedPrimitives;
+	private final ContainedEmbeddablePrimitives<TContainedEmbeddable, TContaining> containedEmbeddablePrimitives;
+
+	public AbstractAutomaticIndexingAssociationBaseIT(IndexedEntityPrimitives<TIndexed> indexedPrimitives,
+			ContainingEntityPrimitives<TContaining, TContainingEmbeddable, TContained> containingPrimitives,
+			ContainingEmbeddablePrimitives<TContainingEmbeddable, TContained> containingEmbeddablePrimitives,
+			ContainedEntityPrimitives<TContained, TContainedEmbeddable, TContaining> containedPrimitives,
+			ContainedEmbeddablePrimitives<TContainedEmbeddable, TContaining> containedEmbeddablePrimitives) {
+		this.indexedPrimitives = indexedPrimitives;
+		this.containingPrimitives = containingPrimitives;
+		this.containingEmbeddablePrimitives = containingEmbeddablePrimitives;
+		this.containedPrimitives = containedPrimitives;
+		this.containedEmbeddablePrimitives = containedEmbeddablePrimitives;
+	}
+
+	protected abstract boolean isAssociationMultiValuedOnContainingSide();
+
+	protected abstract boolean isAssociationMultiValuedOnContainedSide();
+
+	protected abstract boolean isAssociationOwnedByContainedSide();
+
+	protected abstract boolean isAssociationLazyOnContainingSide();
+
+	private boolean isElementCollectionAssociationsOnContainingSide() {
+		return !isAssociationOwnedByContainedSide() && !isAssociationMultiValuedOnContainingSide();
+	}
+
+	private void assumeElementCollectionAssociationsOnContainingSide() {
+		assumeTrue( "This test only makes sense if there is an element collection with nested associations"
+				+ " on the containing side,"
+				+ " which requires that the associations be owned by the containing side"
+				+ " and be single-valued on the containing side.",
+				isElementCollectionAssociationsOnContainingSide() );
+	}
+
+	private boolean isElementCollectionAssociationsOnContainedSide() {
+		return isAssociationOwnedByContainedSide() && !isAssociationMultiValuedOnContainedSide();
+	}
+
+	private void assumeElementCollectionAssociationsOnContainedSide() {
+		assumeTrue( "This test only makes sense if there is an element collection with nested associations"
+						+ " on the contained side,"
+						+ " which requires that the associations be owned by the contained side"
+						+ " and be single-valued on the contained side.",
+				isElementCollectionAssociationsOnContainedSide() );
+	}
+
+	protected IndexedEntityPrimitives<TIndexed> _indexed() {
+		return indexedPrimitives;
+	}
+
+	protected ContainingEntityPrimitives<TContaining, TContainingEmbeddable, TContained> _containing() {
+		return containingPrimitives;
+	}
+
+	protected ContainingEmbeddablePrimitives<TContainingEmbeddable, TContained> _containingEmbeddable() {
+		return containingEmbeddablePrimitives;
+	}
+
+	protected ContainedEntityPrimitives<TContained, TContainedEmbeddable, TContaining> _contained() {
+		return containedPrimitives;
+	}
+
+	protected ContainedEmbeddablePrimitives<TContainedEmbeddable, TContaining> _containedEmbeddable() {
+		return containedEmbeddablePrimitives;
 	}
 
 	@ReusableOrmSetupHolder.Setup
 	public void setup(OrmSetupHelper.SetupContext setupContext, ReusableOrmSetupHolder.DataClearConfig dataClearConfig) {
 		Consumer<StubIndexSchemaDataNode.Builder> associationFieldContributor = b -> {
-			if ( primitives.isMultiValuedAssociation() ) {
+			if ( isAssociationMultiValuedOnContainingSide() ) {
 				b.multiValued( true );
 			}
 		};
-		backendMock.expectSchema( primitives.getIndexName(), b -> b
+		backendMock.expectSchema( _indexed().indexName(), b -> b
 				.objectField( "containedIndexedEmbedded",
 						associationFieldContributor.andThen( b2 -> b2
 								.field( "indexedField", String.class )
@@ -190,26 +285,56 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 								.field( "indexedField", String.class )
 						)
 				)
+				.objectField( "embeddedAssociations", b2 -> b2
+					.objectField( "containedIndexedEmbedded",
+							associationFieldContributor.andThen( b3 -> b3
+									.field( "indexedField", String.class )
+									.field( "indexedElementCollectionField", String.class, b4 -> b4.multiValued( true ) )
+									.field( "containedDerivedField", String.class )
+							)
+					)
+				)
+				.with( isElementCollectionAssociationsOnContainingSide() ? bWith -> bWith
+						.objectField( "elementCollectionAssociations", b2 -> b2
+								.multiValued( true )
+								.objectField( "containedIndexedEmbedded",
+										associationFieldContributor.andThen( b3 -> b3
+												.field( "indexedField", String.class )
+												.field( "indexedElementCollectionField", String.class, b4 -> b4.multiValued( true ) )
+												.field( "containedDerivedField", String.class )
+										)
+								)
+						)
+						: bWith -> { } )
+				.with( isElementCollectionAssociationsOnContainedSide() ? bWith -> bWith
+						.objectField( "containedElementCollectionAssociationsIndexedEmbedded",
+								associationFieldContributor.andThen( b2 -> b2
+										.field( "indexedField", String.class )
+										.field( "indexedElementCollectionField", String.class, b3 -> b3.multiValued( true ) )
+										.field( "containedDerivedField", String.class )
+								)
+						)
+						: bWith -> { } )
 				.field( "crossEntityDerivedField", String.class )
-				.objectField( "child", b3 -> b3
+				.objectField( "child", bChild -> bChild
 						.objectField( "containedIndexedEmbedded",
 								associationFieldContributor.andThen( b2 -> b2
 										.field( "indexedField", String.class )
-										.field( "indexedElementCollectionField", String.class, b4 -> b4.multiValued( true ) )
+										.field( "indexedElementCollectionField", String.class, b3 -> b3.multiValued( true ) )
 										.field( "containedDerivedField", String.class )
 								)
 						)
 						.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate",
 								associationFieldContributor.andThen( b2 -> b2
 										.field( "indexedField", String.class )
-										.field( "indexedElementCollectionField", String.class, b4 -> b4.multiValued( true ) )
+										.field( "indexedElementCollectionField", String.class, b3 -> b3.multiValued( true ) )
 										.field( "containedDerivedField", String.class )
 								)
 						)
 						.objectField( "containedIndexedEmbeddedNoReindexOnUpdate",
 								associationFieldContributor.andThen( b2 -> b2
 										.field( "indexedField", String.class )
-										.field( "indexedElementCollectionField", String.class, b4 -> b4.multiValued( true ) )
+										.field( "indexedElementCollectionField", String.class, b3 -> b3.multiValued( true ) )
 										.field( "containedDerivedField", String.class )
 								)
 						)
@@ -218,49 +343,96 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 										.field( "indexedField", String.class )
 								)
 						)
+						.objectField( "embeddedAssociations", b2 -> b2
+								.objectField( "containedIndexedEmbedded",
+										associationFieldContributor.andThen( b3 -> b3
+												.field( "indexedField", String.class )
+												.field( "indexedElementCollectionField", String.class, b4 -> b4.multiValued( true ) )
+												.field( "containedDerivedField", String.class )
+										)
+								)
+						)
+						.with( isElementCollectionAssociationsOnContainingSide() ? bWith -> bWith
+								.objectField( "elementCollectionAssociations", b2 -> b2
+										.multiValued( true )
+										.objectField( "containedIndexedEmbedded",
+												associationFieldContributor.andThen( b3 -> b3
+														.field( "indexedField", String.class )
+														.field( "indexedElementCollectionField", String.class, b4 -> b4.multiValued( true ) )
+														.field( "containedDerivedField", String.class )
+												)
+										)
+								)
+								: bWith -> { } )
+						.with( isElementCollectionAssociationsOnContainedSide() ? bWith -> bWith
+								.objectField( "containedElementCollectionAssociationsIndexedEmbedded",
+										associationFieldContributor.andThen( b2 -> b2
+												.field( "indexedField", String.class )
+												.field( "indexedElementCollectionField", String.class, b3 -> b3.multiValued( true ) )
+												.field( "containedDerivedField", String.class )
+										)
+								)
+								: bWith -> { } )
 						.field( "crossEntityDerivedField", String.class )
 				)
 		);
 
-		setupContext.withAnnotatedTypes( primitives.getIndexedClass(), primitives.getContainingClass(),
-				primitives.getContainedClass() );
+		// Embedded deserialization rules in ORM are just weird:
+		// when all columns are empty, an embedded is sometimes deserialized as `null`
+		// (though that can be prevented with hibernate.create_empty_composites.enabled = true),
+		// and this applies to embeddeds in @ElementCollections as well.
+		// That's just too much noise when writing indexing assertions,
+		// so we'll consider null equivalent to an empty instance for embeddeds.
+		backendMock.documentDiffer( _indexed().indexName(), StubTreeNodeDiffer.<StubDocumentNode>builder()
+				.missingEquivalentToEmptyForPath( "embeddedAssociations" )
+				.missingEquivalentToEmptyForPath( "elementCollectionAssociations" )
+				.missingEquivalentToEmptyForPath( "child.embeddedAssociations" )
+				.missingEquivalentToEmptyForPath( "child.elementCollectionAssociations" )
+				.build() );
 
-		if ( primitives.isAssociationOwnedByContainedSide() ) {
-			dataClearConfig.clearOrder( primitives.getContainedClass(), primitives.getContainingClass(),
-					primitives.getIndexedClass() );
+		setupContext.withAnnotatedTypes( _indexed().entityClass(), _containing().entityClass(),
+				_contained().entityClass() );
+
+		if ( isAssociationOwnedByContainedSide() ) {
+			dataClearConfig.clearOrder( _contained().entityClass(), _containing().entityClass(),
+					_indexed().entityClass() );
 		}
 		else {
-			dataClearConfig.clearOrder( primitives.getContainingClass(), primitives.getIndexedClass(),
-					primitives.getContainedClass() );
+			dataClearConfig.clearOrder( _containing().entityClass(), _indexed().entityClass(),
+					_contained().entityClass() );
 		}
 	}
 
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-4305")
 	public void directAssociationUpdate_indexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedIndexedEmbedded().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, entity1 );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "containedIndexedEmbedded", b2 -> b2
 									.field( "indexedField", "initialValue" )
@@ -271,18 +443,19 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 3 );
-			primitives.indexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 3 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsIndexedEmbedded().clear( primitives.containedIndexedEmbedded().get( entity1 ) );
-			primitives.containedIndexedEmbedded().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, entity1 );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "containedIndexedEmbedded", b2 -> b2
 									.field( "indexedField", "updatedValue" )
@@ -293,12 +466,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			primitives.containingAsIndexedEmbedded().clear( primitives.containedIndexedEmbedded().get( entity1 ) );
-			primitives.containedIndexedEmbedded().clear( entity1 );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
@@ -312,25 +486,29 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3199")
 	public final void directAssociationUpdate_nonIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedNonIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsNonIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.nonIndexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedNonIndexedEmbedded().set( entity1, containedEntity );
-			primitives.containingAsNonIndexedEmbedded().set( containedEntity, entity1 );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
@@ -340,14 +518,15 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 3 );
-			primitives.nonIndexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 3 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsNonIndexedEmbedded().clear( primitives.containedNonIndexedEmbedded().get( entity1 ) );
-			primitives.containedNonIndexedEmbedded().set( entity1, containedEntity );
-			primitives.containingAsNonIndexedEmbedded().set( containedEntity, entity1 );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
@@ -357,10 +536,11 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			primitives.containingAsNonIndexedEmbedded().clear( primitives.containedNonIndexedEmbedded().get( entity1 ) );
-			primitives.containedNonIndexedEmbedded().clear( entity1 );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( entity1 );
 
 			// Do not expect any work
 		} );
@@ -375,29 +555,33 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = { "HSEARCH-4001", "HSEARCH-4305" })
 	public void directAssociationUpdate_indexedEmbeddedShallowReindexOnUpdate() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().set( containedEntity, entity1 );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate", b2 -> b2
 									.field( "indexedField", "initialValue" )
@@ -408,19 +592,19 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 3 );
-			primitives.indexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 3 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate()
-					.clear( primitives.containedIndexedEmbeddedShallowReindexOnUpdate().get( entity1 ) );
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().set( containedEntity, entity1 );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate", b2 -> b2
 									.field( "indexedField", "updatedValue" )
@@ -431,13 +615,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
-			TContained containedEntity = session.get( primitives.getContainedClass(), 3 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().clear( entity1 );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().clear( containedEntity );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
@@ -451,25 +635,29 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3206")
 	public final void directAssociationUpdate_indexedEmbeddedNoReindexOnUpdate() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().set( containedEntity, entity1 );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
@@ -479,15 +667,15 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 3 );
-			primitives.indexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 3 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate()
-					.clear( primitives.containedIndexedEmbeddedNoReindexOnUpdate().get( entity1 ) );
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().set( containedEntity, entity1 );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
@@ -497,13 +685,184 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
-			TContained containedEntity = session.get( primitives.getContainedClass(), 3 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().clear( entity1 );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().clear( containedEntity );
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( entity1 );
 
 			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void directAssociationUpdate_embeddedAssociationsIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			session.persist( entity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
+
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
+
+			session.persist( containedEntity );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "embeddedAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", "initialValue" )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained containedEntity = _contained().newInstance( 3 );
+			field.set( containedEntity, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
+
+			session.persist( containedEntity );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "embeddedAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", "updatedValue" )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( entity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void directAssociationUpdate_embeddedAssociationsNonIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedNonIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsNonIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			session.persist( entity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
+
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
+
+			session.persist( containedEntity );
+
+			if ( isAssociationOwnedByContainedSide() || isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// HSEARCH-4718: we cannot distinguish between relevant and irrelevant properties
+				// for changes within an embeddable.
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> { } );
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained containedEntity = _contained().newInstance( 3 );
+			field.set( containedEntity, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
+
+			session.persist( containedEntity );
+
+			if ( isAssociationOwnedByContainedSide() || isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// HSEARCH-4718: we cannot distinguish between relevant and irrelevant properties
+				// for changes within an embeddable.
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> { } );
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( entity1 );
+
+			if ( isAssociationOwnedByContainedSide() || isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// HSEARCH-4718: we cannot distinguish between relevant and irrelevant properties
+				// for changes within an embeddable.
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> { } );
+			}
 		} );
 		backendMock.verifyExpectationsMet();
 	}
@@ -523,35 +882,38 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@TestForIssue(jiraKey = "HSEARCH-4303")
 	public final void directImplicitAssociationUpdateThroughInsert_indexedEmbedded() {
 		assumeTrue( "This test only makes sense if the association is owned by the contained side",
-				primitives.isAssociationOwnedByContainedSide() );
+				isAssociationOwnedByContainedSide() );
 		assumeTrue( "This test can only succeed if the containing side of the association is loaded after the contained entity is inserted."
 						+ " See the paragraph starting with \"By the way\" in"
 						+ " https://discourse.hibernate.org/t/hs6-not-indexing-add-or-delete-only-update-with-onetomany-indexedembedded/5638/6",
-				primitives.isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+				isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
 			// Do NOT set the association on the containing side; that's on purpose.
 			// Only set it on the contained side.
-			primitives.containingAsIndexedEmbedded().set( containedEntity, entity1 );
+			containedAssociation.set( containedEntity, entity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "containedIndexedEmbedded", b2 -> b2
 									.field( "indexedField", "initialValue" )
@@ -576,24 +938,28 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@TestForIssue(jiraKey = "HSEARCH-4303")
 	public final void directImplicitAssociationUpdateThroughDelete_indexedEmbedded() {
 		assumeTrue( "This test only makes sense if the association is owned by the contained side",
-				primitives.isAssociationOwnedByContainedSide() );
+				isAssociationOwnedByContainedSide() );
 		assumeTrue( "This test can only succeed if the containing side of the association is loaded after the contained entity is inserted."
 						+ " See the paragraph starting with \"By the way\" in"
 						+ " https://discourse.hibernate.org/t/hs6-not-indexing-add-or-delete-only-update-with-onetomany-indexedembedded/5638/6",
-				primitives.isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+				isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TIndexed entity1 = _indexed().newInstance( 1 );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
 			session.persist( entity1 );
 			session.persist( containedEntity );
 
-			primitives.containedIndexedEmbedded().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, entity1 );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "containedIndexedEmbedded", b2 -> b2
 									.field( "indexedField", "initialValue" )
@@ -602,17 +968,17 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 		backendMock.verifyExpectationsMet();
 
 		setupHolder.runInTransaction( session -> {
-			TContained containedEntity = session.get( primitives.getContainedClass(), 2 );
+			TContained containedEntity = session.get( _contained().entityClass(), 2 );
 
 			// Do NOT update the association on either side; that's on purpose.
 			// But DO force loading on contained side:
 			// if the association is lazy and unloaded, it won't be loadable after the deletion
 			// and the deletion even will simply be ignored.
-			primitives.containingAsIndexedEmbedded().get( containedEntity );
+			containedAssociation.get( containedEntity );
 
 			session.remove( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> { } );
 		} );
 		backendMock.verifyExpectationsMet();
@@ -635,20 +1001,24 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 		assumeTrue( "This test only makes sense if the association is owned by the contained side;" +
 						" if the association is owned by the containing side," +
 						" deleting a contained entity requires updating the association to avoid violating foreign key constraints.",
-				primitives.isAssociationOwnedByContainedSide() );
+				isAssociationOwnedByContainedSide() );
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TIndexed entity1 = _indexed().newInstance( 1 );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
 			session.persist( entity1 );
 			session.persist( containedEntity );
 
-			primitives.containedIndexedEmbedded().set( entity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, entity1 );
+			containingAssociation.set( entity1, containedEntity );
+			containedAssociation.set( containedEntity, entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "containedIndexedEmbedded", b2 -> b2
 									.field( "indexedField", "initialValue" )
@@ -657,22 +1027,758 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 		backendMock.verifyExpectationsMet();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = session.get( primitives.getIndexedClass(), 1 );
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
 			// Make sure we initialize the association from indexed to contained;
 			// the magic is in the fact that Hibernate doesn't index the contained entity
 			// even though it's referenced by the Java representation of the association.
-			TContained containedEntity = primitives.containedIndexedEmbedded().get( entity1 );
+			TContained containedEntity = containingAssociation.get( entity1 );
 
 			// Do NOT update the association on either side; that's on purpose.
 			// But DO force loading on contained side:
 			// if the association is lazy and unloaded, it won't be loadable after the deletion
 			// and the deletion even will simply be ignored.
-			primitives.containingAsIndexedEmbedded().get( containedEntity );
+			containedAssociation.get( containedEntity );
 
 			session.remove( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void directEmbeddedAssociationReplace_embeddedAssociationsIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, "initialValue" );
+
+			containingAssociation.set( entity1, contained );
+			containedAssociation.set( contained, entity1 );
+
+			session.persist( contained );
+			session.persist( entity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "embeddedAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", "initialValue" )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			_containing().embeddedAssociations().set( entity1, _containingEmbeddable().newInstance() );
+			containingAssociation.set( entity1, contained );
+			containedAssociation.set( contained, entity1 );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "embeddedAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", "updatedValue" )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void directEmbeddedAssociationReplace_embeddedAssociationsNonIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedNonIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsNonIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, "initialValue" );
+
+			containingAssociation.set( entity1, contained );
+			containedAssociation.set( contained, entity1 );
+
+			session.persist( contained );
+			session.persist( entity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( entity1 );
+			containedAssociation.clear( oldContained );
+			_containing().embeddedAssociations().set( entity1, _containingEmbeddable().newInstance() );
+			containingAssociation.set( entity1, contained );
+			containedAssociation.set( contained, entity1 );
+
+			session.persist( contained );
+
+			if ( isAssociationOwnedByContainedSide() && !isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// For some reason we end up reindexing needlessly,
+				// probably because we don't have enough information in the change events
+				// (HSEARCH-3204: missing "role" for a replaced collection;
+				// HSEARCH-4718: no information about which property changed within an embeddable,
+				// ...)
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> { } );
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void directElementCollectionAssociationUpdate_containingSideElementCollectionAssociationsIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainingSide();
+
+		MultiValuedPropertyAccessor<TContaining, TContainingEmbeddable, List<TContainingEmbeddable>> elementCollectionAssociations =
+				_containing().elementCollectionAssociations();
+		PropertyAccessor<TContainingEmbeddable, TContained> containingAssociation = _containingEmbeddable().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsElementCollectionAssociationsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( indexed, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_1 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a second value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( indexed, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_1 )
+									)
+							)
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_2 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainingEmbeddable containingEmbeddable = elementCollectionAssociations.getContainer( indexed ).get( 1 );
+
+			TContained oldContained = containingAssociation.get( containingEmbeddable );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_1 )
+									)
+							)
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_3 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test replacing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_4 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( indexed ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( indexed, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_1 )
+									)
+							)
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_4 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( indexed ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> b2
+									.objectField( "containedIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_1 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.get( indexed );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containingAssociation.clear( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void directElementCollectionAssociationUpdate_containingSideElementCollectionAssociationsNonIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainingSide();
+
+		MultiValuedPropertyAccessor<TContaining, TContainingEmbeddable, List<TContainingEmbeddable>> elementCollectionAssociations =
+				_containing().elementCollectionAssociations();
+		PropertyAccessor<TContainingEmbeddable, TContained> containingAssociation = _containingEmbeddable().containedNonIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsElementCollectionAssociationsNonIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( indexed, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a second value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( indexed, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainingEmbeddable containingEmbeddable = elementCollectionAssociations.getContainer( indexed ).get( 1 );
+
+			TContained oldContained = containingAssociation.get( containingEmbeddable );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			// For some reason we end up reindexing needlessly,
+			// probably because we don't have enough information in the change events
+			// (HSEARCH-3204: missing "role" for a replaced collection;
+			// HSEARCH-4718: no information about which property changed within an embeddable,
+			// ...)
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test replacing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_4 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( indexed ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( indexed, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( indexed ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = session.get( _indexed().entityClass(), 1 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.get( entity1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( oldContainingEmbeddable );
+
+			// For some reason we end up reindexing needlessly,
+			// probably because we don't have enough information in the change events
+			// (HSEARCH-3204: missing "role" for a replaced collection;
+			// HSEARCH-4718: no information about which property changed within an embeddable,
+			// ...)
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "elementCollectionAssociations", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void directElementCollectionAssociationUpdate_containedSideElementCollectionAssociationsIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainedSide();
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedElementCollectionAssociationsIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, TContainedEmbeddable, List<TContainedEmbeddable>> elementCollectionAssociations =
+				_contained().elementCollectionAssociations();
+		PropertyAccessor<TContainedEmbeddable, TContaining> containedAssociation = _containedEmbeddable().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b2 -> b2
+									.field( "indexedField", VALUE_1 )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b2 -> b2
+									.field( "indexedField", VALUE_2 )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			elementCollectionAssociations.clear( oldContained );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b2 -> b2
+									.field( "indexedField", VALUE_3 )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+			containingAssociation.clear( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Add back a value, just to remove it in the next test
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b2 -> b2
+									.field( "indexedField", VALUE_1 )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			elementCollectionAssociations.clear( oldContained );
+			containingAssociation.clear( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void directElementCollectionAssociationUpdate_containedSideElementCollectionAssociationsNonIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainedSide();
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedElementCollectionAssociationsNonIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, TContainedEmbeddable, List<TContainedEmbeddable>> elementCollectionAssociations =
+				_contained().elementCollectionAssociations();
+		PropertyAccessor<TContainedEmbeddable, TContaining> containedAssociation = _containedEmbeddable().containingAsNonIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> { } );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			elementCollectionAssociations.clear( oldContained );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+			containingAssociation.clear( indexed );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Add back a value, just to remove it in the next test
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( indexed, contained );
+			containedAssociation.set( containedEmbeddable, indexed );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+
+			TContained oldContained = containingAssociation.get( indexed );
+			elementCollectionAssociations.clear( oldContained );
+			containingAssociation.clear( indexed );
+
+			// Do not expect any work
 		} );
 		backendMock.verifyExpectationsMet();
 	}
@@ -680,22 +1786,26 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-4305")
 	public void indirectAssociationUpdate_indexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContaining deeplyNestedContainingEntity = primitives.newContaining( 3 );
-			primitives.child().set( containingEntity1, deeplyNestedContainingEntity );
-			primitives.parent().set( deeplyNestedContainingEntity, containingEntity1 );
+			TContaining deeplyNestedContainingEntity = _containing().newInstance( 3 );
+			_containing().child().set( containingEntity1, deeplyNestedContainingEntity );
+			_containing().parent().set( deeplyNestedContainingEntity, containingEntity1 );
 
 			session.persist( deeplyNestedContainingEntity );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
@@ -704,17 +1814,17 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 4 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 4 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedIndexedEmbedded().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, containingEntity1 );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -727,18 +1837,19 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 5 );
-			primitives.indexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 5 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsIndexedEmbedded().clear( primitives.containedIndexedEmbedded().get( containingEntity1 ) );
-			primitives.containedIndexedEmbedded().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -751,13 +1862,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value that is too deeply nested to matter (it's out of the IndexedEmbedded scope)
 		setupHolder.runInTransaction( session -> {
-			TContaining deeplyNestedContainingEntity1 = session.get( primitives.getContainingClass(), 3 );
+			TContaining deeplyNestedContainingEntity1 = session.get( _containing().entityClass(), 3 );
 
-			TContained containedEntity = primitives.newContained( 6 );
-			primitives.indexedField().set( containedEntity, "outOfScopeValue" );
+			TContained containedEntity = _contained().newInstance( 6 );
+			field.set( containedEntity, "outOfScopeValue" );
 
-			primitives.containedIndexedEmbedded().set( deeplyNestedContainingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, deeplyNestedContainingEntity1 );
+			containingAssociation.set( deeplyNestedContainingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, deeplyNestedContainingEntity1 );
 
 			session.persist( containedEntity );
 
@@ -767,12 +1878,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			primitives.containingAsIndexedEmbedded().clear( primitives.containedIndexedEmbedded().get( containingEntity1 ) );
-			primitives.containedIndexedEmbedded().clear( containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( containingEntity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
@@ -788,17 +1900,21 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3199")
 	public final void indirectAssociationUpdate_nonIndexedEmbedded() {
-		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedNonIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsNonIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
@@ -807,13 +1923,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 4 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 4 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedNonIndexedEmbedded().set( containingEntity1, containedEntity );
-			primitives.containingAsNonIndexedEmbedded().set( containedEntity, containingEntity1 );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
@@ -823,14 +1939,15 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 5 );
-			primitives.indexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 5 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsNonIndexedEmbedded().clear( primitives.containedNonIndexedEmbedded().get( containingEntity1 ) );
-			primitives.containedNonIndexedEmbedded().set( containingEntity1, containedEntity );
-			primitives.containingAsNonIndexedEmbedded().set( containedEntity, containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
@@ -840,10 +1957,11 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			primitives.containingAsNonIndexedEmbedded().clear( primitives.containedNonIndexedEmbedded().get( containingEntity1 ) );
-			primitives.containedNonIndexedEmbedded().clear( containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( containingEntity1 );
 
 			// Do not expect any work
 		} );
@@ -859,17 +1977,21 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = { "HSEARCH-4001", "HSEARCH-4305" })
 	public void indirectAssociationUpdate_indexedEmbeddedShallowReindexOnUpdate() {
-		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
@@ -878,17 +2000,17 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 4 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 4 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().set( containedEntity, containingEntity1 );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate", b3 -> b3
@@ -901,19 +2023,19 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 5 );
-			primitives.indexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 5 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate()
-					.clear( primitives.containedIndexedEmbeddedShallowReindexOnUpdate().get( containingEntity1 ) );
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().set( containedEntity, containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate", b3 -> b3
@@ -926,13 +2048,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
-			TContained containedEntity = session.get( primitives.getContainedClass(), 5 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+			TContained containedEntity = session.get( _contained().entityClass(), 5 );
 
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().clear( containingEntity1 );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().clear( containedEntity );
+			containingAssociation.clear( containingEntity1 );
+			containedAssociation.clear( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
@@ -949,17 +2071,21 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3206")
 	public final void indirectAssociationUpdate_indexedEmbeddedNoReindexOnUpdate() {
-		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
@@ -968,13 +2094,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 4 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 4 );
+			field.set( containedEntity, "initialValue" );
 
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().set( containedEntity, containingEntity1 );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
@@ -984,15 +2110,15 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 5 );
-			primitives.indexedField().set( containedEntity, "updatedValue" );
+			TContained containedEntity = _contained().newInstance( 5 );
+			field.set( containedEntity, "updatedValue" );
 
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate()
-					.clear( primitives.containedIndexedEmbeddedNoReindexOnUpdate().get( containingEntity1 ) );
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().set( containedEntity, containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
@@ -1002,11 +2128,11 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
-			TContained containedEntity = session.get( primitives.getContainedClass(), 5 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+			TContained containedEntity = session.get( _contained().entityClass(), 5 );
 
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().clear( containingEntity1 );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().clear( containedEntity );
+			containingAssociation.clear( containingEntity1 );
+			containedAssociation.clear( containedEntity );
 
 			// Do not expect any work
 		} );
@@ -1021,22 +2147,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-4305")
 	public void indirectAssociationUpdate_usedInCrossEntityDerivedProperty() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedUsedInCrossEntityDerivedProperty();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsUsedInCrossEntityDerivedProperty();
+		PropertyAccessor<TContained, String> field1 = _contained().fieldUsedInCrossEntityDerivedField1();
+		PropertyAccessor<TContained, String> field2 = _contained().fieldUsedInCrossEntityDerivedField2();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContaining deeplyNestedContainingEntity = primitives.newContaining( 3 );
-			primitives.child().set( containingEntity1, deeplyNestedContainingEntity );
-			primitives.parent().set( deeplyNestedContainingEntity, containingEntity1 );
+			TContaining deeplyNestedContainingEntity = _containing().newInstance( 3 );
+			_containing().child().set( containingEntity1, deeplyNestedContainingEntity );
+			_containing().parent().set( deeplyNestedContainingEntity, containingEntity1 );
 
 			session.persist( deeplyNestedContainingEntity );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
@@ -1045,18 +2176,18 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 4 );
-			primitives.fieldUsedInCrossEntityDerivedField1().set( containedEntity, "field1_initialValue" );
-			primitives.fieldUsedInCrossEntityDerivedField2().set( containedEntity, "field2_initialValue" );
+			TContained containedEntity = _contained().newInstance( 4 );
+			field1.set( containedEntity, "field1_initialValue" );
+			field2.set( containedEntity, "field2_initialValue" );
 
-			primitives.containedUsedInCrossEntityDerivedProperty().set( containingEntity1, containedEntity );
-			primitives.containingAsUsedInCrossEntityDerivedProperty().set( containedEntity, containingEntity1 );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.field(
@@ -1070,19 +2201,20 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 5 );
-			primitives.fieldUsedInCrossEntityDerivedField1().set( containedEntity, "field1_updatedValue" );
-			primitives.fieldUsedInCrossEntityDerivedField2().set( containedEntity, "field2_updatedValue" );
+			TContained containedEntity = _contained().newInstance( 5 );
+			field1.set( containedEntity, "field1_updatedValue" );
+			field2.set( containedEntity, "field2_updatedValue" );
 
-			primitives.containingAsUsedInCrossEntityDerivedProperty().clear( primitives.containedUsedInCrossEntityDerivedProperty().get( containingEntity1 ) );
-			primitives.containedUsedInCrossEntityDerivedProperty().set( containingEntity1, containedEntity );
-			primitives.containingAsUsedInCrossEntityDerivedProperty().set( containedEntity, containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.field(
@@ -1096,14 +2228,14 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value that is too deeply nested to matter (it's out of the path)
 		setupHolder.runInTransaction( session -> {
-			TContaining deeplyNestedContainingEntity1 = session.get( primitives.getContainingClass(), 3 );
+			TContaining deeplyNestedContainingEntity1 = session.get( _containing().entityClass(), 3 );
 
-			TContained containedEntity = primitives.newContained( 6 );
-			primitives.fieldUsedInCrossEntityDerivedField1().set( containedEntity, "field1_outOfScopeValue" );
-			primitives.fieldUsedInCrossEntityDerivedField2().set( containedEntity, "field2_outOfScopeValue" );
+			TContained containedEntity = _contained().newInstance( 6 );
+			field1.set( containedEntity, "field1_outOfScopeValue" );
+			field2.set( containedEntity, "field2_outOfScopeValue" );
 
-			primitives.containedUsedInCrossEntityDerivedProperty().set( deeplyNestedContainingEntity1, containedEntity );
-			primitives.containingAsUsedInCrossEntityDerivedProperty().set( containedEntity, deeplyNestedContainingEntity1 );
+			containingAssociation.set( deeplyNestedContainingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, deeplyNestedContainingEntity1 );
 
 			session.persist( containedEntity );
 
@@ -1113,16 +2245,1069 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			primitives.containingAsUsedInCrossEntityDerivedProperty()
-					.clear( primitives.containedUsedInCrossEntityDerivedProperty().get( containingEntity1 ) );
-			primitives.containedUsedInCrossEntityDerivedProperty().clear( containingEntity1 );
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( containingEntity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> { } )
 					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void indirectAssociationUpdate_embeddedAssociationsIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
+
+			TContaining deeplyNestedContainingEntity = _containing().newInstance( 3 );
+			_containing().child().set( containingEntity1, deeplyNestedContainingEntity );
+			_containing().parent().set( deeplyNestedContainingEntity, containingEntity1 );
+
+			session.persist( deeplyNestedContainingEntity );
+			session.persist( containingEntity1 );
+			session.persist( entity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+
+			TContained containedEntity = _contained().newInstance( 4 );
+			field.set( containedEntity, "initialValue" );
+
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
+
+			session.persist( containedEntity );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "embeddedAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", "initialValue" )
+											)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+
+			TContained containedEntity = _contained().newInstance( 5 );
+			field.set( containedEntity, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
+
+			session.persist( containedEntity );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "embeddedAssociations", b3 -> b3
+										.objectField( "containedIndexedEmbedded", b4 -> b4
+												.field( "indexedField", "updatedValue" )
+										)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value that is too deeply nested to matter (it's out of the IndexedEmbedded scope)
+		setupHolder.runInTransaction( session -> {
+			TContaining deeplyNestedContainingEntity1 = session.get( _containing().entityClass(), 3 );
+
+			TContained containedEntity = _contained().newInstance( 6 );
+			field.set( containedEntity, "outOfScopeValue" );
+
+			containingAssociation.set( deeplyNestedContainingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, deeplyNestedContainingEntity1 );
+
+			session.persist( containedEntity );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( containingEntity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void indirectAssociationUpdate_embeddedAssociationsNonIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedNonIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsNonIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed entity1 = _indexed().newInstance( 1 );
+
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
+
+			session.persist( containingEntity1 );
+			session.persist( entity1 );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+
+			TContained containedEntity = _contained().newInstance( 4 );
+			field.set( containedEntity, "initialValue" );
+
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
+
+			session.persist( containedEntity );
+
+			if ( isAssociationOwnedByContainedSide() || isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// HSEARCH-4718: we cannot distinguish between relevant and irrelevant properties
+				// for changes within an embeddable.
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> b
+								.objectField( "child", b2 -> { } )
+						);
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+
+			TContained containedEntity = _contained().newInstance( 5 );
+			field.set( containedEntity, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
+
+			session.persist( containedEntity );
+
+			if ( isAssociationOwnedByContainedSide() || isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// HSEARCH-4718: we cannot distinguish between relevant and irrelevant properties
+				// for changes within an embeddable.
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> b
+								.objectField( "child", b2 -> { } )
+						);
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containingEntity1 );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( containingEntity1 );
+
+			if ( isAssociationOwnedByContainedSide() || isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// HSEARCH-4718: we cannot distinguish between relevant and irrelevant properties
+				// for changes within an embeddable.
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> b
+								.objectField( "child", b2 -> { } )
+						);
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void indirectEmbeddedAssociationReplace_embeddedAssociationsIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			TContaining containing = _containing().newInstance( 2 );
+			_containing().child().set( indexed, containing );
+			_containing().parent().set( containing, indexed );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, "initialValue" );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+			session.persist( containing );
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "embeddedAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", "initialValue" )
+											)
+									) )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( containing );
+			containedAssociation.clear( oldContained );
+			_containing().embeddedAssociations().set( containing, _containingEmbeddable().newInstance() );
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "embeddedAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", "updatedValue" )
+											)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public void indirectEmbeddedAssociationReplace_embeddedAssociationsNonIndexedEmbedded() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().embeddedAssociations()
+				.andThen( _containingEmbeddable()::newInstance, _containingEmbeddable().containedNonIndexedEmbedded() );
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().embeddedAssociations()
+				.andThen( _containedEmbeddable()::newInstance, _containedEmbeddable().containingAsNonIndexedEmbedded() );
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			TContaining containing = _containing().newInstance( 2 );
+			_containing().child().set( indexed, containing );
+			_containing().parent().set( containing, indexed );
+
+			session.persist( containing );
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, "initialValue" );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+			session.persist( containing );
+
+			if ( isAssociationOwnedByContainedSide() || isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// For some reason we end up reindexing needlessly,
+				// probably because we don't have enough information in the change events
+				// (HSEARCH-3204: missing "role" for a replaced collection;
+				// HSEARCH-4718: no information about which property changed within an embeddable,
+				// ...)
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> b
+								.objectField( "child", b2 -> { } ) );
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, "updatedValue" );
+
+			TContained oldContained = containingAssociation.get( containing );
+			containedAssociation.clear( oldContained );
+			_containing().embeddedAssociations().set( containing, _containingEmbeddable().newInstance() );
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			if ( isAssociationOwnedByContainedSide() && !isAssociationMultiValuedOnContainingSide() ) {
+				// Do not expect any work
+			}
+			else {
+				// For some reason we end up reindexing needlessly,
+				// probably because we don't have enough information in the change events
+				// (HSEARCH-3204: missing "role" for a replaced collection;
+				// HSEARCH-4718: no information about which property changed within an embeddable,
+				// ...)
+				backendMock.expectWorks( _indexed().indexName() )
+						.addOrUpdate( "1", b -> b
+								.objectField( "child", b2 -> { } ) );
+			}
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void indirectElementCollectionAssociationUpdate_containingSideElementCollectionAssociationsIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainingSide();
+
+		MultiValuedPropertyAccessor<TContaining, TContainingEmbeddable, List<TContainingEmbeddable>> elementCollectionAssociations =
+				_containing().elementCollectionAssociations();
+		PropertyAccessor<TContainingEmbeddable, TContained> containingAssociation = _containingEmbeddable().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsElementCollectionAssociationsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			TContaining containing = _containing().newInstance( 2 );
+			_containing().child().set( indexed, containing );
+			_containing().parent().set( containing, indexed );
+
+			session.persist( containing );
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( containing, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_1 )
+											)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a second value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( containing, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_1 )
+											)
+									)
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_2 )
+											)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainingEmbeddable containingEmbeddable = elementCollectionAssociations.getContainer( containing ).get( 1 );
+
+			TContained oldContained = containingAssociation.get( containingEmbeddable );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_1 )
+											)
+									)
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_3 )
+											)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test replacing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_4 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( containing ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( containing, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_1 )
+											)
+									)
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_4 )
+											)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( containing ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> b3
+											.objectField( "containedIndexedEmbedded", b4 -> b4
+													.field( "indexedField", VALUE_1 )
+											)
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.get( containing );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( oldContainingEmbeddable );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void indirectElementCollectionAssociationUpdate_containingSideElementCollectionAssociationsNonIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainingSide();
+
+		MultiValuedPropertyAccessor<TContaining, TContainingEmbeddable, List<TContainingEmbeddable>> elementCollectionAssociations =
+				_containing().elementCollectionAssociations();
+		PropertyAccessor<TContainingEmbeddable, TContained> containingAssociation = _containingEmbeddable().containedNonIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsElementCollectionAssociationsNonIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			TContaining containing = _containing().newInstance( 2 );
+			_containing().child().set( indexed, containing );
+			_containing().parent().set( containing, indexed );
+
+			session.persist( containing );
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( containing, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a second value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( containing, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainingEmbeddable containingEmbeddable = elementCollectionAssociations.getContainer( containing ).get( 1 );
+
+			TContained oldContained = containingAssociation.get( containingEmbeddable );
+			containedAssociation.clear( oldContained );
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			// For some reason we end up reindexing needlessly,
+			// probably because we don't have enough information in the change events
+			// (HSEARCH-3204: missing "role" for a replaced collection;
+			// HSEARCH-4718: no information about which property changed within an embeddable,
+			// ...)
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test replacing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_4 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( containing ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			TContainingEmbeddable containingEmbeddable = _containingEmbeddable().newInstance();
+			elementCollectionAssociations.add( containing, containingEmbeddable );
+
+			containingAssociation.set( containingEmbeddable, contained );
+			containedAssociation.set( contained, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing an embeddable
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.getContainer( containing ).remove( 1 );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContainingEmbeddable oldContainingEmbeddable = elementCollectionAssociations.get( containing );
+			TContained oldContained = containingAssociation.get( oldContainingEmbeddable );
+			containedAssociation.clear( oldContained );
+			containingAssociation.clear( oldContainingEmbeddable );
+
+			// For some reason we end up reindexing needlessly,
+			// probably because we don't have enough information in the change events
+			// (HSEARCH-3204: missing "role" for a replaced collection;
+			// HSEARCH-4718: no information about which property changed within an embeddable,
+			// ...)
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "elementCollectionAssociations", b3 -> { } )
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void indirectElementCollectionAssociationUpdate_containedSideElementCollectionAssociationsIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainedSide();
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedElementCollectionAssociationsIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, TContainedEmbeddable, List<TContainedEmbeddable>> elementCollectionAssociations =
+				_contained().elementCollectionAssociations();
+		PropertyAccessor<TContainedEmbeddable, TContaining> containedAssociation = _containedEmbeddable().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			TContaining containing = _containing().newInstance( 2 );
+			_containing().child().set( indexed, containing );
+			_containing().parent().set( containing, indexed );
+
+			session.persist( containing );
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> { } ) );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_1 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_2 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			elementCollectionAssociations.clear( oldContained );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_3 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+			containingAssociation.clear( containing );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Add back a value, just to remove it in the next test
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> b2
+									.objectField( "containedElementCollectionAssociationsIndexedEmbedded", b3 -> b3
+											.field( "indexedField", VALUE_1 )
+									)
+							)
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			elementCollectionAssociations.clear( oldContained );
+			containingAssociation.clear( containing );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.addOrUpdate( "1", b -> b
+							.objectField( "child", b2 -> { } )
+					);
+		} );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4708")
+	public final void indirectElementCollectionAssociationUpdate_containedSideElementCollectionAssociationsNonIndexedEmbedded() {
+		assumeElementCollectionAssociationsOnContainedSide();
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedElementCollectionAssociationsNonIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, TContainedEmbeddable, List<TContainedEmbeddable>> elementCollectionAssociations =
+				_contained().elementCollectionAssociations();
+		PropertyAccessor<TContainedEmbeddable, TContaining> containedAssociation = _containedEmbeddable().containingAsNonIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
+		setupHolder.runInTransaction( session -> {
+			TIndexed indexed = _indexed().newInstance( 1 );
+
+			TContaining containing = _containing().newInstance( 2 );
+			_containing().child().set( indexed, containing );
+			_containing().parent().set( containing, indexed );
+
+			session.persist( containing );
+			session.persist( indexed );
+
+			backendMock.expectWorks( _indexed().indexName() )
+					.add( "1", b -> b
+							.objectField( "child", b2 -> { } ) );
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test adding a value
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 2 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+
+			TContained contained = _contained().newInstance( 3 );
+			field.set( contained, VALUE_2 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			elementCollectionAssociations.clear( oldContained );
+
+			TContained contained = _contained().newInstance( 4 );
+			field.set( contained, VALUE_3 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test removing a value, clearing the association on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			TContainedEmbeddable oldContainedEmbeddable = elementCollectionAssociations.get( oldContained );
+			containedAssociation.clear( oldContainedEmbeddable );
+			containingAssociation.clear( containing );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Add back a value, just to remove it in the next test
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained contained = _contained().newInstance( 5 );
+			field.set( contained, VALUE_1 );
+
+			TContainedEmbeddable containedEmbeddable = _containedEmbeddable().newInstance();
+			elementCollectionAssociations.add( contained, containedEmbeddable );
+
+			containingAssociation.set( containing, contained );
+			containedAssociation.set( containedEmbeddable, containing );
+
+			session.persist( contained );
+
+			// Do not expect any work
+		} );
+		backendMock.verifyExpectationsMet();
+
+		// Test updating a value, clearing the element collection on the contained side
+		setupHolder.runInTransaction( session -> {
+			TContaining containing = session.get( _containing().entityClass(), 2 );
+
+			TContained oldContained = containingAssociation.get( containing );
+			elementCollectionAssociations.clear( oldContained );
+			containingAssociation.clear( containing );
+
+			// Do not expect any work
 		} );
 		backendMock.verifyExpectationsMet();
 	}
@@ -1135,41 +3320,44 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@TestForIssue(jiraKey = "HSEARCH-4303")
 	public final void indirectImplicitAssociationUpdateThroughInsert_indexedEmbedded() {
 		assumeTrue( "This test only makes sense if the association is owned by the contained side",
-				primitives.isAssociationOwnedByContainedSide() );
+				isAssociationOwnedByContainedSide() );
 		assumeTrue( "This test can only succeed if the containing side of the association is loaded after the contained entity is inserted."
 						+ " See the paragraph starting with \"By the way\" in"
 						+ " https://discourse.hibernate.org/t/hs6-not-indexing-add-or-delete-only-update-with-onetomany-indexedembedded/5638/6",
-				primitives.isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+				isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> { } ) );
 		} );
 		backendMock.verifyExpectationsMet();
 
 		setupHolder.runInTransaction( session -> {
-			TContaining containingEntity1 = session.get( primitives.getContainingClass(), 2 );
+			TContaining containingEntity1 = session.get( _containing().entityClass(), 2 );
 
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
 			// Do NOT set the association on the containing side; that's on purpose.
 			// Only set it on the contained side.
-			primitives.containingAsIndexedEmbedded().set( containedEntity, containingEntity1 );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
 			session.persist( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1187,28 +3375,32 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@TestForIssue(jiraKey = "HSEARCH-4303")
 	public final void indirectImplicitAssociationUpdateThroughDelete_indexedEmbedded() {
 		assumeTrue( "This test only makes sense if the association is owned by the contained side",
-				primitives.isAssociationOwnedByContainedSide() );
+				isAssociationOwnedByContainedSide() );
 		assumeTrue( "This test can only succeed if the containing side of the association is loaded after the contained entity is inserted."
 						+ " See the paragraph starting with \"By the way\" in"
 						+ " https://discourse.hibernate.org/t/hs6-not-indexing-add-or-delete-only-update-with-onetomany-indexedembedded/5638/6",
-				primitives.isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+				isAssociationLazyOnContainingSide() || !setupHolder.areEntitiesProcessedInSession() );
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TIndexed entity1 = _indexed().newInstance( 1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 			session.persist( containedEntity );
 
-			primitives.containedIndexedEmbedded().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, containingEntity1 );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1218,17 +3410,17 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 		backendMock.verifyExpectationsMet();
 
 		setupHolder.runInTransaction( session -> {
-			TContained containedEntity = session.get( primitives.getContainedClass(), 2 );
+			TContained containedEntity = session.get( _contained().entityClass(), 2 );
 
 			// Do NOT update the association on either side; that's on purpose.
 			// But DO force loading on contained side:
 			// if the association is lazy and unloaded, it won't be loadable after the deletion
 			// and the deletion even will simply be ignored.
-			primitives.containingAsIndexedEmbedded().get( containedEntity );
+			containedAssociation.get( containedEntity );
 
 			session.remove( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> { } ) );
 		} );
@@ -1245,24 +3437,28 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 		assumeTrue( "This test only makes sense if the association is owned by the contained side;" +
 						" if the association is owned by the containing side," +
 						" deleting a contained entity requires updating the association to avoid violating foreign key constraints.",
-				primitives.isAssociationOwnedByContainedSide() );
+				isAssociationOwnedByContainedSide() );
+
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
 
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
-			TContained containedEntity = primitives.newContained( 2 );
-			primitives.indexedField().set( containedEntity, "initialValue" );
+			TIndexed entity1 = _indexed().newInstance( 1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
+			TContained containedEntity = _contained().newInstance( 2 );
+			field.set( containedEntity, "initialValue" );
 
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 			session.persist( containedEntity );
 
-			primitives.containedIndexedEmbedded().set( containingEntity1, containedEntity );
-			primitives.containingAsIndexedEmbedded().set( containedEntity, containingEntity1 );
+			containingAssociation.set( containingEntity1, containedEntity );
+			containedAssociation.set( containedEntity, containingEntity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1272,21 +3468,21 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 		backendMock.verifyExpectationsMet();
 
 		setupHolder.runInTransaction( session -> {
-			TContaining containing = session.get( primitives.getContainingClass(), 2 );
+			TContaining containing = session.get( _containing().entityClass(), 2 );
 			// Make sure we initialize the association from containing to contained;
 			// the magic is in the fact that Hibernate doesn't index the contained entity
 			// even though it's referenced by the Java representation of the association.
-			TContained containedEntity = primitives.containedIndexedEmbedded().get( containing );
+			TContained containedEntity = containingAssociation.get( containing );
 
 			// Do NOT update the association on either side; that's on purpose.
 			// But DO force loading on contained side:
 			// if the association is lazy and unloaded, it won't be loadable after the deletion
 			// and the deletion even will simply be ignored.
-			primitives.containingAsIndexedEmbedded().get( containedEntity );
+			containedAssociation.get( containedEntity );
 
 			session.remove( containedEntity );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> { } ) );
 		} );
@@ -1295,26 +3491,30 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 	@Test
 	public void indirectValueUpdate_indexedEmbedded_singleValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContaining deeplyNestedContainingEntity = primitives.newContaining( 3 );
-			primitives.child().set( containingEntity1, deeplyNestedContainingEntity );
-			primitives.parent().set( deeplyNestedContainingEntity, containingEntity1 );
+			TContaining deeplyNestedContainingEntity = _containing().newInstance( 3 );
+			_containing().child().set( containingEntity1, deeplyNestedContainingEntity );
+			_containing().parent().set( deeplyNestedContainingEntity, containingEntity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedField().set( contained1, "initialValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.set( contained1, "initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
-			TContained contained2 = primitives.newContained( 5 );
-			primitives.indexedField().set( contained2, "initialOutOfScopeValue" );
-			primitives.containedIndexedEmbedded().set( deeplyNestedContainingEntity, contained2 );
-			primitives.containingAsIndexedEmbedded().set( contained2, deeplyNestedContainingEntity );
+			TContained contained2 = _contained().newInstance( 5 );
+			field.set( contained2, "initialOutOfScopeValue" );
+			containingAssociation.set( deeplyNestedContainingEntity, contained2 );
+			containedAssociation.set( contained2, deeplyNestedContainingEntity );
 
 			session.persist( contained1 );
 			session.persist( contained2 );
@@ -1322,7 +3522,7 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1335,10 +3535,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating the value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedField().set( contained, "updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.set( contained, "updatedValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1351,8 +3551,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value that is too deeply nested to matter (it's out of the IndexedEmbedded scope)
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 5 );
-			primitives.indexedField().set( contained, "updatedOutOfScopeValue" );
+			TContained contained = session.get( _contained().entityClass(), 5 );
+			field.set( contained, "updatedOutOfScopeValue" );
 
 			// Do not expect any work
 		} );
@@ -1362,24 +3562,29 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-4137")
 	public void directValueUpdate_nonIndexed_then_indirectValueUpdate_indexedEmbedded_singleValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContaining, String> nonIndexedField = _containing().nonIndexedField();
+		PropertyAccessor<TContained, String> indexedField = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
-			primitives.containingEntityNonIndexedField().set( entity1, "initialValue" );
+			TIndexed entity1 = _indexed().newInstance( 1 );
+			nonIndexedField.set( entity1, "initialValue" );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedField().set( contained1, "initialValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			indexedField.set( contained1, "initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1392,12 +3597,12 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value in the indexed entity, then in the same transaction updating a value in a contained entity
 		setupHolder.runInTransaction( session -> {
-			TIndexed indexed = session.get( primitives.getIndexedClass(), 1 );
-			primitives.containingEntityNonIndexedField().set( indexed, "updatedValue" );
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedField().set( contained, "updatedValue" );
+			TIndexed indexed = session.get( _indexed().entityClass(), 1 );
+			nonIndexedField.set( indexed, "updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			indexedField.set( contained, "updatedValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1417,23 +3622,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3199")
 	public void indirectValueUpdate_indexedEmbedded_singleValue_nonIndexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field = _contained().nonIndexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.nonIndexedField().set( contained1, "initialValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.set( contained1, "initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1446,8 +3655,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating the value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.nonIndexedField().set( contained, "updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.set( contained, "updatedValue" );
 
 			// Do not expect any work
 		} );
@@ -1456,26 +3665,30 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 	@Test
 	public void indirectValueUpdate_indexedEmbedded_elementCollectionValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().indexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContaining deeplyNestedContainingEntity = primitives.newContaining( 3 );
-			primitives.child().set( containingEntity1, deeplyNestedContainingEntity );
-			primitives.parent().set( deeplyNestedContainingEntity, containingEntity1 );
+			TContaining deeplyNestedContainingEntity = _containing().newInstance( 3 );
+			_containing().child().set( containingEntity1, deeplyNestedContainingEntity );
+			_containing().parent().set( deeplyNestedContainingEntity, containingEntity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
-			TContained contained2 = primitives.newContained( 5 );
-			primitives.indexedElementCollectionField().add( contained2, "firstOutOfScopeValue" );
-			primitives.containedIndexedEmbedded().set( deeplyNestedContainingEntity, contained2 );
-			primitives.containingAsIndexedEmbedded().set( contained2, deeplyNestedContainingEntity );
+			TContained contained2 = _contained().newInstance( 5 );
+			field.add( contained2, "firstOutOfScopeValue" );
+			containingAssociation.set( deeplyNestedContainingEntity, contained2 );
+			containedAssociation.set( contained2, deeplyNestedContainingEntity );
 
 			session.persist( contained1 );
 			session.persist( contained2 );
@@ -1483,7 +3696,7 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1500,10 +3713,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().add( contained, "secondValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.add( contained, "secondValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1520,10 +3733,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().remove( contained, "firstValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.remove( contained, "firstValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1540,8 +3753,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value that is too deeply nested to matter (it's out of the IndexedEmbedded scope)
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 5 );
-			primitives.indexedElementCollectionField().add( contained, "secondOutOfScopeValue" );
+			TContained contained = session.get( _contained().entityClass(), 5 );
+			field.add( contained, "secondOutOfScopeValue" );
 
 			// Do not expect any work
 		} );
@@ -1559,26 +3772,30 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3199")
 	public void indirectValueReplace_indexedEmbedded_elementCollectionValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().indexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContaining deeplyNestedContainingEntity = primitives.newContaining( 3 );
-			primitives.child().set( containingEntity1, deeplyNestedContainingEntity );
-			primitives.parent().set( deeplyNestedContainingEntity, containingEntity1 );
+			TContaining deeplyNestedContainingEntity = _containing().newInstance( 3 );
+			_containing().child().set( containingEntity1, deeplyNestedContainingEntity );
+			_containing().parent().set( deeplyNestedContainingEntity, containingEntity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
-			TContained contained2 = primitives.newContained( 5 );
-			primitives.indexedElementCollectionField().add( contained2, "firstOutOfScopeValue" );
-			primitives.containedIndexedEmbedded().set( deeplyNestedContainingEntity, contained2 );
-			primitives.containingAsIndexedEmbedded().set( contained2, deeplyNestedContainingEntity );
+			TContained contained2 = _contained().newInstance( 5 );
+			field.add( contained2, "firstOutOfScopeValue" );
+			containingAssociation.set( deeplyNestedContainingEntity, contained2 );
+			containedAssociation.set( contained2, deeplyNestedContainingEntity );
 
 			session.persist( contained1 );
 			session.persist( contained2 );
@@ -1586,7 +3803,7 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1603,12 +3820,12 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test replacing a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().setContainer( contained, new ArrayList<>( Arrays.asList(
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.setContainer( contained, new ArrayList<>( Arrays.asList(
 					"newFirstValue", "newSecondValue"
 			) ) );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1625,8 +3842,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test replacing a value that is too deeply nested to matter (it's out of the IndexedEmbedded scope)
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 5 );
-			primitives.indexedElementCollectionField().setContainer( contained, new ArrayList<>( Arrays.asList(
+			TContained contained = session.get( _contained().entityClass(), 5 );
+			field.setContainer( contained, new ArrayList<>( Arrays.asList(
 					"newFirstOutOfScopeValue", "newSecondOutOfScopeValue"
 			) ) );
 
@@ -1643,23 +3860,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3199")
 	public void indirectValueUpdate_indexedEmbedded_elementCollectionValue_nonIndexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().nonIndexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.nonIndexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1672,8 +3893,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.nonIndexedElementCollectionField().add( contained, "secondValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.add( contained, "secondValue" );
 
 			// Do not expect any work
 		} );
@@ -1681,8 +3902,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.nonIndexedElementCollectionField().remove( contained, "firstValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.remove( contained, "firstValue" );
 
 			// Do not expect any work
 		} );
@@ -1700,23 +3921,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3204")
 	public void indirectValueReplace_indexedEmbedded_elementCollectionValue_nonIndexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().nonIndexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.nonIndexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1729,13 +3954,13 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test replacing the values
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.nonIndexedElementCollectionField().setContainer( contained, new ArrayList<>( Arrays.asList(
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.setContainer( contained, new ArrayList<>( Arrays.asList(
 					"newFirstValue", "newSecondValue"
 			) ) );
 
 			// TODO HSEARCH-3204: remove the statement below to not expect any work
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1749,24 +3974,29 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 	@Test
 	public void indirectValueUpdate_indexedEmbedded_containedDerivedValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbedded();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbedded();
+		PropertyAccessor<TContained, String> field1 = _contained().fieldUsedInContainedDerivedField1();
+		PropertyAccessor<TContained, String> field2 = _contained().fieldUsedInContainedDerivedField2();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.fieldUsedInContainedDerivedField1().set( contained1, "field1_initialValue" );
-			primitives.fieldUsedInContainedDerivedField2().set( contained1, "field2_initialValue" );
-			primitives.containedIndexedEmbedded().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbedded().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field1.set( contained1, "field1_initialValue" );
+			field2.set( contained1, "field2_initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1784,10 +4014,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating one value the field depends on
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.fieldUsedInContainedDerivedField1().set( contained, "field1_updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field1.set( contained, "field1_updatedValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1804,10 +4034,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating the other value the field depends on
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.fieldUsedInContainedDerivedField2().set( contained, "field2_updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field2.set( contained, "field2_updatedValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbedded", b3 -> b3
@@ -1830,24 +4060,29 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	 */
 	@Test
 	public void indirectValueUpdate_usedInCrossEntityDerivedProperty_crossEntityDerivedValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedUsedInCrossEntityDerivedProperty();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsUsedInCrossEntityDerivedProperty();
+		PropertyAccessor<TContained, String> field1 = _contained().fieldUsedInCrossEntityDerivedField1();
+		PropertyAccessor<TContained, String> field2 = _contained().fieldUsedInCrossEntityDerivedField2();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.fieldUsedInCrossEntityDerivedField1().set( contained1, "field1_initialValue" );
-			primitives.fieldUsedInCrossEntityDerivedField2().set( contained1, "field2_initialValue" );
-			primitives.containedUsedInCrossEntityDerivedProperty().set( containingEntity1, contained1 );
-			primitives.containingAsUsedInCrossEntityDerivedProperty().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field1.set( contained1, "field1_initialValue" );
+			field2.set( contained1, "field2_initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.field(
@@ -1861,10 +4096,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating one value the field depends on
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.fieldUsedInCrossEntityDerivedField1().set( contained, "field1_updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field1.set( contained, "field1_updatedValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.field(
@@ -1878,10 +4113,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating the other value the field depends on
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.fieldUsedInCrossEntityDerivedField2().set( contained, "field2_updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field2.set( contained, "field2_updatedValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.field(
@@ -1897,23 +4132,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-4001")
 	public void indirectValueUpdate_indexedEmbeddedShallowReindexOnUpdate_singleValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedField().set( contained1, "initialValue" );
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.set( contained1, "initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate", b3 -> b3
@@ -1926,8 +4165,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating the value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedField().set( contained, "updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.set( contained, "updatedValue" );
 
 			// Do not expect any work
 		} );
@@ -1943,23 +4182,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-4001")
 	public void indirectValueUpdate_indexedEmbeddedShallowReindexOnUpdate_elementCollectionValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedShallowReindexOnUpdate();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().indexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate", b3 -> b3
@@ -1976,8 +4219,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().add( contained, "secondValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.add( contained, "secondValue" );
 
 			// Do not expect any work
 		} );
@@ -1985,8 +4228,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().remove( contained, "firstValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.remove( contained, "firstValue" );
 
 			// Do not expect any work
 		} );
@@ -2005,23 +4248,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-4001")
 	public void indirectValueReplace_indexedEmbeddedShallowReindexOnUpdate_elementCollectionValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedShallowReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedShallowReindexOnUpdate();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().indexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbeddedShallowReindexOnUpdate().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbeddedShallowReindexOnUpdate().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedShallowReindexOnUpdate", b3 -> b3
@@ -2038,8 +4285,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test replacing a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().setContainer( contained, new ArrayList<>( Arrays.asList(
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.setContainer( contained, new ArrayList<>( Arrays.asList(
 					"newFirstValue", "newSecondValue"
 			) ) );
 
@@ -2051,23 +4298,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3206")
 	public void indirectValueUpdate_indexedEmbeddedNoReindexOnUpdate_singleValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedField().set( contained1, "initialValue" );
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.set( contained1, "initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedNoReindexOnUpdate", b3 -> b3
@@ -2080,8 +4331,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating the value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedField().set( contained, "updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.set( contained, "updatedValue" );
 
 			// Do not expect any work
 		} );
@@ -2097,23 +4348,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3206")
 	public void indirectValueUpdate_indexedEmbeddedNoReindexOnUpdate_elementCollectionValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedNoReindexOnUpdate();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().indexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedNoReindexOnUpdate", b3 -> b3
@@ -2130,8 +4385,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test adding a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().add( contained, "secondValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.add( contained, "secondValue" );
 
 			// Do not expect any work
 		} );
@@ -2139,8 +4394,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test removing a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().remove( contained, "firstValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.remove( contained, "firstValue" );
 
 			// Do not expect any work
 		} );
@@ -2159,23 +4414,27 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3206")
 	public void indirectValueReplace_indexedEmbeddedNoReindexOnUpdate_elementCollectionValue_indexed() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedNoReindexOnUpdate();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedNoReindexOnUpdate();
+		MultiValuedPropertyAccessor<TContained, String, List<String>> field = _contained().indexedElementCollectionField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedElementCollectionField().add( contained1, "firstValue" );
-			primitives.containedIndexedEmbeddedNoReindexOnUpdate().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbeddedNoReindexOnUpdate().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.add( contained1, "firstValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
 			session.persist( contained1 );
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedNoReindexOnUpdate", b3 -> b3
@@ -2192,8 +4451,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test replacing a value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedElementCollectionField().setContainer( contained, new ArrayList<>( Arrays.asList(
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.setContainer( contained, new ArrayList<>( Arrays.asList(
 					"newFirstValue", "newSecondValue"
 			) ) );
 
@@ -2205,26 +4464,30 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3072")
 	public void indirectValueUpdate_indexedEmbeddedWithCast_singleValue() {
+		PropertyAccessor<TContaining, TContained> containingAssociation = _containing().containedIndexedEmbeddedWithCast();
+		PropertyAccessor<TContained, TContaining> containedAssociation = _contained().containingAsIndexedEmbeddedWithCast();
+		PropertyAccessor<TContained, String> field = _contained().indexedField();
+
 		setupHolder.runInTransaction( session -> {
-			TIndexed entity1 = primitives.newIndexed( 1 );
+			TIndexed entity1 = _indexed().newInstance( 1 );
 
-			TContaining containingEntity1 = primitives.newContaining( 2 );
-			primitives.child().set( entity1, containingEntity1 );
-			primitives.parent().set( containingEntity1, entity1 );
+			TContaining containingEntity1 = _containing().newInstance( 2 );
+			_containing().child().set( entity1, containingEntity1 );
+			_containing().parent().set( containingEntity1, entity1 );
 
-			TContaining deeplyNestedContainingEntity = primitives.newContaining( 3 );
-			primitives.child().set( containingEntity1, deeplyNestedContainingEntity );
-			primitives.parent().set( deeplyNestedContainingEntity, containingEntity1 );
+			TContaining deeplyNestedContainingEntity = _containing().newInstance( 3 );
+			_containing().child().set( containingEntity1, deeplyNestedContainingEntity );
+			_containing().parent().set( deeplyNestedContainingEntity, containingEntity1 );
 
-			TContained contained1 = primitives.newContained( 4 );
-			primitives.indexedField().set( contained1, "initialValue" );
-			primitives.containedIndexedEmbeddedWithCast().set( containingEntity1, contained1 );
-			primitives.containingAsIndexedEmbeddedWithCast().set( contained1, containingEntity1 );
+			TContained contained1 = _contained().newInstance( 4 );
+			field.set( contained1, "initialValue" );
+			containingAssociation.set( containingEntity1, contained1 );
+			containedAssociation.set( contained1, containingEntity1 );
 
-			TContained contained2 = primitives.newContained( 5 );
-			primitives.indexedField().set( contained2, "initialOutOfScopeValue" );
-			primitives.containedIndexedEmbeddedWithCast().set( deeplyNestedContainingEntity, contained2 );
-			primitives.containingAsIndexedEmbeddedWithCast().set( contained2, deeplyNestedContainingEntity );
+			TContained contained2 = _contained().newInstance( 5 );
+			field.set( contained2, "initialOutOfScopeValue" );
+			containingAssociation.set( deeplyNestedContainingEntity, contained2 );
+			containedAssociation.set( contained2, deeplyNestedContainingEntity );
 
 			session.persist( contained1 );
 			session.persist( contained2 );
@@ -2232,7 +4495,7 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 			session.persist( containingEntity1 );
 			session.persist( entity1 );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.add( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedWithCast", b3 -> b3
@@ -2245,10 +4508,10 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating the value
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 4 );
-			primitives.indexedField().set( contained, "updatedValue" );
+			TContained contained = session.get( _contained().entityClass(), 4 );
+			field.set( contained, "updatedValue" );
 
-			backendMock.expectWorks( primitives.getIndexName() )
+			backendMock.expectWorks( _indexed().indexName() )
 					.addOrUpdate( "1", b -> b
 							.objectField( "child", b2 -> b2
 									.objectField( "containedIndexedEmbeddedWithCast", b3 -> b3
@@ -2261,8 +4524,8 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 
 		// Test updating a value that is too deeply nested to matter (it's out of the IndexedEmbedded scope)
 		setupHolder.runInTransaction( session -> {
-			TContained contained = session.get( primitives.getContainedClass(), 5 );
-			primitives.indexedField().set( contained, "updatedOutOfScopeValue" );
+			TContained contained = session.get( _contained().entityClass(), 5 );
+			field.set( contained, "updatedOutOfScopeValue" );
 
 			// Do not expect any work
 		} );
@@ -2288,75 +4551,123 @@ public abstract class AbstractAutomaticIndexingAssociationBaseIT<
 		}
 	}
 
-	public interface ModelPrimitives<
-					TIndexed extends TContaining,
-					TContaining,
-					TContained
-			> {
-		String getIndexName();
+	protected interface IndexedEntityPrimitives<TIndexed> {
 
-		boolean isMultiValuedAssociation();
+		Class<TIndexed> entityClass();
 
-		boolean isAssociationOwnedByContainedSide();
+		String indexName();
 
-		boolean isAssociationLazyOnContainingSide();
+		TIndexed newInstance(int id);
 
-		Class<TIndexed> getIndexedClass();
+	}
 
-		Class<TContaining> getContainingClass();
+	protected interface ContainingEntityPrimitives<TContaining, TContainingEmbeddable, TContained> {
 
-		Class<TContained> getContainedClass();
+		Class<TContaining> entityClass();
 
-		TIndexed newIndexed(int id);
+		TContaining newInstance(int id);
 
-		TContaining newContaining(int id);
+		PropertyAccessor<TContaining, String> nonIndexedField();
 
-		TContained newContained(int id);
+		PropertyAccessor<TContaining, TContaining> child();
 
-		SingleValuedPropertyAccessor<TContaining, String> containingEntityNonIndexedField();
-
-		SingleValuedPropertyAccessor<TContaining, TContaining> child();
-
-		SingleValuedPropertyAccessor<TContaining, TContaining> parent();
+		PropertyAccessor<TContaining, TContaining> parent();
 
 		PropertyAccessor<TContaining, TContained> containedIndexedEmbedded();
 
-		PropertyAccessor<TContained, TContaining> containingAsIndexedEmbedded();
-
 		PropertyAccessor<TContaining, TContained> containedNonIndexedEmbedded();
-
-		PropertyAccessor<TContained, TContaining> containingAsNonIndexedEmbedded();
 
 		PropertyAccessor<TContaining, TContained> containedIndexedEmbeddedShallowReindexOnUpdate();
 
-		PropertyAccessor<TContained, TContaining> containingAsIndexedEmbeddedShallowReindexOnUpdate();
-
 		PropertyAccessor<TContaining, TContained> containedIndexedEmbeddedNoReindexOnUpdate();
-
-		PropertyAccessor<TContained, TContaining> containingAsIndexedEmbeddedNoReindexOnUpdate();
 
 		PropertyAccessor<TContaining, TContained> containedUsedInCrossEntityDerivedProperty();
 
-		PropertyAccessor<TContained, TContaining> containingAsUsedInCrossEntityDerivedProperty();
-
 		PropertyAccessor<TContaining, TContained> containedIndexedEmbeddedWithCast();
+
+		PropertyAccessor<TContaining, TContainingEmbeddable> embeddedAssociations();
+
+		default MultiValuedPropertyAccessor<TContaining, TContainingEmbeddable, List<TContainingEmbeddable>> elementCollectionAssociations() {
+			throw primitiveNotSupported();
+		}
+
+		default PropertyAccessor<TContaining, TContained> containedElementCollectionAssociationsIndexedEmbedded() {
+			throw primitiveNotSupported();
+		}
+
+		default PropertyAccessor<TContaining, TContained> containedElementCollectionAssociationsNonIndexedEmbedded() {
+			throw primitiveNotSupported();
+		}
+
+	}
+
+	protected interface ContainingEmbeddablePrimitives<TContainingEmbeddable, TContained> {
+
+		TContainingEmbeddable newInstance();
+
+		PropertyAccessor<TContainingEmbeddable, TContained> containedIndexedEmbedded();
+
+		PropertyAccessor<TContainingEmbeddable, TContained> containedNonIndexedEmbedded();
+
+	}
+
+	protected interface ContainedEntityPrimitives<TContained, TContainedEmbeddable, TContaining> {
+
+		Class<TContained> entityClass();
+
+		TContained newInstance(int id);
+
+		PropertyAccessor<TContained, TContaining> containingAsIndexedEmbedded();
+
+		PropertyAccessor<TContained, TContaining> containingAsNonIndexedEmbedded();
+
+		PropertyAccessor<TContained, TContaining> containingAsIndexedEmbeddedShallowReindexOnUpdate();
+
+		PropertyAccessor<TContained, TContaining> containingAsIndexedEmbeddedNoReindexOnUpdate();
+
+		PropertyAccessor<TContained, TContaining> containingAsUsedInCrossEntityDerivedProperty();
 
 		PropertyAccessor<TContained, TContaining> containingAsIndexedEmbeddedWithCast();
 
-		SingleValuedPropertyAccessor<TContained, String> indexedField();
+		PropertyAccessor<TContained, TContainedEmbeddable> embeddedAssociations();
 
-		SingleValuedPropertyAccessor<TContained, String> nonIndexedField();
+		default PropertyAccessor<TContained, TContaining> containingAsElementCollectionAssociationsIndexedEmbedded() {
+			throw primitiveNotSupported();
+		}
+
+		default PropertyAccessor<TContained, TContaining> containingAsElementCollectionAssociationsNonIndexedEmbedded() {
+			throw primitiveNotSupported();
+		}
+
+		default MultiValuedPropertyAccessor<TContained, TContainedEmbeddable, List<TContainedEmbeddable>> elementCollectionAssociations() {
+			throw primitiveNotSupported();
+		}
+
+		PropertyAccessor<TContained, String> indexedField();
+
+		PropertyAccessor<TContained, String> nonIndexedField();
 
 		MultiValuedPropertyAccessor<TContained, String, List<String>> indexedElementCollectionField();
 
 		MultiValuedPropertyAccessor<TContained, String, List<String>> nonIndexedElementCollectionField();
 
-		SingleValuedPropertyAccessor<TContained, String> fieldUsedInContainedDerivedField1();
+		PropertyAccessor<TContained, String> fieldUsedInContainedDerivedField1();
 
-		SingleValuedPropertyAccessor<TContained, String> fieldUsedInContainedDerivedField2();
+		PropertyAccessor<TContained, String> fieldUsedInContainedDerivedField2();
 
-		SingleValuedPropertyAccessor<TContained, String> fieldUsedInCrossEntityDerivedField1();
+		PropertyAccessor<TContained, String> fieldUsedInCrossEntityDerivedField1();
 
-		SingleValuedPropertyAccessor<TContained, String> fieldUsedInCrossEntityDerivedField2();
+		PropertyAccessor<TContained, String> fieldUsedInCrossEntityDerivedField2();
+
+	}
+
+	protected interface ContainedEmbeddablePrimitives<TContainedEmbeddable, TContaining> {
+
+		TContainedEmbeddable newInstance();
+
+		PropertyAccessor<TContainedEmbeddable, TContaining> containingAsIndexedEmbedded();
+
+		PropertyAccessor<TContainedEmbeddable, TContaining> containingAsNonIndexedEmbedded();
+
 	}
 }

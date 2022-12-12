@@ -32,8 +32,13 @@ updates:
       # See b8f044eea92d6f2dd3421779f54b8923e00a26b7
       - dependency-name: org.asciidoctor:asciidoctorj-pdf
       # We strictly align these dependencies on the version used in Hibernate ORM.
-      - dependency-name: org.jboss:jandex
-      - dependency-name: net.bytebuddy:*
+      - dependency-name: "org.jboss:jandex"
+      - dependency-name: "javax.persistence:javax.persistence-api"
+      - dependency-name: "javax.enterprise:cdi-api"
+      - dependency-name: "jakarta.persistence:jakarta.persistence-api"
+      - dependency-name: "jakarta.enterprise:jakarta.enterprise.cdi-api"
+      - dependency-name: "jakarta.xml.bind:jakarta.xml.bind-api"
+      - dependency-name: "net.bytebuddy:*"
       # Newer majors of the following artifacts comply with the Jakarta specification (jakarta.* packages),
       # but we comply with Java EE (javax.* packages) for now.
       # TODO HSEARCH-4394 Remove these when switching to Jakarta EE as the default standard
@@ -50,6 +55,13 @@ updates:
       # See https://db.apache.org/derby/derby_downloads.html
       - dependency-name: "org.apache.derby:*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      # maven-assembly-plugin 3.1.1+ and 3.3+ behaves in a significantly different way, which makes the upgrade quite complex
-      # TODO HSEARCH-4380 Remove this when upgrading
-      - dependency-name: "org.apache.maven.plugins:maven-assembly-plugin"
+      # This dependency uses classifiers (.jre11, -preview, ...) in its version, and dependabot can't decide which versions are relevant.
+      # See https://github.com/dependabot/dependabot-core/issues/4028
+      - dependency-name: "com.microsoft.sqlserver:mssql-jdbc"
+      # Sticking to SLF4J 1.x for now since later versions require to upgrade providers
+      # (Log4j, ... see https://www.slf4j.org/faq.html#changesInVersion200),
+      # and also because we only need this dependency for AWS SDK,
+      # which is currently still on SLF4J 1.x
+      # (see https://search.maven.org/artifact/software.amazon.awssdk/aws-sdk-java-pom/2.17.257/pom)
+      - dependency-name: "org.slf4j:*"
+        update-types: ["version-update:semver-major"]

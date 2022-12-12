@@ -8,13 +8,16 @@ package org.hibernate.search.mapper.pojo.mapping.spi;
 
 import java.util.concurrent.CompletableFuture;
 
+import org.hibernate.search.engine.backend.reporting.spi.BackendMappingHints;
 import org.hibernate.search.engine.backend.types.converter.runtime.ToDocumentValueConvertContext;
 import org.hibernate.search.engine.backend.types.converter.runtime.spi.ToDocumentValueConvertContextImpl;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
+import org.hibernate.search.engine.environment.thread.spi.ThreadPoolProvider;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingImplementor;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingPreStopContext;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingStartContext;
+import org.hibernate.search.engine.reporting.FailureHandler;
 import org.hibernate.search.engine.search.projection.definition.spi.ProjectionRegistry;
 import org.hibernate.search.mapper.pojo.bridge.runtime.IdentifierBridgeToDocumentIdentifierContext;
 import org.hibernate.search.mapper.pojo.bridge.runtime.ValueBridgeToIndexedValueContext;
@@ -69,6 +72,21 @@ public abstract class AbstractPojoMappingImplementor<M>
 				closer.push( AbstractPojoMappingImplementor::doStop, this );
 			}
 		}
+	}
+
+	@Override
+	public BackendMappingHints hints() {
+		return BackendMappingHints.NONE;
+	}
+
+	@Override
+	public ThreadPoolProvider threadPoolProvider() {
+		return delegate().threadPoolProvider();
+	}
+
+	@Override
+	public FailureHandler failureHandler() {
+		return delegate().failureHandler();
 	}
 
 	@Override

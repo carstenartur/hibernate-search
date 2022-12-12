@@ -11,10 +11,11 @@ import static org.awaitility.Awaitility.await;
 import static org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxPollingOutboxEventAdditionalJaxbMappingProducer.ENTITY_NAME;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.hibernate.LockOptions;
 import org.hibernate.Session;
@@ -29,8 +30,8 @@ import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.Out
 
 public class FilteringOutboxEventFinder {
 
-	private boolean filter = true;
-	private final Set<Long> allowedIds = new HashSet<>();
+	private volatile boolean filter = true;
+	private final Set<UUID> allowedIds = ConcurrentHashMap.newKeySet();
 
 	public FilteringOutboxEventFinder() {
 	}
@@ -84,7 +85,7 @@ public class FilteringOutboxEventFinder {
 		with( sessionFactory ).runInTransaction( session -> showOnlyEvents( findOutboxEventIdsNoFilter( session ) ) );
 	}
 
-	public synchronized void showOnlyEvents(List<Long> eventIds) {
+	public synchronized void showOnlyEvents(List<UUID> eventIds) {
 		checkFiltering();
 		allowedIds.clear();
 		allowedIds.addAll( eventIds );
@@ -95,27 +96,19 @@ public class FilteringOutboxEventFinder {
 		allowedIds.clear();
 	}
 
+	// Orders events by ID, regardless of what order is used when processing them.
 	public List<OutboxEvent> findOutboxEventsNoFilter(Session session) {
 		checkFiltering();
 		Query<OutboxEvent> query = session.createQuery(
-				"select e from " + ENTITY_NAME + " e order by e.id", OutboxEvent.class );
+				"select e from " + ENTITY_NAME + " e order by e.created, e.id", OutboxEvent.class );
 		avoidLockingConflicts( query );
 		return query.list();
 	}
 
-	// Orders events by ID, regardless of what order is used when processing them.
-	public List<OutboxEvent> findOutboxEventsNoFilterOrderById(Session session) {
+	public List<UUID> findOutboxEventIdsNoFilter(Session session) {
 		checkFiltering();
-		Query<OutboxEvent> query = session.createQuery(
-				"select e from " + ENTITY_NAME + " e order by e.id", OutboxEvent.class );
-		avoidLockingConflicts( query );
-		return query.list();
-	}
-
-	public List<Long> findOutboxEventIdsNoFilter(Session session) {
-		checkFiltering();
-		Query<Long> query = session.createQuery(
-				"select e.id from " + ENTITY_NAME + " e order by e.id", Long.class );
+		Query<UUID> query = session.createQuery(
+				"select e.id from " + ENTITY_NAME + " e order by e.created, e.id", UUID.class );
 		return query.list();
 	}
 

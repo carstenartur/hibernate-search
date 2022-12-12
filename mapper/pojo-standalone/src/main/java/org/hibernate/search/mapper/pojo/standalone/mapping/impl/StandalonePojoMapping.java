@@ -14,37 +14,39 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.hibernate.search.engine.backend.Backend;
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
+import org.hibernate.search.engine.backend.index.IndexManager;
+import org.hibernate.search.engine.backend.reporting.spi.BackendMappingHints;
 import org.hibernate.search.engine.backend.session.spi.DetachedBackendSessionContext;
 import org.hibernate.search.engine.common.spi.SearchIntegration;
-import org.hibernate.search.engine.environment.thread.spi.ThreadPoolProvider;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingPreStopContext;
 import org.hibernate.search.engine.mapper.mapping.spi.MappingStartContext;
-import org.hibernate.search.engine.reporting.FailureHandler;
-import org.hibernate.search.mapper.pojo.standalone.common.EntityReference;
-import org.hibernate.search.mapper.pojo.standalone.common.impl.EntityReferenceImpl;
-import org.hibernate.search.mapper.pojo.standalone.entity.SearchIndexedEntity;
-import org.hibernate.search.mapper.pojo.standalone.loading.impl.StandalonePojoLoadingContext;
-import org.hibernate.search.mapper.pojo.standalone.log.impl.Log;
-import org.hibernate.search.mapper.pojo.standalone.mapping.CloseableSearchMapping;
-import org.hibernate.search.mapper.pojo.standalone.massindexing.impl.StandalonePojoMassIndexingSessionContext;
-import org.hibernate.search.mapper.pojo.standalone.schema.management.impl.SchemaManagementListener;
-import org.hibernate.search.mapper.pojo.standalone.scope.SearchScope;
-import org.hibernate.search.mapper.pojo.standalone.scope.impl.StandalonePojoScopeIndexedTypeContext;
-import org.hibernate.search.mapper.pojo.standalone.scope.impl.SearchScopeImpl;
-import org.hibernate.search.mapper.pojo.standalone.session.SearchSessionBuilder;
-import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
-import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSearchSession;
-import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSearchSessionMappingContext;
-import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSessionIndexedTypeContext;
-import org.hibernate.search.mapper.pojo.mapping.spi.PojoMappingDelegate;
+import org.hibernate.search.engine.search.projection.spi.ProjectionMappedTypeContext;
 import org.hibernate.search.mapper.pojo.mapping.spi.AbstractPojoMappingImplementor;
+import org.hibernate.search.mapper.pojo.mapping.spi.PojoMappingDelegate;
 import org.hibernate.search.mapper.pojo.massindexing.spi.PojoMassIndexerAgent;
 import org.hibernate.search.mapper.pojo.massindexing.spi.PojoMassIndexerAgentCreateContext;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRuntimeIntrospector;
 import org.hibernate.search.mapper.pojo.schema.management.spi.PojoScopeSchemaManager;
-import org.hibernate.search.util.common.AssertionFailure;
+import org.hibernate.search.mapper.pojo.standalone.common.EntityReference;
+import org.hibernate.search.mapper.pojo.standalone.common.impl.EntityReferenceImpl;
+import org.hibernate.search.mapper.pojo.standalone.entity.SearchIndexedEntity;
+import org.hibernate.search.mapper.pojo.standalone.loading.impl.StandalonePojoLoadingContext;
+import org.hibernate.search.mapper.pojo.standalone.logging.impl.Log;
+import org.hibernate.search.mapper.pojo.standalone.reporting.impl.StandalonePojoMappingHints;
+import org.hibernate.search.mapper.pojo.standalone.mapping.CloseableSearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.massindexing.impl.StandalonePojoMassIndexingSessionContext;
+import org.hibernate.search.mapper.pojo.standalone.schema.management.impl.SchemaManagementListener;
+import org.hibernate.search.mapper.pojo.standalone.scope.SearchScope;
+import org.hibernate.search.mapper.pojo.standalone.scope.impl.SearchScopeImpl;
+import org.hibernate.search.mapper.pojo.standalone.scope.impl.StandalonePojoScopeIndexedTypeContext;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSessionBuilder;
+import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSearchSession;
+import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSearchSessionMappingContext;
+import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSessionIndexedTypeContext;
 import org.hibernate.search.util.common.impl.Closer;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
@@ -109,6 +111,16 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 	}
 
 	@Override
+	public BackendMappingHints hints() {
+		return StandalonePojoMappingHints.INSTANCE;
+	}
+
+	@Override
+	public ProjectionMappedTypeContext mappedTypeContext(String mappedTypeName) {
+		return typeContextContainer.indexedByEntityName().getOrFail( mappedTypeName );
+	}
+
+	@Override
 	public EntityReferenceFactory<EntityReference> entityReferenceFactory() {
 		return this;
 	}
@@ -120,13 +132,8 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 
 	@Override
 	public EntityReference createEntityReference(String typeName, Object identifier) {
-		StandalonePojoSessionIndexedTypeContext<?> typeContext
-				= typeContextContainer.indexedForEntityName( typeName );
-		if ( typeContext == null ) {
-			throw new AssertionFailure(
-					"Type name " + typeName + " refers to an unknown type"
-			);
-		}
+		StandalonePojoSessionIndexedTypeContext<?> typeContext = typeContextContainer.indexedByEntityName()
+				.getOrFail( typeName );
 		return new EntityReferenceImpl( typeContext.typeIdentifier(), typeContext.name(), identifier );
 	}
 
@@ -165,20 +172,12 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 
 	@Override
 	public <E> SearchIndexedEntity<E> indexedEntity(Class<E> entityType) {
-		SearchIndexedEntity<E> type = typeContextContainer.indexedForExactClass( entityType );
-		if ( type == null ) {
-			throw log.notIndexedEntityType( entityType );
-		}
-		return type;
+		return typeContextContainer.indexedForExactClass( entityType );
 	}
 
 	@Override
 	public SearchIndexedEntity<?> indexedEntity(String entityName) {
-		SearchIndexedEntity<?> type = typeContextContainer.indexedForEntityName( entityName );
-		if ( type == null ) {
-			throw log.notIndexedEntityName( entityName );
-		}
-		return type;
+		return typeContextContainer.indexedByEntityName().getOrFail( entityName );
 	}
 
 	@Override
@@ -187,18 +186,23 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 	}
 
 	@Override
+	public IndexManager indexManager(String indexName) {
+		return searchIntegration().indexManager( indexName );
+	}
+
+	@Override
+	public Backend backend() {
+		return searchIntegration().backend();
+	}
+
+	@Override
+	public Backend backend(String backendName) {
+		return searchIntegration().backend( backendName );
+	}
+
+	@Override
 	public StandalonePojoLoadingContext.Builder loadingContextBuilder(DetachedBackendSessionContext sessionContext) {
 		return new StandalonePojoLoadingContext.Builder( this, typeContextContainer, sessionContext );
-	}
-
-	@Override
-	public ThreadPoolProvider threadPoolProvider() {
-		return delegate().threadPoolProvider();
-	}
-
-	@Override
-	public FailureHandler failureHandler() {
-		return delegate().failureHandler();
 	}
 
 	@Override
@@ -212,9 +216,8 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 		return createSessionBuilder().tenantId( sessionContext.tenantIdentifier() ).build();
 	}
 
-	@Override
-	public DetachedBackendSessionContext detachedBackendSessionContext(String tenantId) {
-		return DetachedBackendSessionContext.of( this, tenantId );
+	private SearchIntegration searchIntegration() {
+		return integrationHandle.getOrFail();
 	}
 
 	private Optional<SearchScopeImpl<Object>> createAllScope() {

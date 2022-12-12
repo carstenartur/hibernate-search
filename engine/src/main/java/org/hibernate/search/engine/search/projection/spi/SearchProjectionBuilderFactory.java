@@ -6,8 +6,12 @@
  */
 package org.hibernate.search.engine.search.projection.spi;
 
+import java.util.Map;
+import java.util.function.Supplier;
+
 import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.search.projection.SearchProjection;
+import org.hibernate.search.util.common.SearchException;
 
 /**
  * A factory for search projection builders.
@@ -19,7 +23,7 @@ public interface SearchProjectionBuilderFactory {
 
 	SearchProjection<DocumentReference> documentReference();
 
-	<E> SearchProjection<E> entity();
+	<E> SearchProjection<E> entityLoading();
 
 	<R> SearchProjection<R> entityReference();
 
@@ -30,5 +34,28 @@ public interface SearchProjectionBuilderFactory {
 	CompositeProjectionBuilder composite();
 
 	<T> SearchProjection<T> constant(T value);
+
+	/**
+	 * @param exceptionSupplier A supplier of the exception to throw.
+	 * @return A projection that throws an exception as soon as it's applied to at least one document.
+	 * @param <T> The type of projected values.
+	 */
+	<T> SearchProjection<T> throwing(Supplier<SearchException> exceptionSupplier);
+
+	/**
+	 * @param inners A map from type name to projection.
+	 * @return A projection that delegates to the given projections,
+	 * picking the delegate based on the document's type name.
+	 * @param <T> The type of projected values.
+	 */
+	<T> SearchProjection<T> byTypeName(Map<String, ? extends SearchProjection<? extends T>> inners);
+
+	/**
+	 * @param inner A projection to delegate to.
+	 * @return A projection that executes its inner projection in the root context,
+	 * ignoring any surrounding object projection.
+	 * @param <T> The type of projected values.
+	 */
+	<T> SearchProjection<T> rootContext(SearchProjection<T> inner);
 
 }

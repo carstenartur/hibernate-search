@@ -21,11 +21,14 @@ import org.hibernate.boot.jaxb.internal.MappingBinder;
 import org.hibernate.boot.jaxb.spi.Binding;
 import org.hibernate.boot.model.source.internal.hbm.MappingDocument;
 import org.hibernate.boot.spi.MetadataBuildingContext;
+import org.hibernate.dialect.Dialect;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.spi.OptionalConfigurationProperty;
 import org.hibernate.search.mapper.orm.bootstrap.spi.HibernateSearchOrmMappingProducer;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.HibernateOrmMapperOutboxPollingSettings;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.UuidDataType;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.UuidGenerationStrategy;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.spi.HibernateOrmMapperOutboxPollingSpiSettings;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.logging.impl.Log;
 import org.hibernate.search.util.common.annotation.impl.SuppressForbiddenApis;
@@ -48,18 +51,22 @@ public final class OutboxPollingOutboxEventAdditionalJaxbMappingProducer
 	public static final String ENTITY_DEFINITION_TEMPLATE = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
 			"<hibernate-mapping schema=\"%1$s\" catalog=\"%2$s\">\n" +
 			"    <class name=\"" + CLASS_NAME + "\" entity-name=\"" + ENTITY_NAME + "\" table=\"%3$s\">\n" +
-			"        <id name=\"id\" type=\"long\">\n" +
-			"            <generator class=\"org.hibernate.id.enhanced.SequenceStyleGenerator\">\n" +
-			"                <param name=\"sequence_name\">%4$s</param>\n" +
-			"                <param name=\"table_name\">%4$s</param>\n" +
-			"                <param name=\"initial_value\">1</param>\n" +
-			"                <param name=\"increment_size\">1</param>\n" +
+			"        <id name=\"id\" type=\"%5$s\">\n" +
+			"            <generator class=\"org.hibernate.id.UUIDGenerator\">\n" +
+			"                <param name=\"uuid_gen_strategy_class\">%4$s</param>\n" +
 			"            </generator>\n" +
 			"        </id>\n" +
 			"        <property name=\"entityName\" type=\"string\" length=\"256\" nullable=\"false\" />\n" +
 			"        <property name=\"entityId\" type=\"string\" length=\"256\" nullable=\"false\" />\n" +
 			"        <property name=\"entityIdHash\" type=\"integer\" index=\"entityIdHash\" nullable=\"false\" />\n" +
-			"        <property name=\"payload\" type=\"materialized_blob\" nullable=\"false\" />\n" +
+			"        <property name=\"payload\" type=\"materialized_blob\" nullable=\"false\">\n" +
+			// HSEARCH-4727: this column length will be ignored in most dialects, since the blob type is normally unbounded,
+			// but it will force Hibernate ORM to simulate an unbounded BLOB type with DB2.
+			// Using 2147483647 as it's the documented maximum length of BLOBs in DB2:
+			// https://www.ibm.com/docs/en/db2-for-zos/11?topic=types-large-objects-lobs
+			// TODO HSEARCH-4395/HSEARCH-4532 drop this length definition with ORM 6, because ORM 6 will ignore it.
+			"                <column length=\"2147483647\" />\n" +
+			"        </property>\n" +
 			"        <property name=\"retries\" type=\"integer\" nullable=\"false\" />\n" +
 			"        <property name=\"processAfter\" type=\"Instant\" index=\"processAfter\" nullable=\"true\" />\n" +
 			"        <property name=\"status\" index=\"status\" nullable=\"false\">\n" +
@@ -67,13 +74,15 @@ public final class OutboxPollingOutboxEventAdditionalJaxbMappingProducer
 			"                <param name=\"enumClass\">" + OutboxEvent.Status.class.getName() + "</param>\n" +
 			"            </type>\n" +
 			"        </property>\n" +
+			"        <property name=\"created\" type=\"Instant\" index=\"created\" nullable=\"false\" />\n" +
 			"    </class>\n" +
 			"</hibernate-mapping>\n";
 
 	public static final String ENTITY_DEFINITION = String.format(
 			Locale.ROOT, ENTITY_DEFINITION_TEMPLATE, "", "",
 			HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_OUTBOX_EVENT_TABLE,
-			HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_OUTBOX_EVENT_GENERATOR
+			HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_OUTBOX_EVENT_UUID_GEN_STRATEGY,
+			UuidDataType.CHAR.externalRepresentation()
 	);
 
 	private static final OptionalConfigurationProperty<String> OUTBOXEVENT_ENTITY_MAPPING =
@@ -100,36 +109,45 @@ public final class OutboxPollingOutboxEventAdditionalJaxbMappingProducer
 					.asString()
 					.build();
 
-	private static final OptionalConfigurationProperty<String> ENTITY_MAPPING_OUTBOXEVENT_GENERATOR =
+	private static final OptionalConfigurationProperty<UuidGenerationStrategy> ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY =
 			ConfigurationProperty.forKey(
-							HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.ENTITY_MAPPING_OUTBOXEVENT_GENERATOR )
+							HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY )
+					.as( UuidGenerationStrategy.class, UuidGenerationStrategy::of )
+					.build();
+
+	private static final ConfigurationProperty<String> ENTITY_MAPPING_OUTBOXEVENT_UUID_DATA_TYPE =
+			ConfigurationProperty.forKey(
+							HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.ENTITY_MAPPING_OUTBOXEVENT_UUID_DATA_TYPE )
 					.asString()
+					.withDefault( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_OUTBOX_EVENT_UUID_DATA_TYPE.externalRepresentation() )
 					.build();
 
 	@Override
 	@SuppressForbiddenApis(reason = "Strangely, this SPI involves the internal MappingBinder class,"
 			+ " and there's nothing we can do about it")
-	public Collection<MappingDocument> produceMappings(ConfigurationPropertySource propertySource,
+	public Collection<MappingDocument> produceMappings(ConfigurationPropertySource propertySource, Dialect dialect,
 			MappingBinder mappingBinder, MetadataBuildingContext buildingContext) {
 
 		Optional<String> mapping = OUTBOXEVENT_ENTITY_MAPPING.get( propertySource );
 		Optional<String> schema = ENTITY_MAPPING_OUTBOXEVENT_SCHEMA.get( propertySource );
 		Optional<String> catalog = ENTITY_MAPPING_OUTBOXEVENT_CATALOG.get( propertySource );
 		Optional<String> table = ENTITY_MAPPING_OUTBOXEVENT_TABLE.get( propertySource );
-		Optional<String> generator = ENTITY_MAPPING_OUTBOXEVENT_GENERATOR.get( propertySource );
+		Optional<UuidGenerationStrategy> uuidStrategy = ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY.get( propertySource );
 
 		// only allow configuring the entire mapping or table/catalog/schema/generator names
-		if ( mapping.isPresent() && ( schema.isPresent() || catalog.isPresent() || table.isPresent() || generator.isPresent() ) ) {
+		if ( mapping.isPresent() && ( schema.isPresent() || catalog.isPresent() || table.isPresent() ) ) {
 			throw log.outboxEventConfigurationPropertyConflict(
 					OUTBOXEVENT_ENTITY_MAPPING.resolveOrRaw( propertySource ),
 					new String[] {
 							ENTITY_MAPPING_OUTBOXEVENT_SCHEMA.resolveOrRaw( propertySource ),
 							ENTITY_MAPPING_OUTBOXEVENT_CATALOG.resolveOrRaw( propertySource ),
 							ENTITY_MAPPING_OUTBOXEVENT_TABLE.resolveOrRaw( propertySource ),
-							ENTITY_MAPPING_OUTBOXEVENT_GENERATOR.resolveOrRaw( propertySource )
+							ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY.resolveOrRaw( propertySource )
 					}
 			);
 		}
+
+		String uuidDataType = UuidDataType.uuidType( ENTITY_MAPPING_OUTBOXEVENT_UUID_DATA_TYPE.get( propertySource ), dialect );
 
 		String entityDefinition = mapping.orElseGet( () ->
 				String.format(
@@ -138,8 +156,8 @@ public final class OutboxPollingOutboxEventAdditionalJaxbMappingProducer
 						schema.orElse( "" ),
 						catalog.orElse( "" ),
 						table.orElse( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_OUTBOX_EVENT_TABLE ),
-						generator.orElse( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_OUTBOX_EVENT_GENERATOR )
-
+						uuidStrategy.orElse( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_OUTBOX_EVENT_UUID_GEN_STRATEGY ).strategy(),
+						uuidDataType
 				)
 		);
 

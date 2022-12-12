@@ -9,17 +9,19 @@ package org.hibernate.search.engine.backend.work.execution.spi;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+
 /**
  * The entry point for explicit index operations on a single index.
  */
 public interface IndexWorkspace {
 
-	CompletableFuture<?> mergeSegments();
+	CompletableFuture<?> mergeSegments(OperationSubmitter operationSubmitter);
 
-	CompletableFuture<?> purge(Set<String> routingKeys);
+	CompletableFuture<?> purge(Set<String> routingKeys, OperationSubmitter operationSubmitter);
 
-	CompletableFuture<?> flush();
+	CompletableFuture<?> flush(OperationSubmitter operationSubmitter);
 
-	CompletableFuture<?> refresh();
+	CompletableFuture<?> refresh(OperationSubmitter operationSubmitter);
 
 }

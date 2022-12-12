@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import org.hibernate.search.backend.elasticsearch.link.impl.ElasticsearchLink;
 import org.hibernate.search.backend.elasticsearch.work.impl.ElasticsearchWorkExecutionContext;
 import org.hibernate.search.backend.elasticsearch.work.impl.NonBulkableWork;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 
 public class ElasticsearchSimpleWorkOrchestrator
@@ -24,9 +25,9 @@ public class ElasticsearchSimpleWorkOrchestrator
 	}
 
 	@Override
-	public <T> CompletableFuture<T> submit(NonBulkableWork<T> work) {
+	public <T> CompletableFuture<T> submit(NonBulkableWork<T> work, OperationSubmitter operationSubmitter) {
 		WorkExecution<T> workExecution = new WorkExecution<>( work );
-		submit( workExecution );
+		submit( workExecution, operationSubmitter );
 		return workExecution.getResult();
 	}
 
@@ -36,7 +37,8 @@ public class ElasticsearchSimpleWorkOrchestrator
 	}
 
 	@Override
-	protected void doSubmit(WorkExecution<?> work) {
+	protected void doSubmit(WorkExecution<?> work, OperationSubmitter ignore) {
+		// ignoring the submitter as WorkExecution#execute will eventually call nonblocking REST client.
 		work.execute( executionContext );
 	}
 

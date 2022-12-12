@@ -666,8 +666,8 @@ public interface Log extends BasicLogger {
 	SearchException indexSchemaNamedPredicateNameConflict(String relativeFilterName, @Param EventContext context);
 
 	@Message(id = ID_OFFSET + 138,
-			value = "Provider differs: '%1$s' vs. '%2$s'.")
-	SearchException differentProviderForQueryElement(Object provider1, Object provider2);
+			value = "Predicate definition differs: '%1$s' vs. '%2$s'.")
+	SearchException differentPredicateDefinitionForQueryElement(Object predicateDefinition1, Object predicateDefinition2);
 
 	@LogMessage(level = Level.WARN)
 	@Message(id = ID_OFFSET + 140, value = "A search query fetching all hits was requested," +
@@ -726,4 +726,8 @@ public interface Log extends BasicLogger {
 	SearchException invalidSingleValuedProjectionOnValueFieldInMultiValuedObjectField(String absolutePath,
 			String objectFieldAbsolutePath);
 
+	@Message(id = ID_OFFSET + 156,
+			value = "Unexpected mapped type name extracted from hits: '%1$s'. Expected one of: %2$s."
+					+ " The document was probably indexed with a different configuration: full reindexing is necessary.")
+	SearchException unexpectedMappedTypeNameForByMappedTypeProjection(String typeName, Set<String> expectedTypeNames);
 }

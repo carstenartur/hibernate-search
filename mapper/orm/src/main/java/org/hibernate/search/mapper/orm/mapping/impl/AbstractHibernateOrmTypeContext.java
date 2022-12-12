@@ -24,10 +24,11 @@ import org.hibernate.search.mapper.pojo.model.path.spi.PojoPathFilter;
 import org.hibernate.search.mapper.pojo.model.spi.PojoPropertyModel;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
+import org.hibernate.search.mapper.pojo.model.spi.PojoTypeContext;
 import org.hibernate.search.util.common.reflect.spi.ValueReadHandle;
 
 abstract class AbstractHibernateOrmTypeContext<E>
-		implements HibernateOrmListenerTypeContext, HibernateOrmSessionTypeContext<E>, LoadingTypeContext<E> {
+		implements PojoTypeContext<E>, HibernateOrmListenerTypeContext, HibernateOrmSessionTypeContext<E>, LoadingTypeContext<E> {
 
 	private final PojoRawTypeIdentifier<E> typeIdentifier;
 	private final String jpaEntityName;
@@ -36,6 +37,7 @@ abstract class AbstractHibernateOrmTypeContext<E>
 	private final HibernateOrmEntityLoadingStrategy<? super E, ?> loadingStrategy;
 	private final IdentifierMapping identifierMapping;
 	private final PojoPathFilter dirtyFilter;
+	private final PojoPathFilter dirtyContainingAssociationFilter;
 	private final List<PojoRawTypeIdentifier<? super E>> ascendingSuperTypes;
 
 	// Casts are safe because the loading strategy will target either "E" or "? super E", by contract
@@ -69,6 +71,7 @@ abstract class AbstractHibernateOrmTypeContext<E>
 			loadingStrategy = null;
 		}
 		this.dirtyFilter = builder.dirtyFilter;
+		this.dirtyContainingAssociationFilter = builder.dirtyContainingAssociationFilter;
 	}
 
 	@Override
@@ -95,6 +98,7 @@ abstract class AbstractHibernateOrmTypeContext<E>
 		return entityPersister;
 	}
 
+	@Override
 	public IdentifierMapping identifierMapping() {
 		return identifierMapping;
 	}
@@ -104,6 +108,7 @@ abstract class AbstractHibernateOrmTypeContext<E>
 		return loadingStrategy;
 	}
 
+	@Override
 	public List<PojoRawTypeIdentifier<? super E>> ascendingSuperTypes() {
 		return ascendingSuperTypes;
 	}
@@ -125,6 +130,11 @@ abstract class AbstractHibernateOrmTypeContext<E>
 		return dirtyFilter;
 	}
 
+	@Override
+	public PojoPathFilter dirtyContainingAssociationFilter() {
+		return dirtyContainingAssociationFilter;
+	}
+
 	abstract static class AbstractBuilder<E> implements PojoTypeExtendedMappingCollector {
 		private final PojoRawTypeIdentifier<E> typeIdentifier;
 		private final String jpaEntityName;
@@ -133,6 +143,7 @@ abstract class AbstractHibernateOrmTypeContext<E>
 		private ValueReadHandle<?> documentIdSourcePropertyHandle;
 		private IdentifierMapping identifierMapping;
 		private PojoPathFilter dirtyFilter;
+		private PojoPathFilter dirtyContainingAssociationFilter;
 		private final List<PojoRawTypeIdentifier<? super E>> ascendingSuperTypes;
 
 		AbstractBuilder(PojoRawTypeModel<E> typeModel, String jpaEntityName, String hibernateOrmEntityName) {
@@ -158,6 +169,11 @@ abstract class AbstractHibernateOrmTypeContext<E>
 		@Override
 		public void dirtyFilter(PojoPathFilter dirtyFilter) {
 			this.dirtyFilter = dirtyFilter;
+		}
+
+		@Override
+		public void dirtyContainingAssociationFilter(PojoPathFilter filter) {
+			this.dirtyContainingAssociationFilter = filter;
 		}
 	}
 }

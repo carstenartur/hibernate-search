@@ -174,6 +174,7 @@ the created pull request.
 
 The project is split in several Maven modules:
 
+* `build`: Various modules that are mostly useful for the build itself.
 * `backend`: The backends, i.e. the modules that provide integration to actual indexing services.
   * `elasticsearch`: A backend that connects to a remote Elasticsearch cluster.
   * `elasticsearch-aws`: Implementation of AWS authentication using request signing for the Elasticsearch backend.
@@ -204,7 +205,6 @@ and do the work of converting between user entities and documents to be indexed.
     Currently incubating, i.e. backwards-incompatible changes in APIs may happen.
 * `orm6`: Modules that take the source code of other modules (e.g. mapper/orm)
 and transform it to use Hibernate ORM 6 instead of Hibernate ORM 5.x.
-* `reports`: Module built last, producing reports related to test coverage in particular.
 * `util`: Various modules containing util classes, both for runtime and for tests.
 
 ## <a id="building-from-source"></a> Building from source
@@ -304,34 +304,20 @@ Or more simply, if the newer JDK you want to test against is newer than 17 and i
 
 The Elasticsearch integration tests run against one single version of Elasticsearch at a time,
 launching an Elasticsearch server automatically on port 9200 using Docker.
-You may redefine the version to use by specifying the right profile and using the
-`test.elasticsearch.connection.version` property:
+You may redefine the distribution/version to use by specifying the properties
+`test.elasticsearch.distribution`/`test.elasticsearch.version`:
 
 ```bash
-./mvnw clean install -Pelasticsearch-6.0 -Dtest.elasticsearch.connection.version=6.0.0
+./mvnw clean install -Dtest.elasticsearch.distribution=elastic -Dtest.elasticsearch.version=6.0.0 
 ```
+The following distribution options are supported:
+* `elastic` - for Elasticsearch distribution
+* `opensearch` - for Opensearch distribution
 
-The following profiles are available:
+For available versions of Elasticsearch distribution from Elastic see [DockerHub](https://hub.docker.com/r/elastic/elasticsearch/tags).
+Please note that Elasticsearch [distributions starting with version 7.11 are not open-source](https://opensource.org/node/1099).
 
-* Elasticsearch distribution from Elastic
-  (see available version on [Maven Central](https://search.maven.org/search?q=g:org.elasticsearch%20AND%20a:elasticsearch&core=gav))
-  * `elasticsearch-5.6` for 5.6.x and later 5.x
-  * `elasticsearch-6.0` for 6.0.x to 6.2.x
-  * `elasticsearch-6.3` for 6.3.x
-  * `elasticsearch-6.4` for 6.4.x to 6.6.x
-  * `elasticsearch-6.7` for 6.7.x
-  * `elasticsearch-6.8` for 6.8 and later 6.x
-  * `elasticsearch-7.0` for 7.0 to 7.2
-  * `elasticsearch-7.3` for 7.3 to 7.6
-  * `elasticsearch-7.7` for 7.7
-  * `elasticsearch-7.8` for 7.8 to 7.9
-  * `elasticsearch-7.10` for 7.10
-  * `elasticsearch-7.11` for 7.11 ([not open-source starting with this version](https://opensource.org/node/1099))
-  * `elasticsearch-7.12` for 7.12 to 7.17
-  * `elasticsearch-8.0` for 8.0+ (**the default**)
-* [OpenSearch](https://www.opensearch.org/)
-  * `opensearch-1.0` for 1.0 and later 1.x
-  * `opensearch-2.0` for 2.0+
+For available versions of [OpenSearch](https://www.opensearch.org/) distribution see [DockerHub](https://hub.docker.com/r/opensearchproject/opensearch/tags).
 
 Alternatively, you can prevent the build from launching an Elasticsearch server automatically
 and run Elasticsearch-related tests against your own server using the
@@ -348,10 +334,10 @@ If you want to use HTTPS:
 ```
 
 If you want to run tests against a different Elasticsearch version  (6.x for instance),
-you will still have to select a profile among those listed above, and specify the version:
+you will still have to specify the distribution and version:
 
 ```bash
-./mvnw clean install -Pelasticsearch-6.0 -Dtest.elasticsearch.connection.version=6.0.0 \
+./mvnw clean install -Dtest.elasticsearch.distribution=elastic -Dtest.elasticsearch.version=6.0.0 \
         -Dtest.elasticsearch.connection.uris=http://localhost:9200
 ```
 
@@ -410,6 +396,57 @@ provided that build had the `jqassistant` profile enabled:
 
 The Neo4j web UI will be accessible from http://localhost:7474/.
 
+## Continuous integration
+
+Continuous integration happens on a self-hosted Jenkins instance at https://ci.hibernate.org.
+
+Several multi-branch pipelines are available.
+
+### Main pipeline
+
+https://ci.hibernate.org/job/hibernate-search/
+
+See [Jenkinsfile](Jenkinsfile).
+
+This job takes care of:
+
+* Primary branch builds
+* Pull request builds
+
+It executes the build in a default environment, at the very least.
+For primary branches, it may also re-execute the same build in different environments:
+
+* Newer JDKs
+* Different database vendors (PostgreSQL, Oracle, ...)
+* Different versions of Elasticsearch/OpenSearch
+* AWS Elasticsearch/OpenSearch Service
+
+See [this section](#building-from-source) for information on how to execute similar builds from the commandline.
+
+The job can be triggered manually, which is particularly useful to test more environments on a pull request.
+
+### Release pipeline
+
+https://ci.hibernate.org/job/hibernate-search/
+
+See [Jenkinsfile](Jenkinsfile).
+
+This job takes care of:
+
+* Primary branch builds
+* Pull request builds
+
+It executes the build in a default environment, at the very least.
+For primary branches, it may also re-execute the same build in different environments:
+
+* Newer JDKs
+* Different database vendors (PostgreSQL, Oracle, ...)
+* Different versions of Elasticsearch/OpenSearch
+* AWS Elasticsearch/OpenSearch Service
+
+See [this section](#building-from-source) for information on how to execute similar builds from the commandline.
+
+The job can be triggered manually, which is particularly useful to test more environments on a pull request.
 ## More conventions
 
 ### Naming and architecture rules

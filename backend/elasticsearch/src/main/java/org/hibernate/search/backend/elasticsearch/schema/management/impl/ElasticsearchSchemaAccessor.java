@@ -24,6 +24,7 @@ import org.hibernate.search.backend.elasticsearch.work.factory.impl.Elasticsearc
 import org.hibernate.search.backend.elasticsearch.work.impl.NonBulkableWork;
 import org.hibernate.search.backend.elasticsearch.work.result.impl.CreateIndexResult;
 import org.hibernate.search.backend.elasticsearch.work.result.impl.ExistingIndexMetadata;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.util.common.impl.Futures;
 import org.hibernate.search.util.common.impl.Throwables;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
@@ -47,13 +48,14 @@ final class ElasticsearchSchemaAccessor {
 	}
 
 	public CompletableFuture<?> createIndexAssumeNonExisting(URLEncodedString primaryIndexName,
-			Map<String, IndexAliasDefinition> aliases, IndexSettings settings, RootTypeMapping mapping) {
+			Map<String, IndexAliasDefinition> aliases, IndexSettings settings, RootTypeMapping mapping,
+			OperationSubmitter operationSubmitter) {
 		NonBulkableWork<?> work = getWorkFactory().createIndex( primaryIndexName )
 				.aliases( aliases )
 				.settings( settings )
 				.mapping( mapping )
 				.build();
-		return execute( work );
+		return execute( work, operationSubmitter );
 	}
 
 	/**
@@ -65,30 +67,30 @@ final class ElasticsearchSchemaAccessor {
 	 */
 	public CompletableFuture<Boolean> createIndexIgnoreExisting(URLEncodedString primaryIndexName,
 			Map<String, IndexAliasDefinition> aliases, IndexSettings settings,
-			RootTypeMapping mapping) {
+			RootTypeMapping mapping, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<CreateIndexResult> work = getWorkFactory().createIndex( primaryIndexName )
 				.aliases( aliases )
 				.settings( settings )
 				.mapping( mapping )
 				.ignoreExisting()
 				.build();
-		return execute( work ).thenApply( CreateIndexResult.CREATED::equals );
+		return execute( work, operationSubmitter ).thenApply( CreateIndexResult.CREATED::equals );
 	}
 
-	public CompletableFuture<ExistingIndexMetadata> getCurrentIndexMetadata(IndexNames indexNames) {
-		return getCurrentIndexMetadata( indexNames, false );
+	public CompletableFuture<ExistingIndexMetadata> getCurrentIndexMetadata(IndexNames indexNames, OperationSubmitter operationSubmitter) {
+		return getCurrentIndexMetadata( indexNames, false, operationSubmitter );
 	}
 
-	public CompletableFuture<ExistingIndexMetadata> getCurrentIndexMetadataOrNull(IndexNames indexNames) {
-		return getCurrentIndexMetadata( indexNames, true );
+	public CompletableFuture<ExistingIndexMetadata> getCurrentIndexMetadataOrNull(IndexNames indexNames, OperationSubmitter operationSubmitter) {
+		return getCurrentIndexMetadata( indexNames, true, operationSubmitter );
 	}
 
-	private CompletableFuture<ExistingIndexMetadata> getCurrentIndexMetadata(IndexNames indexNames, boolean allowNull) {
+	private CompletableFuture<ExistingIndexMetadata> getCurrentIndexMetadata(IndexNames indexNames, boolean allowNull, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<List<ExistingIndexMetadata>> work = getWorkFactory().getIndexMetadata()
 				.index( indexNames.write() )
 				.index( indexNames.read() )
 				.build();
-		return execute( work )
+		return execute( work, operationSubmitter )
 				.exceptionally( Futures.handler( e -> {
 					throw log.elasticsearchIndexMetadataRetrievalFailed( e.getMessage(),
 							Throwables.expectException( e ) );
@@ -112,27 +114,27 @@ final class ElasticsearchSchemaAccessor {
 				} );
 	}
 
-	public CompletableFuture<?> updateAliases(URLEncodedString indexName, Map<String, IndexAliasDefinition> aliases) {
+	public CompletableFuture<?> updateAliases(URLEncodedString indexName, Map<String, IndexAliasDefinition> aliases, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<?> work = getWorkFactory().putIndexAliases( indexName, aliases ).build();
-		return execute( work )
+		return execute( work, operationSubmitter )
 				.exceptionally( Futures.handler( e -> {
 					throw log.elasticsearchAliasUpdateFailed( indexName.original, e.getMessage(),
 							Throwables.expectException( e ) );
 				} ) );
 	}
 
-	public CompletableFuture<?> updateSettings(URLEncodedString indexName, IndexSettings settings) {
+	public CompletableFuture<?> updateSettings(URLEncodedString indexName, IndexSettings settings, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<?> work = getWorkFactory().putIndexSettings( indexName, settings ).build();
-		return execute( work )
+		return execute( work, operationSubmitter )
 				.exceptionally( Futures.handler( e -> {
 					throw log.elasticsearchSettingsUpdateFailed( indexName.original, e.getMessage(),
 							Throwables.expectException( e ) );
 				} ) );
 	}
 
-	public CompletableFuture<?> updateMapping(URLEncodedString indexName, RootTypeMapping mapping) {
+	public CompletableFuture<?> updateMapping(URLEncodedString indexName, RootTypeMapping mapping, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<?> work = getWorkFactory().putIndexTypeMapping( indexName, mapping ).build();
-		return execute( work )
+		return execute( work, operationSubmitter )
 				.exceptionally( Futures.handler( e -> {
 					throw log.elasticsearchMappingUpdateFailed(
 							indexName.original, e.getMessage(), Throwables.expectException( e )
@@ -140,7 +142,8 @@ final class ElasticsearchSchemaAccessor {
 				} ) );
 	}
 
-	public CompletableFuture<?> waitForIndexStatus(IndexNames indexNames, ElasticsearchIndexLifecycleExecutionOptions executionOptions) {
+	public CompletableFuture<?> waitForIndexStatus(IndexNames indexNames, ElasticsearchIndexLifecycleExecutionOptions executionOptions,
+			OperationSubmitter operationSubmitter) {
 		IndexStatus requiredIndexStatus = executionOptions.getRequiredStatus();
 		int requiredStatusTimeoutInMs = executionOptions.getRequiredStatusTimeoutInMs();
 
@@ -149,7 +152,7 @@ final class ElasticsearchSchemaAccessor {
 		NonBulkableWork<?> work =
 				getWorkFactory().waitForIndexStatusWork( name, requiredIndexStatus, requiredStatusTimeoutInMs )
 						.build();
-		return execute( work )
+		return execute( work, operationSubmitter )
 				.exceptionally( Futures.handler( e -> {
 					throw log.unexpectedIndexStatus(
 							name, requiredIndexStatus.externalRepresentation(), requiredStatusTimeoutInMs,
@@ -158,20 +161,20 @@ final class ElasticsearchSchemaAccessor {
 				} ) );
 	}
 
-	public CompletableFuture<?> dropIndexIfExisting(URLEncodedString indexName) {
+	public CompletableFuture<?> dropIndexIfExisting(URLEncodedString indexName, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<?> work = getWorkFactory().dropIndex( indexName ).ignoreIndexNotFound().build();
-		return execute( work );
+		return execute( work, operationSubmitter );
 	}
 
-	public CompletableFuture<?> closeIndex(URLEncodedString indexName) {
+	public CompletableFuture<?> closeIndex(URLEncodedString indexName, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<?> work = getWorkFactory().closeIndex( indexName ).build();
-		return execute( work )
+		return execute( work, operationSubmitter )
 				.thenRun( () -> log.closedIndex( indexName ) );
 	}
 
-	public CompletableFuture<?> openIndex(URLEncodedString indexName) {
+	public CompletableFuture<?> openIndex(URLEncodedString indexName, OperationSubmitter operationSubmitter) {
 		NonBulkableWork<?> work = getWorkFactory().openIndex( indexName ).build();
-		return execute( work )
+		return execute( work, operationSubmitter )
 				.thenRun( () -> log.openedIndex( indexName ) );
 	}
 
@@ -179,7 +182,7 @@ final class ElasticsearchSchemaAccessor {
 		return workFactory;
 	}
 
-	private <T> CompletableFuture<T> execute(NonBulkableWork<T> work) {
-		return orchestrator.submit( work );
+	private <T> CompletableFuture<T> execute(NonBulkableWork<T> work, OperationSubmitter operationSubmitter) {
+		return orchestrator.submit( work, operationSubmitter );
 	}
 }

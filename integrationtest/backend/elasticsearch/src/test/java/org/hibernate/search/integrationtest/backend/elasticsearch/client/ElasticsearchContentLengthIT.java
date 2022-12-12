@@ -11,6 +11,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,7 +28,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchBackendSettings;
 import org.hibernate.search.backend.elasticsearch.client.impl.ElasticsearchClientFactoryImpl;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClient;
-import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClientFactory;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClientImplementor;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchResponse;
@@ -38,9 +39,8 @@ import org.hibernate.search.engine.environment.bean.BeanHolder;
 import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.environment.thread.impl.EmbeddedThreadProvider;
 import org.hibernate.search.engine.environment.thread.impl.ThreadPoolProviderImpl;
-import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.categories.RequiresNoRequestPostProcessing;
-import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.categories.RequiresRequestPostProcessing;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendHelper;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchTestHostConnectionConfiguration;
 import org.hibernate.search.util.impl.integrationtest.common.TestConfigurationProvider;
 import org.hibernate.search.util.impl.test.annotation.PortedFromSearch5;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
@@ -48,7 +48,6 @@ import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
@@ -149,8 +148,12 @@ public class ElasticsearchContentLengthIT {
 	 * we can "stream" it to the remote cluster, and avoid storing it entirely in memory.
 	 */
 	@Test
-	@Category(RequiresNoRequestPostProcessing.class)
 	public void payloadJustAboveBufferSize_noRequestPostProcessing() throws Exception {
+		assumeFalse(
+				"This test only is only relevant if Elasticsearch request are *NOT* post-processed." +
+						" Elasticsearch requests are post-processed by the AWS integration in particular.",
+				ElasticsearchTestHostConnectionConfiguration.get().isAws()
+		);
 		wireMockRule.stubFor( post( urlPathLike( "/myIndex/myType" ) )
 				.willReturn( elasticsearchResponse().withStatus( 200 ) ) );
 
@@ -173,8 +176,12 @@ public class ElasticsearchContentLengthIT {
 	 * we have to store it entirely in memory, so chunked transfer does not make sense.
 	 */
 	@Test
-	@Category(RequiresRequestPostProcessing.class)
 	public void payloadJustAboveBufferSize_requestPostProcessing() throws Exception {
+		assumeTrue(
+				"This test only is only relevant if Elasticsearch request are post-processed." +
+						" Elasticsearch requests are post-processed by the AWS integration in particular.",
+				ElasticsearchTestHostConnectionConfiguration.get().isAws()
+		);
 		wireMockRule.stubFor( post( urlPathLike( "/myIndex/myType" ) )
 				.willReturn( elasticsearchResponse().withStatus( 200 ) ) );
 
@@ -208,13 +215,10 @@ public class ElasticsearchContentLengthIT {
 		ConfigurationPropertySource clientPropertySource = AllAwareConfigurationPropertySource.fromMap( clientProperties );
 
 		BeanResolver beanResolver = testConfigurationProvider.createBeanResolverForTest();
-		try ( BeanHolder<ElasticsearchClientFactory> factoryHolder =
-				beanResolver.resolve( ElasticsearchClientFactoryImpl.REFERENCE ) ) {
-			return factoryHolder.get().create( beanResolver, clientPropertySource,
-					threadPoolProvider.threadProvider(), "Client",
-					timeoutExecutorService,
-					GsonProvider.create( GsonBuilder::new, true ) );
-		}
+		return new ElasticsearchClientFactoryImpl().create( beanResolver, clientPropertySource,
+				threadPoolProvider.threadProvider(), "Client",
+				timeoutExecutorService,
+				GsonProvider.create( GsonBuilder::new, true ) );
 	}
 
 	private ElasticsearchResponse doPost(ElasticsearchClient client, String path, Collection<JsonObject> bodyParts) {

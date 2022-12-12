@@ -10,17 +10,18 @@ import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
 import org.hibernate.search.engine.search.predicate.dsl.PredicateFinalStep;
 import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
+import org.hibernate.search.engine.search.query.dsl.SearchQueryDslExtension;
+import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.configuration.AnalysisBuiltinOverrideITAnalysisConfigurer;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.configuration.AnalysisCustomITAnalysisConfigurer;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendFeatures;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendHelper;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendSetupStrategy;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 
 public class ElasticsearchTckBackendHelper implements TckBackendHelper {
 
-	private final ElasticsearchTckBackendFeatures features = new ElasticsearchTckBackendFeatures( ElasticsearchTestDialect.get() );
+	private final ElasticsearchTckBackendFeatures features = new ElasticsearchTckBackendFeatures();
 
 	@Override
 	public TckBackendFeatures getBackendFeatures() {
@@ -114,5 +115,10 @@ public class ElasticsearchTckBackendHelper implements TckBackendHelper {
 								+ "}"
 						+ "\""
 				+ "} }" );
+	}
+
+	@Override
+	public <R, E, LOS> SearchQueryDslExtension<? extends SearchQuerySelectStep<?, R, E, LOS, ?, ?>, R, E, LOS> queryDslExtension() {
+		return ElasticsearchExtension.get();
 	}
 }

@@ -11,11 +11,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.hibernate.search.engine.backend.Backend;
 import org.hibernate.search.engine.backend.index.IndexManager;
+import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
 import org.hibernate.search.mapper.pojo.standalone.entity.SearchIndexedEntity;
 import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
@@ -41,25 +44,36 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 
 public class SearchMappingIT {
 
-	@Rule
-	public BackendMock backendMock = new BackendMock();
+	private static final String BACKEND_2_NAME = "stubBackend2";
 
 	@Rule
-	public StandalonePojoMappingSetupHelper setupHelper =
-			StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public BackendMock defaultBackendMock = new BackendMock();
+
+	@Rule
+	public BackendMock backend2Mock = new BackendMock();
+
+	@Rule
+	public StandalonePojoMappingSetupHelper setupHelper;
 
 	private SearchMapping mapping;
 
+	public SearchMappingIT() {
+		Map<String, BackendMock> namedBackendMocks = new LinkedHashMap<>();
+		namedBackendMocks.put( BACKEND_2_NAME, backend2Mock );
+		setupHelper = StandalonePojoMappingSetupHelper.withBackendMocks( MethodHandles.lookup(),
+				defaultBackendMock, namedBackendMocks );
+	}
+
 	@Before
 	public void before() {
-		backendMock.expectAnySchema( Person.INDEX_NAME );
-		backendMock.expectAnySchema( Pet.ENTITY_NAME );
+		defaultBackendMock.expectAnySchema( Person.INDEX_NAME );
+		backend2Mock.expectAnySchema( Pet.ENTITY_NAME );
 		mapping = setupHelper.start()
 				.withAnnotatedEntityType( Person.class, Person.ENTITY_NAME )
 				.withAnnotatedEntityType( Pet.class, Pet.ENTITY_NAME )
 				.withAnnotatedEntityType( Toy.class, Toy.ENTITY_NAME )
 				.setup();
-		backendMock.verifyExpectationsMet();
+		defaultBackendMock.verifyExpectationsMet();
 	}
 
 	@Test
@@ -78,7 +92,15 @@ public class SearchMappingIT {
 	public void indexedEntity_byName_notEntity() {
 		assertThatThrownBy( () -> mapping.indexedEntity( "invalid" ) )
 				.isInstanceOf( SearchException.class )
-				.hasMessageContaining( "Entity type 'invalid' does not exist or is not indexed" );
+				.hasMessageContainingAll(
+						"No matching indexed entity type for name 'invalid'",
+						"Either this is not the name of an entity type, or the entity type is not indexed in Hibernate Search",
+						"Valid names for indexed entity types are: ["
+								+ Person.ENTITY_NAME + ", "
+								+ Pet.ENTITY_NAME
+								// This should NOT include Toy, which is not an indexed entity type
+								+ "]"
+				);
 	}
 
 	@Test
@@ -86,7 +108,15 @@ public class SearchMappingIT {
 	public void indexedEntity_byName_notIndexed() {
 		assertThatThrownBy( () -> mapping.indexedEntity( Toy.ENTITY_NAME ) )
 				.isInstanceOf( SearchException.class )
-				.hasMessageContaining( "Entity type '" + Toy.ENTITY_NAME + "' does not exist or is not indexed" );
+				.hasMessageContainingAll(
+						"No matching indexed entity type for name '" + Toy.ENTITY_NAME + "'",
+						"Either this is not the name of an entity type, or the entity type is not indexed in Hibernate Search",
+						"Valid names for indexed entity types are: ["
+								+ Person.ENTITY_NAME + ", "
+								+ Pet.ENTITY_NAME
+								// This should NOT include Toy, which is not an indexed entity type
+								+ "]"
+				);
 	}
 
 	@Test
@@ -105,8 +135,14 @@ public class SearchMappingIT {
 	public void indexedEntity_byJavaClass_notEntity() {
 		assertThatThrownBy( () -> mapping.indexedEntity( String.class ) )
 				.isInstanceOf( SearchException.class )
-				.hasMessageContaining(
-						"Type '" + String.class.getName() + "' is not an entity type, or this entity type is not indexed"
+				.hasMessageContainingAll(
+						"No matching indexed entity type for class '" + String.class.getName() + "'",
+						"Either this class is not an entity type, or the entity type is not indexed in Hibernate Search",
+						"Valid classes for indexed entity types are: ["
+								+ Person.class.getName() + ", "
+								+ Pet.class.getName()
+								// This should NOT include Toy, which is not an indexed entity type
+								+ "]"
 				);
 	}
 
@@ -115,8 +151,14 @@ public class SearchMappingIT {
 	public void indexedEntity_byJavaClass_notIndexed() {
 		assertThatThrownBy( () -> mapping.indexedEntity( Toy.class ) )
 				.isInstanceOf( SearchException.class )
-				.hasMessageContaining(
-						"Type '" + Toy.class.getName() + "' is not an entity type, or this entity type is not indexed"
+				.hasMessageContainingAll(
+						"No matching indexed entity type for class '" + Toy.class.getName() + "'",
+						"Either this class is not an entity type, or the entity type is not indexed in Hibernate Search",
+						"Valid classes for indexed entity types are: ["
+								+ Person.class.getName() + ", "
+								+ Pet.class.getName()
+								// This should NOT include Toy, which is not an indexed entity type
+								+ "]"
 				);
 	}
 
@@ -161,6 +203,59 @@ public class SearchMappingIT {
 				);
 	}
 
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-3640")
+	public void indexManager_customIndexName() {
+		IndexManager indexManager = mapping.indexManager( Person.INDEX_NAME );
+		checkIndexManager( Person.INDEX_NAME, indexManager );
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-3640")
+	public void indexManager_defaultIndexName() {
+		IndexManager indexManager = mapping.indexManager( Pet.ENTITY_NAME );
+		checkIndexManager( Pet.ENTITY_NAME, indexManager );
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4656")
+	public void indexManager_invalidName() {
+		assertThatThrownBy( () -> mapping.indexManager( "invalid" ) )
+				.isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"No index manager with name 'invalid'",
+						"Check that at least one entity is configured to target that index",
+						"The following indexes can be retrieved by name: [" + Person.INDEX_NAME + ", " + Pet.ENTITY_NAME + "]"
+				);
+	}
+
+	@Test
+	@TestForIssue(jiraKey = { "HSEARCH-3640", "HSEARCH-3950" })
+	public void backend_default() {
+		Backend backend = mapping.backend();
+		checkBackend( EventContexts.defaultBackend(), backend );
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-3640")
+	public void backend_byName() {
+		Backend backend = mapping.backend( BACKEND_2_NAME );
+		checkBackend( EventContexts.fromBackendName( BACKEND_2_NAME ), backend );
+	}
+
+	@Test
+	@TestForIssue(jiraKey = "HSEARCH-4656")
+	public void backend_byName_invalidName() {
+		assertThatThrownBy( () -> mapping.backend( "invalid" ) )
+				.isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"No backend with name 'invalid'",
+						"Check that at least one entity is configured to target that backend",
+						"The following backends can be retrieved by name: [" + BACKEND_2_NAME + "]",
+						"The default backend can be retrieved"
+				);
+	}
+
 	private void checkIndexManager(String expectedIndexName, IndexManager indexManager) {
 		assertThat( indexManager )
 				.asInstanceOf( InstanceOfAssertFactories.type( StubIndexManager.class ) )
@@ -194,7 +289,7 @@ public class SearchMappingIT {
 		}
 	}
 
-	@Indexed
+	@Indexed(backend = BACKEND_2_NAME)
 	private static class Pet {
 		public static final String ENTITY_NAME = "Pet";
 

@@ -22,6 +22,7 @@ import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrateg
 import org.hibernate.search.engine.backend.work.execution.spi.DocumentContributor;
 import org.hibernate.search.engine.backend.work.execution.spi.DocumentReferenceProvider;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexer;
+import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.configuration.DefaultAnalysisDefinitions;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.impl.test.data.TextContent;
@@ -97,7 +98,7 @@ public class IndexIndexerLargeDocumentsIT {
 
 		indexAndWait( count, valueProvider, operation );
 
-		index.createWorkspace().refresh().join();
+		index.createWorkspace().refresh( OperationSubmitter.BLOCKING ).join();
 
 		assertThatQuery( index.query()
 				.where( f -> f.matchAll() ) )
@@ -152,7 +153,7 @@ public class IndexIndexerLargeDocumentsIT {
 			public CompletableFuture<?> apply(IndexIndexer indexer, DocumentReferenceProvider referenceProvider,
 					DocumentContributor documentContributor) {
 				return indexer.add( referenceProvider, documentContributor,
-						DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE );
+						DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE, OperationSubmitter.BLOCKING );
 			}
 		},
 		ADD_OR_UPDATE {
@@ -160,7 +161,7 @@ public class IndexIndexerLargeDocumentsIT {
 			public CompletableFuture<?> apply(IndexIndexer indexer, DocumentReferenceProvider referenceProvider,
 					DocumentContributor documentContributor) {
 				return indexer.addOrUpdate( referenceProvider, documentContributor,
-						DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+						DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE, OperationSubmitter.BLOCKING
 				);
 			}
 		};

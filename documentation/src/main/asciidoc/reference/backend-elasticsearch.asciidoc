@@ -4,8 +4,8 @@
 [[backend-elasticsearch-compatibility]]
 == Compatibility
 
-Hibernate Search expects an link:{elasticsearchUrl}[Elasticsearch] cluster running version 5.6, 6.x or 7.x,
-or an link:{openSearchUrl}[OpenSearch] cluster running version 1.x.
+Hibernate Search expects an link:{elasticsearchUrl}[Elasticsearch] cluster running version {elasticsearchExpectedRunningVersions},
+or an link:{openSearchUrl}[OpenSearch] cluster running version {opensearchExpectedRunningVersions}.
 
 The version running on your cluster will be automatically detected on startup,
 and Hibernate Search will adapt based on the detected version;
@@ -23,12 +23,12 @@ but there are a few differences in how Hibernate Search behaves depending
 on the Elasticsearch version that may affect you.
 The following table details those differences.
 
-[cols="h,4*",options="header"]
+[cols="h,6*",options="header"]
 |===============
-| 3+|Elasticsearch|OpenSearch
-||5.6|6.x|7.x|1.x
-|Formats for date fields in the Elasticsearch schema 4+|Formats changed in ES 7, see <<backend-elasticsearch-field-types>>
-|`indexNullAs` on `geo_point` fields |Not available 3+|Available
+| 4+|Elasticsearch 2+|OpenSearch
+||5.6|6.x|7.x|8.x|1.x|2.x
+|Formats for date fields in the Elasticsearch schema 6+|Formats changed in ES 7, see <<backend-elasticsearch-field-types>>
+|`indexNullAs` on `geo_point` fields |Not available 5+|Available
 |===============
 
 [[backend-elasticsearch-upgrading]]
@@ -223,14 +223,11 @@ Expects a string value.
 This property has no default and must be provided for the AWS authentication to work.
 
 By default, Hibernate Search will rely on the default credentials provider from the AWS SDK.
-This provider will look for credentials in the following place and in the following order:
-
-1. Java System Properties: `aws.accessKeyId` and `aws.secretKey`.
-2. Environment Variables: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-3. Credential profiles file at the default location (`~/.aws/credentials`) shared by all AWS SDKs and the AWS CLI.
-4. Credentials delivered through the Amazon EC2 container service if `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` environment
-   variable is set and security manager has permission to access the variable.
-5. Instance profile credentials delivered through the Amazon EC2 metadata service.
+This provider will look for credentials in various places
+(Java system properties, environment variables, AWS-specific configuration, ...).
+For more information about how the default credentials provider works,
+see
+https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html#credentials-default[its official documentation].
 
 Optionally, you can set static credentials with the following options:
 
@@ -337,8 +334,28 @@ include::{resourcesdir}/configuration/http-client-configurer.properties[]
 Any setting defined by a custom http client configurer will override any other setting defined by Hibernate Search.
 ====
 
+[[backend-elasticsearch-configuration-client-instance]]
+== Providing a client instance
+
+If you already use a low-level Elasticsearch client (an instance of `org.elasticsearch.client.RestClient`)
+in your application,
+you can tell Hibernate Search to use that client instead of creating its own.
+
+Providing a `RestClient` requires two steps:
+
+. Define the `org.elasticsearch.client.RestClient` instance
+as a bean in your <<configuration-bean-frameworks,supported dependency injection framework>>,
+for example by defining a CDI bean producer annotated with `@Named("myRestClient")`.
+. Configure Hibernate Search to use that instance by setting the configuration property
+`hibernate.search.backend.client.instance`
+to a <<configuration-bean-reference-parsing,bean reference>> pointing to the bean,
+for example `bean:myRestClient`.
+
+IMPORTANT: If Hibernate Search uses a provided client, it won't create its own client,
+and thus all other <<backend-elasticsearch-configuration-client,client configuration properties>> will be ignored.
+
 [[backend-elasticsearch-configuration-version]]
-=== [[backend-elasticsearch-configuration-dialect]] Version
+== [[backend-elasticsearch-configuration-dialect]] Version compatibility
 
 Different distributions and versions of Elasticsearch expose slightly different APIs.
 As a result, Hibernate Search needs to be aware of the distribution and version of Elasticsearch it is talking to
@@ -377,10 +394,10 @@ This can be helpful while developing, in particular.
 ====
 
 [[backend-elasticsearch-configuration-logging]]
-=== [[elasticsearch-log-json-pretty-printing]] Logging
+== [[elasticsearch-log-json-pretty-printing]] Request logging
 
 The `hibernate.search.backend.log.json_pretty_printing` <<configuration-property-types,boolean property>>
-defines whether JSON included in <<troubleshooting-logging,logs>> should be pretty-printed (indented, with line breaks).
+defines whether JSON included in <<troubleshooting-logging,request logs>> should be pretty-printed (indented, with line breaks).
 It defaults to `false`.
 
 [[backend-elasticsearch-configuration-sharding]]
@@ -1012,9 +1029,35 @@ The Elasticsearch backend comes with several built-in analyzers.
 The exact list depends on the version of Elasticsearch and can be found
 link:{elasticsearchDocUrl}/analysis-analyzers.html[here].
 
-One important built-in analyzer is the one named `default`:
-it is used by default with <<mapping-directfieldmapping-annotations-fulltextfield,`@FullTextField`>>.
-Unless overridden explicitly, this analyzer uses a `standard` tokenizer and a `lowercase` filter.
+Regardless of the Elasticsearch version;
+analyzers whose name is listed as a constant in `org.hibernate.search.engine.backend.analysis.AnalyzerNames`
+are always available:
+
+`default`::
+The analyzer used by default with <<mapping-directfieldmapping-annotations-fulltextfield,`@FullTextField`>>.
++
+This is just an alias for `standard` by default.
+`standard`::
+Default behavior: first, tokenize using the standard tokenizer, which follows Word Break rules from the
+Unicode Text Segmentation algorithm, as specified in http://unicode.org/reports/tr29/[Unicode Standard Annex #29].
+Then, lowercase each token.
+`simple`::
+Default behavior: first, split the text at non-letter characters.
+Then, lowercase each token.
+`whitespace`::
+Default behavior: split the text at whitespace characters.
+Do not change the tokens.
+`stop`::
+Default behavior: first, split the text at non-letter characters.
+Then, lowercase each token.
+Finally, remove English stop words.
+`keyword`::
+Default behavior: do not change the text in any way.
++
+With this analyzer a full text field would behave similarly to a keyword field,
+but with fewer features: no terms aggregations, for example.
++
+Consider using a <<mapping-directfieldmapping-annotations-keywordfield,`@KeywordField`>> instead.
 
 [[backend-elasticsearch-analysis-builtin-normalizer]]
 === Built-in normalizers
@@ -1070,6 +1113,33 @@ refer to the documentation:
 {elasticsearchDocUrl}/analysis-charfilters.html[character filters],
 {elasticsearchDocUrl}/analysis-tokenizers.html[tokenizers],
 {elasticsearchDocUrl}/analysis-tokenfilters.html[token filters].
+
+[[backend-elasticsearch-analysis-analyzers-default]]
+=== Overriding the default analyzer
+
+The default analyzer when using <<mapping-directfieldmapping-annotations-fulltextfield,`@FullTextField`>>
+without specifying an analyzer explicitly, is named `default`.
+
+Like any other <<backend-elasticsearch-analysis-builtin,built-in analyzer>>, it is possible to override the default analyzer
+by defining a <<backend-elasticsearch-analysis-analyzers,custom analyzer>> with the same name:
+
+.Overriding the default analyzer in the Elasticsearch backend
+====
+[source, JAVA, indent=0, subs="+callouts"]
+----
+include::{sourcedir}/org/hibernate/search/documentation/analysis/MyElasticsearchAnalysisConfigurer.java[tags=include]
+----
+<1> Start the definition of a custom analyzer that happens to be named `default`.
+Here we rely on constants from `org.hibernate.search.engine.backend.analysis.AnalyzerNames` to use the correct name,
+but hardcoding `"default"` would work just as well.
+<2> Continue the analyzer definition <<backend-elasticsearch-analysis-analyzers,as we would for any other custom analyzer>>.
+
+[source, XML, indent=0, subs="+callouts"]
+----
+include::{resourcesdir}/analysis/elasticsearch-default-override.properties[]
+----
+<1> Assign the configurer to the backend using a Hibernate Search configuration property.
+====
 
 [[backend-elasticsearch-configuration-index-settings]]
 == [[_custom_index_settings]] Custom index settings

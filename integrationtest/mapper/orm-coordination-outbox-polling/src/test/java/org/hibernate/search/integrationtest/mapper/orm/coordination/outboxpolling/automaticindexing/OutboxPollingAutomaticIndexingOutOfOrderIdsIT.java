@@ -12,8 +12,11 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 import static org.junit.Assume.assumeTrue;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import javax.persistence.Basic;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -39,7 +42,9 @@ import org.junit.Test;
 
 public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 
-	private static final String OUTBOX_EVENT_UPDATE_ID = "UPDATE HSEARCH_OUTBOX_EVENT SET ID = ? WHERE ID = ?";
+	private static final String OUTBOX_EVENT_UPDATE_ID_AND_TIME = "UPDATE HSEARCH_OUTBOX_EVENT SET ID = ?, CREATED = ? WHERE ID = ?";
+
+	private static final String OUTBOX_EVENT_SELECT_ORDERED_IDS_AND_CREATED_TIME = "SELECT ID, CREATED FROM HSEARCH_OUTBOX_EVENT ORDER BY CREATED, ID";
 
 	private final FilteringOutboxEventFinder outboxEventFinder = new FilteringOutboxEventFinder();
 
@@ -58,6 +63,11 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 				.expectAnySchema( RoutedIndexedEntity.NAME );
 		sessionFactory = ormSetupHelper.start()
 				.withProperty( "hibernate.search.coordination.outbox_event_finder.provider", outboxEventFinder.provider() )
+				// use timebase uuids to get predictable sorting order
+				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.uuid_gen_strategy", "time" )
+				// see HSEARCH-4749, as some DBs (MSSQL) might use a nonstring representation of UUID we want to force it
+				// in this case to make row manipulation easier:
+				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.preferred_uuid_jdbc_type", "uuid-char" )
 				.setup( IndexedEntity.class, RoutedIndexedEntity.class );
 		backendMock.verifyExpectationsMet();
 	}
@@ -87,7 +97,7 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 		} );
 
 		with( sessionFactory ).runNoTransaction( session -> {
-			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilterOrderById( session );
+			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
 			assertThat( events ).hasSize( 3 );
 			// Correct order when ordered by id (you'll have to trust me on that)
 			// add
@@ -100,13 +110,11 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 
 		with( sessionFactory ).runInTransaction( session -> {
 			// Swap the IDs of event 1 (add) and 3 (delete)
-			updateOutboxTableRow( session, 1, 4 );
-			updateOutboxTableRow( session, 3, 1 );
-			updateOutboxTableRow( session, 4, 3 );
+			swapOutboxTableRowIdAndCreatedValues( session, 0, 2 );
 		} );
 
 		with( sessionFactory ).runNoTransaction( session -> {
-			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilterOrderById( session );
+			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
 			assertThat( events ).hasSize( 3 );
 			// Out-of-order when ordered by id (you'll have to trust me on that)
 			// delete
@@ -198,7 +206,7 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 		} );
 
 		with( sessionFactory ).runNoTransaction( session -> {
-			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilterOrderById( session );
+			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
 			assertThat( events ).hasSize( 2 );
 			// Correct order when ordered by id (you'll have to trust me on that)
 			// delete
@@ -209,13 +217,11 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 
 		with( sessionFactory ).runInTransaction( session -> {
 			// Swap the IDs of event 2 (delete) and 3 (add)
-			updateOutboxTableRow( session, 2, 4 );
-			updateOutboxTableRow( session, 3, 2 );
-			updateOutboxTableRow( session, 4, 3 );
+			swapOutboxTableRowIdAndCreatedValues( session, 0, 1 );
 		} );
 
 		with( sessionFactory ).runNoTransaction( session -> {
-			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilterOrderById( session );
+			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
 			assertThat( events ).hasSize( 2 );
 			// Out-of-order when ordered by id (you'll have to trust me on that)
 			// add
@@ -311,7 +317,7 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 		} );
 
 		with( sessionFactory ).runNoTransaction( session -> {
-			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilterOrderById( session );
+			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
 			assertThat( events ).hasSize( 2 );
 			// Correct order when ordered by id
 			OutboxPollingAutomaticIndexingEventSendingIT.verifyOutboxEntry( events.get( 0 ), RoutedIndexedEntity.NAME, "1",
@@ -325,13 +331,11 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 		with( sessionFactory ).runInTransaction( session -> {
 			// Swap the IDs of event 2 (update routing key from "FIRST" to "SECOND") and
 			// 3 (update routing key from "SECOND" to "THIRD")
-			updateOutboxTableRow( session, 2, 4 );
-			updateOutboxTableRow( session, 3, 2 );
-			updateOutboxTableRow( session, 4, 3 );
+			swapOutboxTableRowIdAndCreatedValues( session, 0, 1 );
 		} );
 
 		with( sessionFactory ).runNoTransaction( session -> {
-			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilterOrderById( session );
+			List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
 			assertThat( events ).hasSize( 2 );
 			// Out-of-order when ordered by id
 			OutboxPollingAutomaticIndexingEventSendingIT.verifyOutboxEntry( events.get( 0 ), RoutedIndexedEntity.NAME, "1",
@@ -357,7 +361,7 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 		backendMock.verifyExpectationsMet();
 	}
 
-	private void updateOutboxTableRow(Session session, Integer oldId, Integer newId) {
+	private void swapOutboxTableRowIdAndCreatedValues(Session session, int row1, int row2) {
 		try {
 			SharedSessionContractImplementor implementor = session.unwrap( SharedSessionContractImplementor.class );
 
@@ -370,19 +374,38 @@ public class OutboxPollingAutomaticIndexingOutOfOrderIdsIT {
 				assumeTrue(
 						"The H2 actual maximum available precision depends on operating system and JVM and can be 3 (milliseconds) or higher. " +
 								"Higher precision is not available before Java 9.",
-						!(oldJavaVersion && env.getDialect() instanceof H2Dialect)
+						!( oldJavaVersion && env.getDialect() instanceof H2Dialect )
 				);
 			}
 
-			try ( PreparedStatement ps = jdbc.getStatementPreparer().prepareStatement( OUTBOX_EVENT_UPDATE_ID ) ) {
-				ps.setInt( 1, newId );
-				ps.setInt( 2, oldId );
-
-				jdbc.getResultSetReturn().executeUpdate( ps );
+			List<String> uuids = new ArrayList<>();
+			List<java.sql.Timestamp> times = new ArrayList<>();
+			try ( PreparedStatement statement = jdbc.getStatementPreparer().prepareStatement( OUTBOX_EVENT_SELECT_ORDERED_IDS_AND_CREATED_TIME ) ) {
+				ResultSet resultSet = statement.executeQuery();
+				while ( resultSet.next() ) {
+					uuids.add( resultSet.getString( 1 ) );
+					times.add( resultSet.getTimestamp( 2 ) );
+				}
 			}
+
+			String temporaryUuid = UUID.randomUUID().toString();
+			updateOutboxTableRow( jdbc, temporaryUuid, uuids.get( row2 ), times.get( row1 ) );
+			updateOutboxTableRow( jdbc, uuids.get( row2 ), uuids.get( row1 ), times.get( row2 ) );
+			updateOutboxTableRow( jdbc, uuids.get( row1 ), temporaryUuid, times.get( row1 ) );
 		}
 		catch (SQLException exception) {
 			fail( "Unexpected SQL exception: " + exception );
+		}
+	}
+
+	private void updateOutboxTableRow(JdbcCoordinator jdbc, String newId, String rowToUpdateId,
+			java.sql.Timestamp newCreated) throws SQLException {
+		try ( PreparedStatement ps = jdbc.getStatementPreparer().prepareStatement( OUTBOX_EVENT_UPDATE_ID_AND_TIME ) ) {
+			ps.setString( 1, newId );
+			ps.setTimestamp( 2, newCreated );
+			ps.setString( 3, rowToUpdateId );
+
+			jdbc.getResultSetReturn().executeUpdate( ps );
 		}
 	}
 

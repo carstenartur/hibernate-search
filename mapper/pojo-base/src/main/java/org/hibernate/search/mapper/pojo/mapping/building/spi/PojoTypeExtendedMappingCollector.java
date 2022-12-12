@@ -18,10 +18,20 @@ import org.hibernate.search.mapper.pojo.model.spi.PojoPropertyModel;
  */
 public interface PojoTypeExtendedMappingCollector {
 
-	void documentIdSourceProperty(PojoPropertyModel<?> documentIdSourceProperty);
+	default void documentIdSourceProperty(PojoPropertyModel<?> documentIdSourceProperty) {
+		// Default implementation: ignore this information.
+	}
 
-	void identifierMapping(IdentifierMapping identifierMapping);
+	default void identifierMapping(IdentifierMapping identifierMapping) {
+		// Default implementation: ignore this information.
+	}
 
-	void dirtyFilter(PojoPathFilter dirtyFilter);
+	default void dirtyFilter(PojoPathFilter dirtyFilter) {
+		// Default implementation: ignore this information.
+	}
+
+	default void dirtyContainingAssociationFilter(PojoPathFilter filter) {
+		// Default implementation: ignore this information.
+	}
 
 }
