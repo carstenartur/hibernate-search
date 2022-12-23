@@ -229,7 +229,7 @@
         <!-- NOTE: Adding new major versions would require to update the compatibility table in `backend-elasticsearch-compatibility` section of `backend-elasticsearch.asciidoc`. -->
         <version.org.opensearch.compatible.expected.text>1.x or 2.x</version.org.opensearch.compatible.expected.text>
         <!-- The latest version of OpenSearch tested against by default -->
-        <version.org.opensearch.latest>2.4.0</version.org.opensearch.latest>
+        <version.org.opensearch.latest>2.4.1</version.org.opensearch.latest>
 
         <version.com.google.code.gson>2.9.1</version.com.google.code.gson>
         <version.software.amazon.awssdk>2.18.1</version.software.amazon.awssdk>
@@ -303,7 +303,7 @@
         <version.org.osgi.core>6.0.0</version.org.osgi.core>
 
         <version.org.hamcrest>2.2</version.org.hamcrest>
-        <version.org.mockito>4.9.0</version.org.mockito>
+        <version.org.mockito>4.10.0</version.org.mockito>
         <version.org.assertj.assertj-core>3.23.1</version.org.assertj.assertj-core>
         <version.org.awaitily>4.2.0</version.org.awaitily>
         <version.org.skyscreamer.jsonassert>1.5.1</version.org.skyscreamer.jsonassert>
@@ -321,12 +321,12 @@
         <!-- Sticking to Derby 10.14 for now since later versions require JDK 9+, and we need to test with JDK 8.
              See https://db.apache.org/derby/derby_downloads.html -->
         <version.org.apache.derby>10.14.2.0</version.org.apache.derby>
-        <version.org.postgresql>42.5.0</version.org.postgresql>
-        <version.org.mariadb.jdbc>3.0.8</version.org.mariadb.jdbc>
-        <version.mysql.mysql-connector-java>8.0.30</version.mysql.mysql-connector-java>
+        <version.org.postgresql>42.5.1</version.org.postgresql>
+        <version.org.mariadb.jdbc>3.1.0</version.org.mariadb.jdbc>
+        <version.mysql.mysql-connector-java>8.0.31</version.mysql.mysql-connector-java>
         <version.com.ibm.db2.jcc>11.5.8.0</version.com.ibm.db2.jcc>
-        <version.com.oracle.database.jdbc>21.7.0.0</version.com.oracle.database.jdbc>
-        <version.com.microsoft.sqlserver.mssql-jdbc>9.2.1.jre11</version.com.microsoft.sqlserver.mssql-jdbc>
+        <version.com.oracle.database.jdbc>21.8.0.0</version.com.oracle.database.jdbc>
+        <version.com.microsoft.sqlserver.mssql-jdbc>11.2.2.jre11</version.com.microsoft.sqlserver.mssql-jdbc>
 
         <!-- >>> Performance tests -->
         <version.org.openjdk.jmh>1.36</version.org.openjdk.jmh>
@@ -472,7 +472,7 @@
                 is outdated and leads to compilation errors.
          -->
         <version.org.codehaus.plexus.plexus-compiler.compiler-eclipse>2.12.1</version.org.codehaus.plexus.plexus-compiler.compiler-eclipse>
-        <version.org.eclipse.jdt.ecj>3.31.0</version.org.eclipse.jdt.ecj>
+        <version.org.eclipse.jdt.ecj>3.32.0</version.org.eclipse.jdt.ecj>
 
         <!--
             The absolute path to the root project directory.
@@ -618,34 +618,40 @@
         <!-- Run containers for additional ORM databases -->
         <test.database.run.skip>true</test.database.run.skip>
         <!-- PostgreSQL -->
+        <!-- See https://hub.docker.com/_/postgres -->
         <test.database.run.postgres.skip>true</test.database.run.postgres.skip>
         <test.database.run.postgres.image.name>postgres</test.database.run.postgres.image.name>
-        <test.database.run.postgres.image.tag>13.1</test.database.run.postgres.image.tag>
+        <test.database.run.postgres.image.tag>15.1</test.database.run.postgres.image.tag>
         <!-- MariaDB -->
+        <!-- See https://hub.docker.com/_/mariadb -->
         <test.database.run.mariadb.skip>true</test.database.run.mariadb.skip>
         <test.database.run.mariadb.image.name>mariadb</test.database.run.mariadb.image.name>
-        <test.database.run.mariadb.image.tag>10.5.8</test.database.run.mariadb.image.tag>
+        <test.database.run.mariadb.image.tag>10.10.2</test.database.run.mariadb.image.tag>
         <!-- MySQL -->
+        <!-- See https://hub.docker.com/_/mysql -->
         <test.database.run.mysql.skip>true</test.database.run.mysql.skip>
         <test.database.run.mysql.image.name>mysql</test.database.run.mysql.image.name>
-        <test.database.run.mysql.image.tag>8.0.22</test.database.run.mysql.image.tag>
+        <test.database.run.mysql.image.tag>8.0.31</test.database.run.mysql.image.tag>
         <!-- DB2 -->
+        <!-- See https://hub.docker.com/r/ibmcom/db2 -->
         <test.database.run.db2.skip>true</test.database.run.db2.skip>
         <test.database.run.db2.image.name>ibmcom/db2</test.database.run.db2.image.name>
         <test.database.run.db2.image.tag>11.5.8.0</test.database.run.db2.image.tag>
         <!-- Oracle -->
-        <test.database.run.oracle.skip>true</test.database.run.oracle.skip>
         <!-- See https://hub.docker.com/r/gvenzl/oracle-xe -->
+        <test.database.run.oracle.skip>true</test.database.run.oracle.skip>
         <test.database.run.oracle.image.name>gvenzl/oracle-xe</test.database.run.oracle.image.name>
-        <test.database.run.oracle.image.tag>21-slim-faststart</test.database.run.oracle.image.tag>
+        <test.database.run.oracle.image.tag>21.3.0-slim-faststart</test.database.run.oracle.image.tag>
         <!-- MS SQL Server -->
+        <!-- See https://hub.docker.com/_/microsoft-mssql-server -->
         <test.database.run.mssql.skip>true</test.database.run.mssql.skip>
         <test.database.run.mssql.image.name>mcr.microsoft.com/mssql/server</test.database.run.mssql.image.name>
-        <test.database.run.mssql.image.tag>2019-CU8-ubuntu-16.04</test.database.run.mssql.image.tag>
+        <test.database.run.mssql.image.tag>2019-CU18-ubuntu-20.04</test.database.run.mssql.image.tag>
         <!-- CockroachDB -->
+        <!-- See https://hub.docker.com/r/cockroachdb/cockroach/tags -->
         <test.database.run.cockroachdb.skip>true</test.database.run.cockroachdb.skip>
         <test.database.run.cockroachdb.image.name>cockroachdb/cockroach</test.database.run.cockroachdb.image.name>
-        <test.database.run.cockroachdb.image.tag>v22.1.4</test.database.run.cockroachdb.image.tag>
+        <test.database.run.cockroachdb.image.tag>v22.1.12</test.database.run.cockroachdb.image.tag>
 
         <!-- Property whose sole purpose is to be referenced in the definition of surefire.jvm.args.module
              when Weld is used. -->

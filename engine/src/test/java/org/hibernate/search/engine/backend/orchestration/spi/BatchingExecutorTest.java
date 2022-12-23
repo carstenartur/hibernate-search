@@ -11,6 +11,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.hibernate.search.util.impl.test.FutureAssert.assertThatFuture;
 import static org.junit.Assume.assumeTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -27,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
@@ -44,6 +46,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
@@ -391,8 +394,10 @@ public class BatchingExecutorTest {
 		executor.submit( work1Mock, operationSubmitter );
 		executor.submit( work2Mock, operationSubmitter );
 
+		AtomicReference<Thread> work3SubmitThread = new AtomicReference<>();
 		CompletableFuture<Boolean> future = CompletableFuture.supplyAsync( () -> {
 			try {
+				work3SubmitThread.set( Thread.currentThread() );
 				executor.submit( work3Mock, operationSubmitter );
 			}
 			catch (InterruptedException e) {
@@ -401,13 +406,24 @@ public class BatchingExecutorTest {
 			return true;
 		} );
 
-		// wait to give some time for the above future to actually block
-		TimeUnit.SECONDS.sleep( 2 );
+		// wait until the thread submitting work3 is submitting and blocked
+		Awaitility.await().untilAsserted( () -> assertThat( work3SubmitThread )
+				.hasValueSatisfying( thread -> assertThat( thread.getState() )
+						.isIn( Thread.State.BLOCKED, Thread.State.WAITING, Thread.State.TIMED_WAITING ) ) );
 
-		//queue is full so future won't complete.
+		// queue is full so submitting work3 will block indefinitely
 		assertThat( future.isDone() ).isFalse();
 
 		when( processorMock.endBatch() ).thenReturn( CompletableFuture.completedFuture( null ) );
+		doAnswer( invocation -> {
+			// See https://hibernate.atlassian.net/browse/HSEARCH-4750
+			// Just make sure that we don't finish the batch until work3 has actually been submitted.
+			// If we don't do this, and the batch finishes before work3 has been submitted,
+			// then processorMock.complete() gets called and the call to verifyAsynchronouslyAndReset
+			// below fails. Since that can happen randomly, it's very inconvenient and leads to flaky tests.
+			Awaitility.await().until( future::isDone );
+			return null;
+		} ).when( work2Mock ).submitTo( any( StubWorkProcessor.class ) );
 
 		unblockExecutorSwitch.run();
 
