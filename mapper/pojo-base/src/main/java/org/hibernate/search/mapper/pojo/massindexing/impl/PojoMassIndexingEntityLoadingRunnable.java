@@ -36,15 +36,18 @@ public class PojoMassIndexingEntityLoadingRunnable<E, I>
 	private final PojoMassIndexingIndexedTypeGroup<E> typeGroup;
 	private final PojoMassIndexingLoadingStrategy<E, I> loadingStrategy;
 	private final PojoProducerConsumerQueue<List<I>> identifierQueue;
+	private final String tenantId;
 
 	protected PojoMassIndexingEntityLoadingRunnable(PojoMassIndexingNotifier notifier,
 			PojoMassIndexingIndexedTypeGroup<E> typeGroup,
 			PojoMassIndexingLoadingStrategy<E, I> loadingStrategy,
-			PojoProducerConsumerQueue<List<I>> identifierQueue) {
+			PojoProducerConsumerQueue<List<I>> identifierQueue,
+			String tenantId) {
 		super( notifier );
 		this.typeGroup = typeGroup;
 		this.loadingStrategy = loadingStrategy;
 		this.identifierQueue = identifierQueue;
+		this.tenantId = tenantId;
 	}
 
 	@Override
@@ -58,7 +61,12 @@ public class PojoMassIndexingEntityLoadingRunnable<E, I>
 				if ( idList != null ) {
 					log.tracef( "received list of ids %s", idList );
 					// This will pass the loaded entities to the sink, which will trigger indexing for those entities.
-					entityLoader.load( idList );
+					try {
+						entityLoader.load( idList );
+					}
+					catch (RuntimeException e) {
+						getNotifier().reportEntitiesLoadingFailure( typeGroup, idList, e );
+					}
 				}
 			}
 			while ( idList != null );
@@ -129,6 +137,11 @@ public class PojoMassIndexingEntityLoadingRunnable<E, I>
 					// or when waitForLastBatches() is called at the end.
 				}
 			};
+		}
+
+		@Override
+		public String tenantIdentifier() {
+			return tenantId;
 		}
 
 		public void waitForLastBatches() throws InterruptedException {

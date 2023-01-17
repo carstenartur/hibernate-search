@@ -8,10 +8,12 @@ package org.hibernate.search.backend.lucene.search.predicate.impl;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 import org.hibernate.search.backend.lucene.logging.impl.Log;
 import org.hibernate.search.backend.lucene.search.common.impl.LuceneSearchIndexScope;
@@ -34,6 +36,9 @@ class LuceneBooleanPredicate extends AbstractLuceneSearchPredicate {
 	private final List<LuceneSearchPredicate> shouldClauses;
 	private final List<LuceneSearchPredicate> filterClauses;
 
+	// NOTE: below modifiers (minimumShouldMatchConstraints) are used to implement hasNoModifiers() which is based on a
+	// parent implementation.
+	// IMPORTANT: Review where current modifiers are used and how the new modifier affects that logic, when adding a new modifier.
 	private final NavigableMap<Integer, MinimumShouldMatchConstraint> minimumShouldMatchConstraints;
 
 	private LuceneBooleanPredicate(Builder builder) {
@@ -69,7 +74,7 @@ class LuceneBooleanPredicate extends AbstractLuceneSearchPredicate {
 		contributeQueries( context, booleanQueryBuilder, filterClauses, Occur.FILTER );
 
 		if ( isOnlyMustNot() ) {
-			booleanQueryBuilder.add( new MatchAllDocsQuery(), Occur.FILTER );
+			booleanQueryBuilder.add( new MatchAllDocsQuery(), super.hasNoModifiers() ? Occur.FILTER : Occur.MUST );
 		}
 
 		if ( minimumShouldMatchConstraints != null && shouldClauses != null ) {
@@ -115,12 +120,25 @@ class LuceneBooleanPredicate extends AbstractLuceneSearchPredicate {
 				&& ( filterClauses == null || filterClauses.isEmpty() );
 	}
 
+	private boolean hasOnlyOneMustNotClause() {
+		return isOnlyMustNot() && mustNotClauses.size() == 1;
+	}
+
+	@Override
+	protected boolean hasNoModifiers() {
+		return minimumShouldMatchConstraints == null
+				&& super.hasNoModifiers();
+	}
+
 	static class Builder extends AbstractBuilder implements BooleanPredicateBuilder {
 		private List<LuceneSearchPredicate> mustClauses;
 		private List<LuceneSearchPredicate> mustNotClauses;
 		private List<LuceneSearchPredicate> shouldClauses;
 		private List<LuceneSearchPredicate> filterClauses;
 
+		// NOTE: below modifiers (minimumShouldMatchConstraints) are used to implement hasNoModifiers() which is based on a
+		// parent implementation.
+		// IMPORTANT: Review where current modifiers are used and how the new modifier affects that logic, when adding a new modifier.
 		private NavigableMap<Integer, MinimumShouldMatchConstraint> minimumShouldMatchConstraints;
 
 		Builder(LuceneSearchIndexScope<?> scope) {
@@ -182,9 +200,74 @@ class LuceneBooleanPredicate extends AbstractLuceneSearchPredicate {
 
 		@Override
 		public SearchPredicate build() {
+			optimizeClauseCollection(
+					mustClauses,
+					this::mustNot
+			);
+
+			optimizeClauseCollection(
+					mustNotClauses,
+					this::must
+			);
+
+			checkAndClearClauseCollections();
+
+			if ( hasNoModifiers() ) {
+				if ( hasOnlyOneMustClause() ) {
+					return mustClauses.get( 0 );
+				}
+				else if ( hasOnlyOneShouldClause() ) {
+					return shouldClauses.get( 0 );
+				}
+			}
+
 			return new LuceneBooleanPredicate( this );
 		}
 
+		private void optimizeClauseCollection(List<LuceneSearchPredicate> collection,
+				Consumer<LuceneSearchPredicate> newCollection) {
+			if ( collection != null ) {
+				Iterator<LuceneSearchPredicate> iterator = collection.iterator();
+				while ( iterator.hasNext() ) {
+					LuceneSearchPredicate clause = iterator.next();
+					if ( clause instanceof LuceneBooleanPredicate
+							&& ( (LuceneBooleanPredicate) clause ).hasOnlyOneMustNotClause()
+							&& ( (LuceneBooleanPredicate) clause ).hasNoModifiers()
+					) {
+						iterator.remove();
+						newCollection.accept( ( (LuceneBooleanPredicate) clause ).mustNotClauses.get( 0 ) );
+					}
+				}
+			}
+		}
+
+		private void checkAndClearClauseCollections() {
+			if ( mustClauses != null && mustClauses.isEmpty() ) {
+				mustClauses = null;
+			}
+			if ( mustNotClauses != null && mustNotClauses.isEmpty() ) {
+				mustNotClauses = null;
+			}
+		}
+
+		private boolean hasOnlyOneMustClause() {
+			return mustClauses != null && mustClauses.size() == 1
+					&& ( mustNotClauses == null || mustNotClauses.isEmpty() )
+					&& ( shouldClauses == null || shouldClauses.isEmpty() )
+					&& ( filterClauses == null || filterClauses.isEmpty() );
+		}
+
+		private boolean hasOnlyOneShouldClause() {
+			return shouldClauses != null && shouldClauses.size() == 1
+					&& ( mustNotClauses == null || mustNotClauses.isEmpty() )
+					&& ( mustClauses == null || mustClauses.isEmpty() )
+					&& ( filterClauses == null || filterClauses.isEmpty() );
+		}
+
+		@Override
+		protected boolean hasNoModifiers() {
+			return minimumShouldMatchConstraints == null && super.hasNoModifiers();
+		}
 
 		private void addMinimumShouldMatchConstraint(int ignoreConstraintCeiling,
 				MinimumShouldMatchConstraint constraint) {

@@ -6,11 +6,12 @@
  */
 package org.hibernate.search.mapper.pojo.standalone.scope.impl;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 
 import org.hibernate.search.engine.backend.common.spi.DocumentReferenceConverter;
 import org.hibernate.search.engine.backend.scope.IndexScopeExtension;
-import org.hibernate.search.engine.backend.session.spi.DetachedBackendSessionContext;
 import org.hibernate.search.engine.search.aggregation.dsl.SearchAggregationFactory;
 import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
 import org.hibernate.search.engine.search.projection.dsl.SearchProjectionFactory;
@@ -75,11 +76,7 @@ public class SearchScopeImpl<E> implements SearchScope<E> {
 
 	@Override
 	public SearchWorkspace workspace(String tenantId) {
-		return workspace( DetachedBackendSessionContext.of( mappingContext, tenantId ) );
-	}
-
-	public SearchWorkspace workspace(DetachedBackendSessionContext detachedSessionContext) {
-		return new SearchWorkspaceImpl( delegate.workspace( detachedSessionContext ) );
+		return new SearchWorkspaceImpl( delegate.workspace( tenantId ) );
 	}
 
 	@Override
@@ -100,17 +97,18 @@ public class SearchScopeImpl<E> implements SearchScope<E> {
 
 	@Override
 	public MassIndexer massIndexer() {
-		return massIndexer( (String) null );
+		return massIndexer( Collections.<String>emptyList() );
 	}
 
 	@Override
 	public MassIndexer massIndexer(String tenantId) {
-		return massIndexer( DetachedBackendSessionContext.of( mappingContext, tenantId ) );
+		return massIndexer( Collections.singletonList( tenantId ) );
 	}
 
-	public MassIndexer massIndexer(DetachedBackendSessionContext sessionContext) {
-		StandalonePojoLoadingContext context = mappingContext.loadingContextBuilder( sessionContext ).build();
-		PojoMassIndexer massIndexerDelegate = delegate.massIndexer( context, sessionContext );
+	@Override
+	public MassIndexer massIndexer(Collection<String> tenantIds) {
+		StandalonePojoLoadingContext context = mappingContext.loadingContextBuilder().build();
+		PojoMassIndexer massIndexerDelegate = delegate.massIndexer( context, tenantIds.isEmpty() ? Collections.singletonList( null ) : tenantIds );
 		return new StandalonePojoMassIndexer( massIndexerDelegate, context );
 	}
 

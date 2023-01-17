@@ -202,7 +202,7 @@
         <!-- >>> Elasticsearch -->
         <!-- The version of the Elasticsearch client used by Hibernate Search, independently of the version of the remote cluster -->
         <!-- Use the latest open-source version here. Currently, low-level clients are open-source even in 8.5+ -->
-        <version.org.elasticsearch.client>8.5.3</version.org.elasticsearch.client>
+        <version.org.elasticsearch.client>8.6.0</version.org.elasticsearch.client>
         <!-- The main compatible version of Elasticsearch, advertised by default. Used in documentation links. -->
         <!-- When updating the following version you will likely need to update the test profiles as well,
              to make sure the corresponding profile (e.g. elasticsearch-8.4) becomes the default. -->
@@ -212,7 +212,7 @@
         <!-- The versions of Elasticsearch advertised as compatible with Hibernate Search -->
         <!-- Make sure to only mention tested versions here -->
         <!-- Make sure that 7.10 stays explicitly mentioned here, because that's the last open-source version -->
-        <version.org.elasticsearch.compatible.regularly-tested.text>5.6, 6.8, 7.10, 7.17 or 8.5</version.org.elasticsearch.compatible.regularly-tested.text>
+        <version.org.elasticsearch.compatible.regularly-tested.text>5.6, 6.8, 7.10, 7.17 or 8.6</version.org.elasticsearch.compatible.regularly-tested.text>
         <!-- These are the versions same as above, but pointing only to the major part (used in compatibility section of ES backend documentation
           as versions that Hibernate Search is compatible with. -->
         <!-- NOTE: Adding new major versions would require to update the compatibility table in `backend-elasticsearch-compatibility` section of `backend-elasticsearch.asciidoc`. -->
@@ -220,7 +220,7 @@
         <!-- The versions of Elasticsearch that may work, but are not given priority for bugfixes and new features -->
         <version.org.elasticsearch.compatible.not-regularly-tested.text>7.0 or 8.0</version.org.elasticsearch.compatible.not-regularly-tested.text>
         <!-- The latest version of Elasticsearch tested against by default -->
-        <version.org.elasticsearch.latest>8.5.3</version.org.elasticsearch.latest>
+        <version.org.elasticsearch.latest>8.6.0</version.org.elasticsearch.latest>
         <!-- The versions of OpenSearch advertised as compatible with Hibernate Search -->
         <!-- Make sure to only mention tested versions here -->
         <version.org.opensearch.compatible.regularly-tested.text>1.3 or 2.4</version.org.opensearch.compatible.regularly-tested.text>
@@ -232,7 +232,7 @@
         <version.org.opensearch.latest>2.4.1</version.org.opensearch.latest>
 
         <version.com.google.code.gson>2.9.1</version.com.google.code.gson>
-        <version.software.amazon.awssdk>2.18.1</version.software.amazon.awssdk>
+        <version.software.amazon.awssdk>2.19.8</version.software.amazon.awssdk>
         <!-- Jackson: used by the Elasticsearch REST client, the AWS SDK and in tests (wiremock, ...) -->
         <version.com.fasterxml.jackson>2.13.4</version.com.fasterxml.jackson>
         <!--
@@ -303,8 +303,8 @@
         <version.org.osgi.core>6.0.0</version.org.osgi.core>
 
         <version.org.hamcrest>2.2</version.org.hamcrest>
-        <version.org.mockito>4.10.0</version.org.mockito>
-        <version.org.assertj.assertj-core>3.23.1</version.org.assertj.assertj-core>
+        <version.org.mockito>4.11.0</version.org.mockito>
+        <version.org.assertj.assertj-core>3.24.1</version.org.assertj.assertj-core>
         <version.org.awaitily>4.2.0</version.org.awaitily>
         <version.org.skyscreamer.jsonassert>1.5.1</version.org.skyscreamer.jsonassert>
         <version.io.takari.junit>1.2.7</version.io.takari.junit>
@@ -341,7 +341,7 @@
         <version.org.google.guava>31.1-jre</version.org.google.guava>
 
         <!-- >>> Spring integration tests -->
-        <version.org.springframework.boot>2.7.6</version.org.springframework.boot>
+        <version.org.springframework.boot>2.7.7</version.org.springframework.boot>
 
         <!-- Maven plugins versions -->
 
@@ -387,14 +387,14 @@
         <version.sonar.plugin>3.9.1.2184</version.sonar.plugin>
         <version.scripting.plugin>3.0.0</version.scripting.plugin>
         <version.gpg.plugin>3.0.1</version.gpg.plugin>
-        <version.org.codehaus.groovy-jsr223>3.0.13</version.org.codehaus.groovy-jsr223>
+        <version.org.codehaus.groovy-jsr223>3.0.14</version.org.codehaus.groovy-jsr223>
         <version.com.puppycrawl.tools.checkstyle>10.3.4</version.com.puppycrawl.tools.checkstyle>
         <version.versions.plugin>2.12.0</version.versions.plugin>
 
         <!-- Asciidoctor -->
 
         <version.asciidoctor.plugin>2.2.2</version.asciidoctor.plugin>
-        <version.org.hibernate.infra.hibernate-asciidoctor-theme>1.0.4.Final</version.org.hibernate.infra.hibernate-asciidoctor-theme>
+        <version.org.hibernate.infra.hibernate-asciidoctor-theme>1.0.6.Final</version.org.hibernate.infra.hibernate-asciidoctor-theme>
         <version.org.jruby>9.3.2.0</version.org.jruby>
         <version.org.asciidoctor.asciidoctorj>2.5.6</version.org.asciidoctor.asciidoctorj>
         <version.org.asciidoctor.asciidoctorj-pdf>1.5.0-alpha.18</version.org.asciidoctor.asciidoctorj-pdf>

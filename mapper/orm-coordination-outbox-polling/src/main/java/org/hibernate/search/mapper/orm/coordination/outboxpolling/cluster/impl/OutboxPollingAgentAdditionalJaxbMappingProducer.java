@@ -27,6 +27,8 @@ import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.spi.OptionalConfigurationProperty;
 import org.hibernate.search.mapper.orm.bootstrap.spi.HibernateSearchOrmMappingProducer;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.HibernateOrmMapperOutboxPollingSettings;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.UuidGenerationStrategy;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.impl.UuidDataTypeUtils;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.spi.HibernateOrmMapperOutboxPollingSpiSettings;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.logging.impl.Log;
 import org.hibernate.search.util.common.annotation.impl.SuppressForbiddenApis;
@@ -37,7 +39,7 @@ public class OutboxPollingAgentAdditionalJaxbMappingProducer
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
-	private static final String CLASS_NAME = Agent.class.getName();
+	public static final String CLASS_NAME = Agent.class.getName();
 
 	// Setting both the JPA entity name and the native entity name to the FQCN so that:
 	// 1. We don't pollute the namespace of JPA entity names with something like
@@ -49,12 +51,9 @@ public class OutboxPollingAgentAdditionalJaxbMappingProducer
 	private static final String ENTITY_DEFINITION_TEMPLATE = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
 			"<hibernate-mapping schema=\"%1$s\" catalog=\"%2$s\">\n" +
 			"    <class name=\"" + CLASS_NAME + "\" entity-name=\"" + ENTITY_NAME + "\" table=\"%3$s\">\n" +
-			"        <id name=\"id\">\n" +
-			"            <generator class=\"org.hibernate.id.enhanced.SequenceStyleGenerator\">\n" +
-			"                <param name=\"sequence_name\">%4$s</param>\n" +
-			"                <param name=\"table_name\">%4$s</param>\n" +
-			"                <param name=\"initial_value\">1</param>\n" +
-			"                <param name=\"increment_size\">1</param>\n" +
+			"        <id name=\"id\" type=\"%5$s\">\n" +
+			"            <generator class=\"org.hibernate.id.UUIDGenerator\">\n" +
+			"                <param name=\"uuid_gen_strategy_class\">%4$s</param>\n" +
 			"            </generator>\n" +
 			"        </id>\n" +
 			"        <property name=\"type\" nullable=\"false\">\n" +
@@ -86,7 +85,8 @@ public class OutboxPollingAgentAdditionalJaxbMappingProducer
 	public static final String ENTITY_DEFINITION = String.format(
 			Locale.ROOT, ENTITY_DEFINITION_TEMPLATE, "", "",
 			HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_TABLE,
-			HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_GENERATOR
+			HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_UUID_GEN_STRATEGY,
+			UuidDataTypeUtils.UUID_CHAR
 	);
 
 	private static final OptionalConfigurationProperty<String> AGENT_ENTITY_MAPPING =
@@ -113,9 +113,15 @@ public class OutboxPollingAgentAdditionalJaxbMappingProducer
 					.asString()
 					.build();
 
-	private static final OptionalConfigurationProperty<String> ENTITY_MAPPING_AGENT_GENERATOR =
+	private static final OptionalConfigurationProperty<UuidGenerationStrategy> ENTITY_MAPPING_AGENT_UUID_GEN_STRATEGY =
 			ConfigurationProperty.forKey(
-							HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.ENTITY_MAPPING_AGENT_GENERATOR )
+							HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.ENTITY_MAPPING_AGENT_UUID_GEN_STRATEGY )
+					.as( UuidGenerationStrategy.class, UuidGenerationStrategy::of )
+					.build();
+
+	private static final OptionalConfigurationProperty<String> ENTITY_MAPPING_AGENT_UUID_TYPE =
+			ConfigurationProperty.forKey(
+							HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.ENTITY_MAPPING_OUTBOXEVENT_UUID_TYPE )
 					.asString()
 					.build();
 
@@ -129,20 +135,24 @@ public class OutboxPollingAgentAdditionalJaxbMappingProducer
 		Optional<String> schema = ENTITY_MAPPING_AGENT_SCHEMA.get( propertySource );
 		Optional<String> catalog = ENTITY_MAPPING_AGENT_CATALOG.get( propertySource );
 		Optional<String> table = ENTITY_MAPPING_AGENT_TABLE.get( propertySource );
-		Optional<String> generator = ENTITY_MAPPING_AGENT_GENERATOR.get( propertySource );
+		Optional<UuidGenerationStrategy> uuidStrategy = ENTITY_MAPPING_AGENT_UUID_GEN_STRATEGY.get( propertySource );
+		Optional<String> uuidType = ENTITY_MAPPING_AGENT_UUID_TYPE.get( propertySource );
 
-		// only allow configuring the entire mapping or table/catalog/schema/generator names
-		if ( mapping.isPresent() && ( schema.isPresent() || catalog.isPresent() || table.isPresent() || generator.isPresent() ) ) {
+		// only allow configuring the entire mapping or table/catalog/schema/generator/datatype names
+		if ( mapping.isPresent() && ( schema.isPresent() || catalog.isPresent() || table.isPresent() || uuidStrategy.isPresent() || uuidType.isPresent() ) ) {
 			throw log.agentConfigurationPropertyConflict(
 					AGENT_ENTITY_MAPPING.resolveOrRaw( propertySource ),
 					new String[] {
 							ENTITY_MAPPING_AGENT_SCHEMA.resolveOrRaw( propertySource ),
 							ENTITY_MAPPING_AGENT_CATALOG.resolveOrRaw( propertySource ),
 							ENTITY_MAPPING_AGENT_TABLE.resolveOrRaw( propertySource ),
-							ENTITY_MAPPING_AGENT_GENERATOR.resolveOrRaw( propertySource )
+							ENTITY_MAPPING_AGENT_UUID_GEN_STRATEGY.resolveOrRaw( propertySource ),
+							ENTITY_MAPPING_AGENT_UUID_TYPE.resolveOrRaw( propertySource )
 					}
 			);
 		}
+
+		String resolvedUuidType = UuidDataTypeUtils.uuidType( uuidType.orElse( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_UUID_TYPE ), dialect );
 
 		String entityDefinition = mapping.orElseGet( () ->
 				String.format(
@@ -151,8 +161,8 @@ public class OutboxPollingAgentAdditionalJaxbMappingProducer
 						schema.orElse( "" ),
 						catalog.orElse( "" ),
 						table.orElse( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_TABLE ),
-						generator.orElse( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_GENERATOR )
-
+						uuidStrategy.orElse( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_UUID_GEN_STRATEGY ).strategy(),
+						resolvedUuidType
 				)
 		);
 

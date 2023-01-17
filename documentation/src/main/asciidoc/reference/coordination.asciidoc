@@ -299,22 +299,23 @@ Identity generator names used for these tables are prefixed with `HSEARCH_` and 
 Sometimes there are specific naming conventions for database objects, or a need to separate the domain
 and technical tables.
 To allow some flexibility in this area, Hibernate Search provides a set of configuration properties
-to specify catalog/schema/table names for outbox event and agent tables,
-as well as an identity generator name for the agent table and a custom UUID generator strategy/data type for the outbox event table:
+to specify catalog/schema/table names and a custom UUID generator strategy/data type
+for outbox event and agent tables:
 
 [source]
 ----
 # Configure the agent mapping:
 hibernate.search.coordination.entity.mapping.agent.catalog=CUSTOM_CATALOG
 hibernate.search.coordination.entity.mapping.agent.schema=CUSTOM_SCHEMA
-hibernate.search.coordination.entity.mapping.agent.generator=CUSTOM_AGENT_GENERATOR
 hibernate.search.coordination.entity.mapping.agent.table=CUSTOM_AGENT_TABLE
+hibernate.search.coordination.entity.mapping.agent.uuid_gen_strategy=time
+hibernate.search.coordination.entity.mapping.agent.uuid_type=uuid-binary
 # Configure the outbox event mapping:
 hibernate.search.coordination.entity.mapping.outboxevent.catalog=CUSTOM_CATALOG
 hibernate.search.coordination.entity.mapping.outboxevent.schema=CUSTOM_SCHEMA
 hibernate.search.coordination.entity.mapping.outboxevent.table=CUSTOM_OUTBOX_TABLE
 hibernate.search.coordination.entity.mapping.outboxevent.uuid_gen_strategy=time
-hibernate.search.coordination.entity.mapping.outboxevent.uuid_jdbc_type=uuid-binary
+hibernate.search.coordination.entity.mapping.outboxevent.uuid_type=uuid-binary
 ----
 
 * `agent.catalog` defines the database catalog to use for the agent table.
@@ -326,9 +327,18 @@ Defaults to the default schema configured in Hibernate ORM.
 * `agent.table` defines the name of the agent table.
 +
 Defaults to `HSEARCH_AGENT`.
-* `agent.generator` defines the name of the identifier generator used for the agent table .
+* `agent.uuid_gen_strategy` defines name of the UUID generator strategy used for the agent table. Available
+options are `auto`/`random`/`time`. `auto` is a default and is the same as `random` which uses `UUID#randomUUID()`.
+`time` is an IP based strategy consistent with IETF RFC 4122.
 +
-Defaults to `HSEARCH_AGENT_GENERATOR`.
+Defaults to `auto`.
+* `agent.uuid_type` defines link:{hibernateDocUrl}#basic-custom-type[the name of the registered Hibernate `BasicType`]
+used for representing an UUID in the agent table. Hibernate Search provides a special `default` option that is going to
+be used by default and will result into one of `uuid`/`uuid-binary`/`uuid-char` depending on the database in use.
+Please refer to link:{hibernateDocUrl}#basic-provided[Hibernate-provided BasicTypes] to see
+the list of available UUID representations provided by Hibernate ORM. A user defined type can also be supplied.
++
+Defaults to `default`.
 
 * `outboxevent.catalog` defines the database catalog to use for the outbox event table.
 +
@@ -344,9 +354,9 @@ options are `auto`/`random`/`time`. `auto` is a default and is the same as `rand
 `time` is an IP based strategy consistent with IETF RFC 4122.
 +
 Defaults to `auto`.
-* `outboxevent.uuid_jdbc_type` defines the database type used for representing an UUID
-in the outbox event table. Hibernate Search provides a special `default` option that is going to be used by default
-and will result into one of `uuid`/`uuid-binary`/`uuid-char` depending on the database in use.
+* `outboxevent.uuid_type` defines link:{hibernateDocUrl}#basic-custom-type[the name of the registered Hibernate `BasicType`]
+used for representing an UUID in the outbox event table. Hibernate Search provides a special `default` option that is going to
+be used by default and will result into one of `uuid`/`uuid-binary`/`uuid-char` depending on the database in use.
 Please refer to link:{hibernateDocUrl}#basic-provided[Hibernate-provided BasicTypes] to see
 the list of available UUID representations provided by Hibernate ORM. A user defined type can also be supplied.
 +

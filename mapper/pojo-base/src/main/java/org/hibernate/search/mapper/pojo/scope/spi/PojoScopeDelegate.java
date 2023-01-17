@@ -6,11 +6,11 @@
  */
 package org.hibernate.search.mapper.pojo.scope.spi;
 
+import java.util.Collection;
 import java.util.Set;
 
 import org.hibernate.search.engine.backend.common.spi.DocumentReferenceConverter;
 import org.hibernate.search.engine.backend.scope.IndexScopeExtension;
-import org.hibernate.search.engine.backend.session.spi.DetachedBackendSessionContext;
 import org.hibernate.search.engine.search.aggregation.dsl.SearchAggregationFactory;
 import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
 import org.hibernate.search.engine.search.projection.dsl.SearchProjectionFactory;
@@ -48,11 +48,28 @@ public interface PojoScopeDelegate<R, E, C> {
 
 	SearchAggregationFactory aggregation();
 
-	PojoScopeWorkspace workspace(DetachedBackendSessionContext sessionContext);
+	/**
+	 * @param sessionContext The detached session, for the tenant ID.
+	 * @return A {@link PojoScopeWorkspace}.
+	 * @deprecated Use {@link #workspace(String)} instead.
+	 */
+	@Deprecated
+	PojoScopeWorkspace workspace(org.hibernate.search.engine.backend.session.spi.DetachedBackendSessionContext sessionContext);
+
+	PojoScopeWorkspace workspace(String tenantId);
 
 	PojoScopeSchemaManager schemaManager();
 
-	PojoMassIndexer massIndexer(PojoMassIndexingContext context, DetachedBackendSessionContext detachedSession);
+	/**
+	 * @param context The mass indexing context.
+	 * @param detachedSession The detached session, for the tenant ID.
+	 * @return A {@link PojoMassIndexer}.
+	 * @deprecated Use {@link #massIndexer(PojoMassIndexingContext, Collection)} instead.
+	 */
+	@Deprecated
+	PojoMassIndexer massIndexer(PojoMassIndexingContext context, org.hibernate.search.engine.backend.session.spi.DetachedBackendSessionContext detachedSession);
+
+	PojoMassIndexer massIndexer(PojoMassIndexingContext context, Collection<String> tenantIds);
 
 	<T> T extension(IndexScopeExtension<T> extension);
 }

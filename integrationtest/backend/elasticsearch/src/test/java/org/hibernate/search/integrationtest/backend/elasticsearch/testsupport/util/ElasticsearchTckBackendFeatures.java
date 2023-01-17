@@ -75,11 +75,6 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 	}
 
 	@Override
-	public boolean lenientOnMultiIndexesCompatibilityChecks() {
-		return true;
-	}
-
-	@Override
 	public boolean sortByFieldValue(TestedFieldStructure fieldStructure, Class<?> fieldType, SortMode sortMode) {
 		if (
 				fieldStructure.isInNested()
@@ -246,9 +241,19 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 	}
 
 	@Override
-	public boolean supportsMatchOnScaledNumericLossOfPrecision() {
+	public boolean supportsExtremeScaledNumericValues() {
 		// https://github.com/elastic/elasticsearch/issues/91246
-		// Hopefully this will get fixed in 8.5.4.
-		return !isBetween( actualVersion, "elastic:8.5.0", "elastic:8.5.3" );
+		// Hopefully this will get fixed in a future version.
+		return !isBetween( actualVersion, "elastic:7.17.7", "elastic:7.17" )
+				&& !isBetween( actualVersion, "elastic:8.5.0", "elastic:8.6.0" );
+	}
+
+	@Override
+	public boolean supportsExtremeLongValues() {
+		// https://github.com/elastic/elasticsearch/issues/84601
+		// There doesn't seem to be any hope for this to get fixed in older versions (7.17/8.0),
+		// but it's been fixed in 8.1.
+		return !isBetween( actualVersion, "elastic:7.17.7", "elastic:7.17" )
+				&& !isBetween( actualVersion, "elastic:8.0.0", "elastic:8.0" );
 	}
 }

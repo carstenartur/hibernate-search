@@ -10,6 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.UUID;
+
 import org.hibernate.search.engine.reporting.FailureContext;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentType;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentState;
@@ -26,11 +28,11 @@ import org.mockito.ArgumentCaptor;
  */
 public class EventProcessorClusterLinkStaticShardingEdgeCasesTest
 		extends AbstractEventProcessorClusterLinkTest {
-	private static final long OTHER_0_ID = SELF_ID - 1;
-	private static final long OTHER_1_ID = SELF_ID + 1;
-	private static final long OTHER_2_ID = SELF_ID + 2;
-	private static final long OTHER_3_ID = SELF_ID + 3;
-	private static final long OTHER_4_ID = SELF_ID + 4;
+	private static final UUID OTHER_0_ID = toUUID( SELF_ID_ORDINAL - 1 );
+	private static final UUID OTHER_1_ID = toUUID( SELF_ID_ORDINAL + 1 );
+	private static final UUID OTHER_2_ID = toUUID( SELF_ID_ORDINAL + 2 );
+	private static final UUID OTHER_3_ID = toUUID( SELF_ID_ORDINAL + 3 );
+	private static final UUID OTHER_4_ID = toUUID( SELF_ID_ORDINAL + 4 );
 
 	final OutboxPollingEventProcessorClusterLink setupLink(ShardAssignmentDescriptor staticShardAssignment) {
 		return new OutboxPollingEventProcessorClusterLink(
@@ -69,7 +71,7 @@ public class EventProcessorClusterLinkStaticShardingEdgeCasesTest
 		verifyNoMoreInvocationsOnAllMocks();
 
 		// Simulate a deletion by another agent (because of expiration, for example)
-		long newId = SELF_ID + 100;
+		UUID newId = toUUID( SELF_ID_ORDINAL + 100 );
 		repositoryMockHelper.defineSelfCreatedByPulse( newId );
 
 		expect( null, link )
@@ -114,9 +116,9 @@ public class EventProcessorClusterLinkStaticShardingEdgeCasesTest
 				.hasMessageContainingAll(
 						"Agent '" + SELF_REF + "': failed to infer a target cluster from the list of registered agents.",
 						"The agent will try again in the next pulse.",
-						"Agent '#" + OTHER_2_ID + " - ",
+						"Agent '" + OTHER_2_ID + " - ",
 						"is statically assigned to shard 0 (total " + totalShardCount + ")",
-						"this conflicts with agent '#" + OTHER_1_ID + " - ",
+						"this conflicts with agent '" + OTHER_1_ID + " - ",
 						"' which is also assigned to that shard.",
 						"This can be a temporary situation caused by some application instances being forcibly stopped and replacements being spun up",
 						"consider adjusting the configuration or switching to dynamic sharding.",
@@ -154,7 +156,7 @@ public class EventProcessorClusterLinkStaticShardingEdgeCasesTest
 				.hasMessageContainingAll(
 						"Agent '" + SELF_REF + "': failed to infer a target cluster from the list of registered agents.",
 						"The agent will try again in the next pulse.",
-						"Agent '#" + OTHER_2_ID + " - ",
+						"Agent '" + OTHER_2_ID + " - ",
 						"is statically assigned to shard 2 (total 4)",
 						"this conflicts with agent '" + SELF_REF + "'",
 						"which expects 3 shards.",

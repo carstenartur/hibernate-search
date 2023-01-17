@@ -8,7 +8,6 @@ package org.hibernate.search.integrationtest.backend.tck.search.predicate;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hibernate.search.util.impl.integrationtest.common.assertion.SearchResultAssert.assertThatQuery;
-import static org.junit.Assume.assumeFalse;
 
 import org.hibernate.search.engine.backend.document.DocumentElement;
 import org.hibernate.search.engine.backend.document.IndexFieldReference;
@@ -18,7 +17,6 @@ import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaObjectF
 import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
-import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckConfiguration;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.common.reporting.FailureReportUtils;
@@ -53,6 +51,12 @@ public class ExistsPredicateObjectsSpecificsIT {
 	// it will never be matched by an exists predicate
 	private static final String DOCUMENT_5 = "5";
 
+	// Document not from the main index. All fields are filled out
+	private static final String DOCUMENT_6 = "6";
+
+	// Document not from the main index. Only object fields are populated
+	private static final String DOCUMENT_7 = "7";
+
 	public static final String ANY_STRING = "Any String";
 	public static final int ANY_INTEGER = 173173;
 
@@ -71,13 +75,19 @@ public class ExistsPredicateObjectsSpecificsIT {
 			SimpleMappedIndex.of( InvertedIndexBinding::new ).name( "inverted" );
 	private static final SimpleMappedIndex<DifferentFieldsIndexBinding> differentFieldsIndex =
 			SimpleMappedIndex.of( DifferentFieldsIndexBinding::new ).name( "differentFields" );
+	private static final SimpleMappedIndex<DifferentFieldsNoInnerNestedIndexBinding> noInnerNestedField =
+			SimpleMappedIndex.of( DifferentFieldsNoInnerNestedIndexBinding::new ).name( "noInnerNestedField" );
+	private static final SimpleMappedIndex<DifferentFieldsDifferentInnerNestedFieldsIndexBinding> differentInnerNestedField =
+			SimpleMappedIndex.of( DifferentFieldsDifferentInnerNestedFieldsIndexBinding::new ).name( "differentInnerNestedField" );
+
 
 	@BeforeClass
 	public static void setup() {
 		setupHelper.start()
 				.withIndexes(
 						mainIndex, compatibleIndex, emptyIndex,
-						incompatibleIndex, invertedIndex, differentFieldsIndex
+						incompatibleIndex, invertedIndex, differentFieldsIndex,
+						noInnerNestedField, differentInnerNestedField
 				)
 				.setup();
 
@@ -113,7 +123,6 @@ public class ExistsPredicateObjectsSpecificsIT {
 
 	@Test
 	public void nested_multiIndexes_incompatibleIndexBinding() {
-		assumeFullMultiIndexCompatibilityCheck();
 		SearchPredicateFactory f = mainIndex.createScope( incompatibleIndex ).predicate();
 		String fieldPath = "nested";
 
@@ -140,7 +149,6 @@ public class ExistsPredicateObjectsSpecificsIT {
 
 	@Test
 	public void nested_multiIndexes_wrongStructure() {
-		assumeFullMultiIndexCompatibilityCheck();
 		SearchPredicateFactory f = mainIndex.createScope( invertedIndex ).predicate();
 
 		String fieldPath = "nested";
@@ -159,19 +167,29 @@ public class ExistsPredicateObjectsSpecificsIT {
 
 	@Test
 	public void nested_multiIndexes_differentFields() {
-		assumeFullMultiIndexCompatibilityCheck();
-		SearchPredicateFactory f = mainIndex.createScope( differentFieldsIndex ).predicate();
 		String fieldPath = "nested";
 
-		assertThatThrownBy( () -> f.exists().field( fieldPath ) )
-				.isInstanceOf( SearchException.class )
-				.hasMessageContainingAll(
-						"Inconsistent configuration for field '" + fieldPath + "' in a search query across multiple indexes",
-						"Attribute 'staticChildren' differs" )
-				.satisfies( FailureReportUtils.hasContext(
-						EventContexts.fromIndexNames( mainIndex.name(), differentFieldsIndex.name() ),
-						EventContexts.fromIndexFieldAbsolutePath( fieldPath )
-				) );
+		assertThatQuery( mainIndex.createScope( differentFieldsIndex ).query()
+				.where( f -> f.exists().field( fieldPath ) ) )
+				.hasDocRefHitsAnyOrder( mainIndex.typeName(), DOCUMENT_3 );
+
+		assertThatQuery( mainIndex.createScope( noInnerNestedField ).query()
+				.where( f -> f.exists().field( fieldPath ) ) )
+				.hasDocRefHitsAnyOrder( c -> {
+					c.doc( mainIndex.typeName(), DOCUMENT_3 );
+					c.doc( noInnerNestedField.typeName(), DOCUMENT_6 );
+				} );
+
+		assertThatQuery( mainIndex.createScope( differentInnerNestedField ).query()
+				.where( f -> f.exists().field( fieldPath ) ) )
+				.hasDocRefHitsAnyOrder( mainIndex.typeName(), DOCUMENT_3 );
+
+		assertThatQuery( mainIndex.createScope( differentInnerNestedField ).query()
+				.where( f -> f.exists().field( "nested.nestedX2" ) ) )
+				.hasDocRefHitsAnyOrder( c -> {
+					c.doc( mainIndex.typeName(), DOCUMENT_4 );
+					c.doc( differentInnerNestedField.typeName(), DOCUMENT_6 );
+				} );
 	}
 
 	@Test
@@ -201,7 +219,6 @@ public class ExistsPredicateObjectsSpecificsIT {
 
 	@Test
 	public void flattened_multiIndexes_incompatibleIndexBinding() {
-		assumeFullMultiIndexCompatibilityCheck();
 		SearchPredicateFactory f = incompatibleIndex.createScope( mainIndex ).predicate();
 		String fieldPath = "flattened";
 
@@ -228,7 +245,6 @@ public class ExistsPredicateObjectsSpecificsIT {
 
 	@Test
 	public void flattened_multiIndexes_wrongStructure() {
-		assumeFullMultiIndexCompatibilityCheck();
 		SearchPredicateFactory f = invertedIndex.createScope( mainIndex ).predicate();
 
 		String fieldPath = "flattened";
@@ -247,19 +263,12 @@ public class ExistsPredicateObjectsSpecificsIT {
 
 	@Test
 	public void flattened_multiIndexes_differentFields() {
-		assumeFullMultiIndexCompatibilityCheck();
-		SearchPredicateFactory f = differentFieldsIndex.createScope( mainIndex ).predicate();
+		StubMappingScope scope = differentFieldsIndex.createScope( mainIndex );
 		String fieldPath = "flattened";
 
-		assertThatThrownBy( () -> f.exists().field( fieldPath ) )
-				.isInstanceOf( SearchException.class )
-				.hasMessageContainingAll(
-						"Inconsistent configuration for field '" + fieldPath + "' in a search query across multiple indexes",
-						"Attribute 'staticChildren' differs" )
-				.satisfies( FailureReportUtils.hasContext(
-						EventContexts.fromIndexNames( differentFieldsIndex.name(), mainIndex.name() ),
-						EventContexts.fromIndexFieldAbsolutePath( fieldPath )
-				) );
+		assertThatQuery( scope.query()
+				.where( f -> f.exists().field( fieldPath ) ) )
+				.hasDocRefHitsAnyOrder( mainIndex.typeName(), DOCUMENT_3, DOCUMENT_4 );
 	}
 
 	private static void initData() {
@@ -302,13 +311,30 @@ public class ExistsPredicateObjectsSpecificsIT {
 					document.addObject( mainIndex.binding().flattenedNoChild );
 				} )
 				.join();
-	}
 
-	private void assumeFullMultiIndexCompatibilityCheck() {
-		assumeFalse(
-				"We do not test some Multi-indexing compatibility checks if the backend allows these",
-				TckConfiguration.get().getBackendFeatures().lenientOnMultiIndexesCompatibilityChecks()
-		);
+		noInnerNestedField.bulkIndexer()
+				.add( DOCUMENT_6, document -> {
+					DocumentElement nestedDocument = document.addObject( noInnerNestedField.binding().nested );
+					nestedDocument.addValue( noInnerNestedField.binding().nestedString, ANY_STRING );
+					nestedDocument.addValue( noInnerNestedField.binding().nestedNumeric, ANY_INTEGER );
+
+				} )
+				.add( DOCUMENT_7, document -> {
+					document.addObject( noInnerNestedField.binding().nested );
+				} )
+				.join();
+
+		differentInnerNestedField.bulkIndexer()
+				.add( DOCUMENT_6, document -> {
+					DocumentElement nestedDocument = document.addObject( differentInnerNestedField.binding().nested );
+					DocumentElement nestedX2Document = nestedDocument.addObject( differentInnerNestedField.binding().nestedX2 );
+					nestedX2Document.addValue( differentInnerNestedField.binding().nestedX2String, ANY_STRING );
+				} )
+				.add( DOCUMENT_7, document -> {
+					DocumentElement nestedDocument = document.addObject( differentInnerNestedField.binding().nested );
+					nestedDocument.addObject( differentInnerNestedField.binding().nestedX2 );
+				} )
+				.join();
 	}
 
 	private static class IndexBinding {
@@ -402,6 +428,34 @@ public class ExistsPredicateObjectsSpecificsIT {
 			flattenedObject.field( "numericDifferentName", f -> f.asInteger() ).toReference();
 
 			nestedObject.objectField( "flattenedX2", ObjectStructure.FLATTENED ).toReference();
+		}
+	}
+
+	private static class DifferentFieldsNoInnerNestedIndexBinding {
+		final IndexObjectFieldReference nested;
+		final IndexFieldReference<String> nestedString;
+		final IndexFieldReference<Integer> nestedNumeric;
+
+		DifferentFieldsNoInnerNestedIndexBinding(IndexSchemaElement root) {
+			IndexSchemaObjectField nestedObject = root.objectField( "nested", ObjectStructure.NESTED );
+			nested = nestedObject.toReference();
+
+			nestedString = nestedObject.field( "string", f -> f.asString() ).toReference();
+			nestedNumeric = nestedObject.field( "numeric", f -> f.asInteger() ).toReference();
+		}
+	}
+
+	private static class DifferentFieldsDifferentInnerNestedFieldsIndexBinding {
+		final IndexObjectFieldReference nested;
+		final IndexObjectFieldReference nestedX2;
+		final IndexFieldReference<String> nestedX2String;
+		DifferentFieldsDifferentInnerNestedFieldsIndexBinding(IndexSchemaElement root) {
+			IndexSchemaObjectField nestedObject = root.objectField( "nested", ObjectStructure.NESTED );
+			nested = nestedObject.toReference();
+
+			IndexSchemaObjectField nestedX2Object = nestedObject.objectField( "nestedX2", ObjectStructure.NESTED );
+			nestedX2 = nestedX2Object.toReference();
+			nestedX2String = nestedX2Object.field( "stringDifferentName", f -> f.asString() ).toReference();
 		}
 	}
 }

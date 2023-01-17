@@ -22,6 +22,19 @@ If you're looking to migrate from an earlier version,
 you should migrate step-by-step, from one minor version to the next,
 following the migration guide of link:https://hibernate.org/search/documentation/[each version].
 
+[WARNING]
+====
+**To Hibernate Search 5 users**
+
+Be aware that a lot of APIs have changed since Hibernate Search 5, some only because of a package change,
+others because of more fundamental changes
+(like moving away from using Lucene types in Hibernate Search APIs).
+
+When migrating from Hibernate Search 5, you are encouraged to migrate first to Hibernate Search 6.0
+using the https://docs.jboss.org/hibernate/search/6.0/migration/html_single/[6.0 migration guide],
+and only then to later versions (which will be significantly easier).
+====
+
 [[requirements]]
 == Requirements
 
@@ -45,9 +58,12 @@ To address that, either:
 === Outbox polling system tables
 
 If you use the incubating link:{hibernateSearchDocUrl}#coordination-outbox-polling[`outbox-polling` coordination strategy],
-you will be impacted by changes to the entity that represents the outbox event,
+you will be impacted by changes to the entities that represents the outbox event and agent,
 requiring database schema changes.
-A new column -  `created::timestamp` is introduced, `id` column changes the type from integer to varchar.
+For the outbox event table a new column `created::timestamp` is introduced, the `id` column changes its type from integer to varchar,
+except MSSQL where the `id` type becomes binary.
+For the agent table `id` column changes its type from integer to varchar,
+except MSSQL where the `id` type becomes binary.
 You can find suggested migration scripts for the tested databases below:
 
 .Postgresql:
@@ -64,8 +80,12 @@ where 1 = 1;
 alter table hsearch_outbox_event
     alter column created set not null;
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change outbox event `id` column type to varchar and generate uuids to replace previous int values:
 alter table hsearch_outbox_event
+    alter column id TYPE varchar(36) USING gen_random_uuid();
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
     alter column id TYPE varchar(36) USING gen_random_uuid();
 ----
 
@@ -83,7 +103,7 @@ where 1 = 1;
 alter table hsearch_outbox_event
     alter column created set not null;
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change outbox event `id` column type to varchar and generate uuids to replace previous int values:
 -- altering type directly is not supported: https://go.crdb.dev/issue-v/47636/v22.1
 alter table hsearch_outbox_event
     add tmp varchar(36) default cast(gen_random_uuid() as varchar) not null;
@@ -92,6 +112,16 @@ alter table hsearch_outbox_event
 alter table hsearch_outbox_event
     drop column id;
 alter table hsearch_outbox_event
+    rename column tmp to id;
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
+    add tmp varchar(36) default cast(gen_random_uuid() as varchar) not null;
+alter table hsearch_agent
+    alter primary key using columns (tmp);
+alter table hsearch_agent
+    drop column id;
+alter table hsearch_agent
     rename column tmp to id;
 ----
 
@@ -112,10 +142,17 @@ where 1 = 1;
 alter table hsearch_outbox_event
     modify column created datetime not null;
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change outbox event `id` column type to varchar and generate uuids to replace previous int values:
 alter table hsearch_outbox_event
     modify column id varchar(36);
 update hsearch_outbox_event
+set id = uuid()
+where 1 = 1;
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
+    modify column id varchar(36);
+update hsearch_agent
 set id = uuid()
 where 1 = 1;
 ----
@@ -134,10 +171,17 @@ where 1 = 1;
 alter table hsearch_outbox_event
     modify column created datetime not null;
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change outbox event `id` column type to varchar and generate uuids to replace previous int values:
 alter table hsearch_outbox_event
     modify column id varchar(36);
 update hsearch_outbox_event
+set id = uuid()
+where 1 = 1;
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
+    modify column id varchar(36);
+update hsearch_agent
 set id = uuid()
 where 1 = 1;
 ----
@@ -156,16 +200,29 @@ where 1 = 1;
 alter table hsearch_outbox_event
     alter column created set not null;
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change outbox event `id` column type to varchar and generate uuids to replace previous int values:
 alter table hsearch_outbox_event
     drop primary key;
 alter table hsearch_outbox_event
     alter column id set data type varchar(36);
 -- make this call if the adding constraint fails:
-call sysproc.admin_cmd('reorg table HSEARCH_OUTBOX_EVENT');
+call sysproc.admin_cmd('reorg table hsearch_outbox_event');
 alter table hsearch_outbox_event
     add constraint hsearch_outbox_event_pkey primary key (id);
 update hsearch_outbox_event
+set id = regexp_replace(concat(rawtohex(generate_unique()), 'AAAAAA'), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5')
+where 1 = 1;
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
+    drop primary key;
+alter table hsearch_agent
+    alter column id set data type varchar(36);
+-- make this call if the adding constraint fails:
+call sysproc.admin_cmd('reorg table hsearch_agent');
+alter table hsearch_agent
+    add constraint hsearch_agent_pkey primary key (id);
+update hsearch_agent
 set id = regexp_replace(concat(rawtohex(generate_unique()), 'AAAAAA'), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5')
 where 1 = 1;
 ----
@@ -184,7 +241,7 @@ where 1 = 1;
 alter table hsearch_outbox_event
     modify (created not null);
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change outbox event `id` column type to varchar and generate uuids to replace previous int values:
 alter table hsearch_outbox_event
     add tmp varchar(36) default REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5') not null;
 alter table hsearch_outbox_event
@@ -193,6 +250,16 @@ alter table hsearch_outbox_event
     rename column tmp to id;
 alter table hsearch_outbox_event
     add constraint hsearch_outbox_event_pkey primary key (id);
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
+    add tmp varchar(36) default REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5') not null;
+alter table hsearch_agent
+    drop column id;
+alter table hsearch_agent
+    rename column tmp to id;
+alter table hsearch_agent
+    add constraint hsearch_agent_pkey primary key (id);
 ----
 
 .MSSQL:
@@ -209,7 +276,7 @@ where 1 = 1;
 alter table hsearch_outbox_event
     alter column created datetime not null;
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change publox event `id` column type to varchar and generate uuids to replace previous int values:
 alter table hsearch_outbox_event
     drop constraint if exists hsearch_outbox_event_pkey;
 alter table hsearch_outbox_event
@@ -217,6 +284,17 @@ alter table hsearch_outbox_event
 alter table hsearch_outbox_event
     add constraint hsearch_outbox_event_pkey primary key (id);
 update hsearch_outbox_event
+set id = convert(binary, newid())
+where 1 = 1;
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
+    drop constraint if exists hsearch_agent_pkey;
+alter table hsearch_agent
+    alter column id binary(255) not null;
+alter table hsearch_agent
+    add constraint hsearch_agent_pkey primary key (id);
+update hsearch_agent
 set id = convert(binary, newid())
 where 1 = 1;
 ----
@@ -235,10 +313,17 @@ where 1 = 1;
 alter table hsearch_outbox_event
     alter column created set not null;
 
--- change `id` column type to varchar and generate uuids to replace previous int values:
+-- change outbox event `id` column type to varchar and generate uuids to replace previous int values:
 alter table hsearch_outbox_event
     alter column id varchar(36) not null;
 update hsearch_outbox_event
+set id = random_uuid()
+where 1 = 1;
+
+-- change agent `id` column type to varchar and generate uuids to replace previous int values:
+alter table hsearch_agent
+    alter column id varchar(36) not null;
+update hsearch_agent
 set id = random_uuid()
 where 1 = 1;
 ----
@@ -320,3 +405,14 @@ used to match no documents with the Lucene backend, but all documents with the E
 A boolean predicate with no clause will now consistently match no documents regardless of the backend.
 * API methods matching `*Async(..)` pattern (e.g. `SearchWorkspace#purgeAsync()`) will no longer block
 if internal queues of operations are full, but will throw `RejectedOperationException` instead.
+
+Due to switching from `new URL(..)` to `new URI(..)` in the Hibernate Search internals indexing
+behaviour of `URL` properties might change. In particular malformed URLs won't be accepted anymore and would result in
+a runtime exception.
+
+Due to some optimizations applied to bool queries, the resulting query might get replaced with a more straightforward
+query that returns the same results.
+Possible changes can include: some clauses can be rearranged, nested bool queries might be flattened, a bool query might be
+replaced with its clause.
+
+A bool query with a single `mustNot` clause and applied boost would implicitly add a `must` with `match_all` clause.

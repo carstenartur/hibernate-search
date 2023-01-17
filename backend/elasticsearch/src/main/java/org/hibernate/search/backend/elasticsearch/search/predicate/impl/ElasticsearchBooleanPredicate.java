@@ -6,12 +6,15 @@
  */
 package org.hibernate.search.backend.elasticsearch.search.predicate.impl;
 
+import static org.hibernate.search.backend.elasticsearch.search.predicate.impl.ElasticsearchMatchAllPredicate.MATCH_ALL_ACCESSOR;
+
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 import org.hibernate.search.backend.elasticsearch.gson.impl.GsonUtils;
 import org.hibernate.search.backend.elasticsearch.gson.impl.JsonAccessor;
@@ -41,6 +44,9 @@ class ElasticsearchBooleanPredicate extends AbstractElasticsearchPredicate {
 	private final List<ElasticsearchSearchPredicate> shouldClauses;
 	private final List<ElasticsearchSearchPredicate> filterClauses;
 
+	// NOTE: below modifiers (minimumShouldMatchConstraints) are used to implement hasNoModifiers() which is based on a
+	// parent implementation.
+	// IMPORTANT: Review where current modifiers are used and how the new modifier affects that logic, when adding a new modifier.
 	private final Map<Integer, MinimumShouldMatchConstraint> minimumShouldMatchConstraints;
 
 	private ElasticsearchBooleanPredicate(Builder builder) {
@@ -73,6 +79,12 @@ class ElasticsearchBooleanPredicate extends AbstractElasticsearchPredicate {
 		contributeClauses( context, innerObject, MUST_NOT_PROPERTY_NAME, mustNotClauses );
 		contributeClauses( context, innerObject, SHOULD_PROPERTY_NAME, shouldClauses );
 		contributeClauses( context, innerObject, FILTER_PROPERTY_NAME, filterClauses );
+
+		if ( isOnlyMustNot() && !super.hasNoModifiers() ) {
+			JsonObject matchAllClause = new JsonObject();
+			MATCH_ALL_ACCESSOR.set( matchAllClause, new JsonObject() );
+			GsonUtils.setOrAppendToArray( innerObject, MUST_PROPERTY_NAME, matchAllClause );
+		}
 
 		if ( minimumShouldMatchConstraints != null ) {
 			MINIMUM_SHOULD_MATCH_ACCESSOR.set(
@@ -136,12 +148,32 @@ class ElasticsearchBooleanPredicate extends AbstractElasticsearchPredicate {
 		return builder.toString();
 	}
 
+	private boolean isOnlyMustNot() {
+		return mustNotClauses != null && !mustNotClauses.isEmpty()
+				&& ( mustClauses == null || mustClauses.isEmpty() )
+				&& ( shouldClauses == null || shouldClauses.isEmpty() )
+				&& ( filterClauses == null || filterClauses.isEmpty() );
+	}
+
+	private boolean hasOnlyOneMustNotClause() {
+		return isOnlyMustNot() && mustNotClauses.size() == 1;
+	}
+
+	@Override
+	protected boolean hasNoModifiers() {
+		return minimumShouldMatchConstraints == null
+				&& super.hasNoModifiers();
+	}
+
 	static class Builder extends AbstractElasticsearchPredicate.AbstractBuilder implements BooleanPredicateBuilder {
 		private List<ElasticsearchSearchPredicate> mustClauses;
 		private List<ElasticsearchSearchPredicate> mustNotClauses;
 		private List<ElasticsearchSearchPredicate> shouldClauses;
 		private List<ElasticsearchSearchPredicate> filterClauses;
 
+		// NOTE: below modifiers (minimumShouldMatchConstraints) are used to implement hasNoModifiers() which is based on a
+		// parent implementation.
+		// IMPORTANT: Review where current modifiers are used and how the new modifier affects that logic, when adding a new modifier.
 		private Map<Integer, MinimumShouldMatchConstraint> minimumShouldMatchConstraints;
 
 		Builder(ElasticsearchSearchIndexScope<?> scope) {
@@ -215,9 +247,30 @@ class ElasticsearchBooleanPredicate extends AbstractElasticsearchPredicate {
 
 		@Override
 		public SearchPredicate build() {
-			if ( mustClauses == null && shouldClauses == null && mustNotClauses == null && filterClauses == null ) {
+			if ( !hasClause() ) {
 				// HSEARCH-4619: a boolean predicate without any clause must not match anything.
 				return new ElasticsearchMatchNonePredicate( this );
+			}
+
+			optimizeClauseCollection(
+					mustClauses,
+					this::mustNot
+			);
+
+			optimizeClauseCollection(
+					mustNotClauses,
+					this::must
+			);
+
+			checkAndClearClauseCollections();
+
+			if ( hasNoModifiers() ) {
+				if ( hasOnlyOneMustClause() ) {
+					return mustClauses.get( 0 );
+				}
+				else if ( hasOnlyOneShouldClause() ) {
+					return shouldClauses.get( 0 );
+				}
 			}
 
 			// Forcing to Lucene's defaults. See HSEARCH-3534
@@ -228,8 +281,53 @@ class ElasticsearchBooleanPredicate extends AbstractElasticsearchPredicate {
 			return new ElasticsearchBooleanPredicate( this );
 		}
 
+		private void optimizeClauseCollection(List<ElasticsearchSearchPredicate> collection,
+				Consumer<ElasticsearchSearchPredicate> newCollection) {
+			if ( collection != null ) {
+				Iterator<ElasticsearchSearchPredicate> iterator = collection.iterator();
+				while ( iterator.hasNext() ) {
+					ElasticsearchSearchPredicate clause = iterator.next();
+					if ( clause instanceof ElasticsearchBooleanPredicate
+							&& ( (ElasticsearchBooleanPredicate) clause ).hasOnlyOneMustNotClause()
+							&& ( (ElasticsearchBooleanPredicate) clause ).hasNoModifiers()
+					) {
+						iterator.remove();
+						newCollection.accept( ( (ElasticsearchBooleanPredicate) clause ).mustNotClauses.get( 0 ) );
+					}
+				}
+			}
+		}
+
+		private void checkAndClearClauseCollections() {
+			if ( mustClauses != null && mustClauses.isEmpty() ) {
+				mustClauses = null;
+			}
+			if ( mustNotClauses != null && mustNotClauses.isEmpty() ) {
+				mustNotClauses = null;
+			}
+		}
+
 		private boolean hasAtLeastOneMustOrFilterPredicate() {
 			return mustClauses != null || filterClauses != null;
+		}
+
+		private boolean hasOnlyOneMustClause() {
+			return mustClauses != null && mustClauses.size() == 1
+					&& ( mustNotClauses == null || mustNotClauses.isEmpty() )
+					&& ( shouldClauses == null || shouldClauses.isEmpty() )
+					&& ( filterClauses == null || filterClauses.isEmpty() );
+		}
+
+		private boolean hasOnlyOneShouldClause() {
+			return shouldClauses != null && shouldClauses.size() == 1
+					&& ( mustNotClauses == null || mustNotClauses.isEmpty() )
+					&& ( mustClauses == null || mustClauses.isEmpty() )
+					&& ( filterClauses == null || filterClauses.isEmpty() );
+		}
+
+		@Override
+		protected boolean hasNoModifiers() {
+			return minimumShouldMatchConstraints == null && super.hasNoModifiers();
 		}
 	}
 

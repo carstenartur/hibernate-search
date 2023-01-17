@@ -22,15 +22,16 @@ import javax.persistence.Basic;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.MappingException;
 import org.hibernate.dialect.Dialect;
-import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.engine.jdbc.env.spi.NameQualifierSupport;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 import org.hibernate.search.integrationtest.mapper.orm.coordination.outboxpolling.FilteringOutboxEventFinder;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.HibernateOrmMapperOutboxPollingSettings;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.Agent;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.OutboxPollingAgentAdditionalJaxbMappingProducer;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxEvent;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxPollingOutboxEventAdditionalJaxbMappingProducer;
@@ -52,9 +53,6 @@ public class OutboxPollingCustomEntityMappingIT {
 
 	private static final String ORIGINAL_AGENT_TABLE_NAME = HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_ENTITY_MAPPING_AGENT_TABLE;
 	private static final String CUSTOM_AGENT_TABLE_NAME = "CUSTOM_AGENT";
-	private static final String ORIGINAL_AGENT_GENERATOR_NAME = ORIGINAL_AGENT_TABLE_NAME + "_GENERATOR";
-	private static final String CUSTOM_AGENT_GENERATOR_NAME = CUSTOM_AGENT_TABLE_NAME + "_GENERATOR";
-
 	private static final String VALID_OUTBOX_EVENT_MAPPING;
 	private static final String VALID_AGENT_EVENT_MAPPING;
 
@@ -65,13 +63,11 @@ public class OutboxPollingCustomEntityMappingIT {
 				.replace( ORIGINAL_OUTBOX_EVENT_TABLE_NAME, CUSTOM_OUTBOX_EVENT_TABLE_NAME );
 
 		VALID_AGENT_EVENT_MAPPING = OutboxPollingAgentAdditionalJaxbMappingProducer.ENTITY_DEFINITION
-				.replace( ORIGINAL_AGENT_TABLE_NAME, CUSTOM_AGENT_TABLE_NAME )
-				.replace( ORIGINAL_AGENT_GENERATOR_NAME, CUSTOM_AGENT_GENERATOR_NAME );
+				.replace( ORIGINAL_AGENT_TABLE_NAME, CUSTOM_AGENT_TABLE_NAME );
 
 		SQL_KEYS = new String[] {
 				ORIGINAL_OUTBOX_EVENT_TABLE_NAME, CUSTOM_OUTBOX_EVENT_TABLE_NAME,
 				ORIGINAL_AGENT_TABLE_NAME, CUSTOM_AGENT_TABLE_NAME,
-				ORIGINAL_AGENT_GENERATOR_NAME, CUSTOM_AGENT_GENERATOR_NAME,
 				CUSTOM_SCHEMA,
 		};
 	}
@@ -133,14 +129,6 @@ public class OutboxPollingCustomEntityMappingIT {
 		assertThat( statementInspector.countByKey( CUSTOM_OUTBOX_EVENT_TABLE_NAME ) ).isPositive();
 		assertThat( statementInspector.countByKey( ORIGINAL_AGENT_TABLE_NAME ) ).isPositive();
 		assertThat( statementInspector.countByKey( CUSTOM_AGENT_TABLE_NAME ) ).isZero();
-
-		if ( getDialect() instanceof MySQLDialect ) {
-			// statements for sequences are not reported to the interceptor with this dialect
-			return;
-		}
-
-		assertThat( statementInspector.countByKey( ORIGINAL_AGENT_GENERATOR_NAME ) ).isPositive();
-		assertThat( statementInspector.countByKey( CUSTOM_AGENT_GENERATOR_NAME ) ).isZero();
 	}
 
 	@Test
@@ -171,14 +159,6 @@ public class OutboxPollingCustomEntityMappingIT {
 		assertThat( statementInspector.countByKey( CUSTOM_OUTBOX_EVENT_TABLE_NAME ) ).isZero();
 		assertThat( statementInspector.countByKey( ORIGINAL_AGENT_TABLE_NAME ) ).isZero();
 		assertThat( statementInspector.countByKey( CUSTOM_AGENT_TABLE_NAME ) ).isPositive();
-
-		if ( getDialect() instanceof MySQLDialect ) {
-			// statements for sequences are not reported to the interceptor with this dialect
-			return;
-		}
-
-		assertThat( statementInspector.countByKey( ORIGINAL_AGENT_GENERATOR_NAME ) ).isZero();
-		assertThat( statementInspector.countByKey( CUSTOM_AGENT_GENERATOR_NAME ) ).isPositive();
 	}
 
 	@Test
@@ -207,7 +187,6 @@ public class OutboxPollingCustomEntityMappingIT {
 
 		backendMock.expectAnySchema( IndexedEntity.INDEX );
 		sessionFactory = ormSetupHelper.start()
-				.withProperty( "hibernate.search.coordination.entity.mapping.agent.generator", CUSTOM_AGENT_GENERATOR_NAME )
 				.withProperty( "hibernate.search.coordination.entity.mapping.agent.table", CUSTOM_AGENT_TABLE_NAME )
 				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.table", CUSTOM_OUTBOX_EVENT_TABLE_NAME )
 				.withProperty( "hibernate.session_factory.statement_inspector", statementInspector )
@@ -230,14 +209,6 @@ public class OutboxPollingCustomEntityMappingIT {
 		assertThat( statementInspector.countByKey( CUSTOM_OUTBOX_EVENT_TABLE_NAME ) ).isPositive();
 		assertThat( statementInspector.countByKey( ORIGINAL_AGENT_TABLE_NAME ) ).isZero();
 		assertThat( statementInspector.countByKey( CUSTOM_AGENT_TABLE_NAME ) ).isPositive();
-
-		if ( getDialect() instanceof MySQLDialect ) {
-			// statements for sequences are not reported to the interceptor with this dialect
-			return;
-		}
-
-		assertThat( statementInspector.countByKey( ORIGINAL_AGENT_GENERATOR_NAME ) ).isZero();
-		assertThat( statementInspector.countByKey( CUSTOM_AGENT_GENERATOR_NAME ) ).isPositive();
 	}
 
 	@Test
@@ -250,7 +221,6 @@ public class OutboxPollingCustomEntityMappingIT {
 				// Allow ORM to create schema as we want to use non-default for this testcase:
 				.withProperty( "javax.persistence.create-database-schemas", true )
 				.withProperty( "hibernate.search.coordination.entity.mapping.agent.schema", CUSTOM_SCHEMA )
-				.withProperty( "hibernate.search.coordination.entity.mapping.agent.generator", CUSTOM_AGENT_GENERATOR_NAME )
 				.withProperty( "hibernate.search.coordination.entity.mapping.agent.table", CUSTOM_AGENT_TABLE_NAME )
 				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.schema", CUSTOM_SCHEMA )
 				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.table", CUSTOM_OUTBOX_EVENT_TABLE_NAME )
@@ -276,12 +246,8 @@ public class OutboxPollingCustomEntityMappingIT {
 		await().untilAsserted( () -> {
 			with( sessionFactory ).runInTransaction( session -> {
 				// check that correct UUIDs are generated by asserting the version:
-				List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
-				assertThat( events )
-						.hasSize( 1 )
-						.extracting( OutboxEvent::getId )
-						.extracting( UUID::version )
-						.contains( 4 );
+				assertEventUUIDVersion( session, 4 );
+				assertAgentUUIDVersion( session, 4 );
 			} );
 		} );
 		// The events were hidden until now, to ensure they were not processed in separate batches.
@@ -297,14 +263,6 @@ public class OutboxPollingCustomEntityMappingIT {
 		assertThat( statementInspector.countByKey( CUSTOM_AGENT_TABLE_NAME ) ).isPositive();
 
 		assertThat( statementInspector.countByKey( CUSTOM_SCHEMA ) ).isPositive();
-
-		if ( getDialect() instanceof MySQLDialect ) {
-			// statements for sequences are not reported to the interceptor with this dialect
-			return;
-		}
-
-		assertThat( statementInspector.countByKey( ORIGINAL_AGENT_GENERATOR_NAME ) ).isZero();
-		assertThat( statementInspector.countByKey( CUSTOM_AGENT_GENERATOR_NAME ) ).isPositive();
 	}
 
 	@Test
@@ -316,6 +274,7 @@ public class OutboxPollingCustomEntityMappingIT {
 				.withProperty( "hibernate.search.coordination.outbox_event_finder.provider", outboxEventFinder.provider() )
 				// Allow ORM to create schema as we want to use non-default for this testcase:
 				.withProperty( "javax.persistence.create-database-schemas", true )
+				.withProperty( "hibernate.search.coordination.entity.mapping.agent.uuid_gen_strategy", "time" )
 				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.uuid_gen_strategy", "time" )
 				.withProperty( "hibernate.session_factory.statement_inspector", statementInspector )
 				.setup( IndexedEntity.class );
@@ -335,12 +294,8 @@ public class OutboxPollingCustomEntityMappingIT {
 		await().untilAsserted( () -> {
 			with( sessionFactory ).runInTransaction( session -> {
 				// check that correct UUIDs are generated by asserting the version:
-				List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
-				assertThat( events )
-						.hasSize( 1 )
-						.extracting( OutboxEvent::getId )
-						.extracting( UUID::version )
-						.contains( 1 );
+				assertEventUUIDVersion( session, 1 );
+				assertAgentUUIDVersion( session, 1 );
 			} );
 		} );
 		// The events were hidden until now, to ensure they were not processed in separate batches.
@@ -363,7 +318,8 @@ public class OutboxPollingCustomEntityMappingIT {
 				.withProperty( "hibernate.search.coordination.outbox_event_finder.provider", outboxEventFinder.provider() )
 				// Allow ORM to create schema as we want to use non-default for this testcase:
 				.withProperty( "javax.persistence.create-database-schemas", true )
-				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.uuid_jdbc_type", "uuid-char" )
+				.withProperty( "hibernate.search.coordination.entity.mapping.outboxevent.uuid_type", "uuid-char" )
+				.withProperty( "hibernate.search.coordination.entity.mapping.agent.uuid_type", "uuid-char" )
 				.withProperty( "hibernate.session_factory.statement_inspector", statementInspector )
 				.setup( IndexedEntity.class );
 		backendMock.verifyExpectationsMet();
@@ -382,12 +338,8 @@ public class OutboxPollingCustomEntityMappingIT {
 		await().untilAsserted( () -> {
 			with( sessionFactory ).runInTransaction( session -> {
 				// check that correct UUIDs are generated by asserting the version:
-				List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
-				assertThat( events )
-						.hasSize( 1 )
-						.extracting( OutboxEvent::getId )
-						.extracting( UUID::version )
-						.contains( 4 );
+				assertEventUUIDVersion( session, 4 );
+				assertAgentUUIDVersion( session, 4 );
 			} );
 		} );
 		// The events were hidden until now, to ensure they were not processed in separate batches.
@@ -416,6 +368,28 @@ public class OutboxPollingCustomEntityMappingIT {
 						"something-incompatible",
 						"Valid names are: [auto, random, time]"
 				);
+	}
+
+	private void assertEventUUIDVersion(Session session, int expectedVersion) {
+		List<OutboxEvent> events = outboxEventFinder.findOutboxEventsNoFilter( session );
+		assertThat( events )
+				.hasSize( 1 )
+				.extracting( OutboxEvent::getId )
+				.extracting( UUID::version )
+				.containsOnly( expectedVersion );
+	}
+
+	private void assertAgentUUIDVersion(Session session, int expectedVersion) {
+		assertThat(
+				session.createQuery(
+								"select a from " + OutboxPollingAgentAdditionalJaxbMappingProducer.ENTITY_NAME + " a ",
+								Agent.class
+						)
+						.getResultList()
+		).hasSizeGreaterThan( 0 )
+				.extracting( Agent::getId )
+				.extracting( UUID::version )
+				.containsOnly( expectedVersion );
 	}
 
 	private Dialect getDialect() {
