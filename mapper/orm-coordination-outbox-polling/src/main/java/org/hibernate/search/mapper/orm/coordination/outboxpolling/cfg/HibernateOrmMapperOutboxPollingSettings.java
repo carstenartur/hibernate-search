@@ -13,8 +13,13 @@ import org.hibernate.id.uuid.CustomVersionOneStrategy;
 import org.hibernate.id.uuid.StandardRandomStrategy;
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
 import org.hibernate.search.util.common.annotation.Incubating;
+import org.hibernate.search.util.common.impl.HibernateSearchConfiguration;
 
 @Incubating
+@HibernateSearchConfiguration(
+		title = "Hibernate Search ORM Integration - Coordination - Outbox Polling",
+		anchorPrefix = "hibernate-search-mapper-orm-coordination-outbox-polling-"
+)
 public final class HibernateOrmMapperOutboxPollingSettings {
 
 	private HibernateOrmMapperOutboxPollingSettings() {
@@ -38,6 +43,7 @@ public final class HibernateOrmMapperOutboxPollingSettings {
 	 * See the reference documentation for a comparison of all available coordination strategies
 	 * and possible architectures.
 	 */
+	@HibernateSearchConfiguration(ignore = true)
 	public static final String COORDINATION_STRATEGY_NAME = "outbox-polling";
 
 	/**

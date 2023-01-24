@@ -16,6 +16,7 @@ import org.hibernate.search.backend.elasticsearch.index.layout.impl.SimpleIndexL
 import org.hibernate.search.backend.elasticsearch.mapping.TypeNameMappingStrategyName;
 import org.hibernate.search.backend.elasticsearch.multitenancy.MultiTenancyStrategyName;
 import org.hibernate.search.engine.environment.bean.BeanReference;
+import org.hibernate.search.util.common.impl.HibernateSearchConfiguration;
 
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 
@@ -27,6 +28,11 @@ import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
  *
  * @author Gunnar Morling
  */
+@HibernateSearchConfiguration(
+		prefix = { "hibernate.search.backend.", "hibernate.search.backends.<backend name>." },
+		title = "Hibernate Search Backend - Elasticsearch",
+		anchorPrefix = "hibernate-search-backend-elasticsearch-"
+)
 public final class ElasticsearchBackendSettings {
 
 	private ElasticsearchBackendSettings() {
@@ -39,6 +45,7 @@ public final class ElasticsearchBackendSettings {
 	 * Only useful if you have more than one backend technology in the classpath;
 	 * otherwise the backend type is automatically detected.
 	 */
+	@HibernateSearchConfiguration(ignore = true)
 	public static final String TYPE_NAME = "elasticsearch";
 
 	/**

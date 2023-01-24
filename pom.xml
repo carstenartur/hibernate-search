@@ -153,6 +153,7 @@
     <modules>
         <module>build/config</module>
         <module>build/parents/internal</module>
+        <module>build/configuration-properties-collector-processor</module>
         <module>util/internal/test/common</module>
         <module>util/internal/test/orm</module>
         <module>build/parents/public</module>
@@ -303,8 +304,8 @@
         <version.org.osgi.core>6.0.0</version.org.osgi.core>
 
         <version.org.hamcrest>2.2</version.org.hamcrest>
-        <version.org.mockito>5.0.0</version.org.mockito>
-        <version.org.assertj.assertj-core>3.24.1</version.org.assertj.assertj-core>
+        <version.org.mockito>4.11.0</version.org.mockito>
+        <version.org.assertj.assertj-core>3.24.2</version.org.assertj.assertj-core>
         <version.org.awaitily>4.2.0</version.org.awaitily>
         <version.org.skyscreamer.jsonassert>1.5.1</version.org.skyscreamer.jsonassert>
         <version.io.takari.junit>1.2.7</version.io.takari.junit>
@@ -397,6 +398,8 @@
         <version.org.jruby>9.3.2.0</version.org.jruby>
         <version.org.asciidoctor.asciidoctorj>2.5.6</version.org.asciidoctor.asciidoctorj>
         <version.org.asciidoctor.asciidoctorj-pdf>1.5.0-alpha.18</version.org.asciidoctor.asciidoctorj-pdf>
+
+        <version.jsoup>1.15.3</version.jsoup>
 
         <!-- Maven Central repository -->
 
@@ -923,6 +926,16 @@
                 <artifactId>hibernate-search-documentation</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.hibernate.search</groupId>
+                <artifactId>hibernate-search-configuration-properties-collector-processor</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.search</groupId>
+                <artifactId>hibernate-search-configuration-properties-collector</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.hibernate</groupId>
@@ -1324,6 +1337,14 @@
                 <artifactId>jberet-se</artifactId>
                 <version>${version.org.jberet}</version>
             </dependency>
+
+            <!-- For javadocs parsing -->
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>${version.jsoup}</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -2453,6 +2474,7 @@
                 <module>jakarta</module>
                 <module>orm6</module>
                 <module>distribution</module>
+                <module>build/configuration-properties-collector</module>
             </modules>
         </profile>
 
@@ -2621,6 +2643,25 @@
                     -Dnet.bytebuddy.experimental=true
                 </surefire.jvm.args.java-version>
                 <!-- Spring isn't ready for JDK20 yet -->
+                <failsafe.spring.skip>true</failsafe.spring.skip>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>testWithJdk21</id>
+            <activation>
+                <property>
+                    <name>java-version.test.release</name>
+                    <value>21</value>
+                </property>
+            </activation>
+            <properties>
+                <!-- We need net.bytebuddy.experimental=true to make BytecodeEnhancementIT and mockito-based tests pass -->
+                <surefire.jvm.args.java-version>
+                    -Djdk.attach.allowAttachSelf=true
+                    -Dnet.bytebuddy.experimental=true
+                </surefire.jvm.args.java-version>
+                <!-- Spring isn't ready for JDK21 yet -->
                 <failsafe.spring.skip>true</failsafe.spring.skip>
             </properties>
         </profile>

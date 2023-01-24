@@ -50,6 +50,28 @@ public class DefaultDecimalScaleMappingIT {
 		backendMock.verifyExpectationsMet();
 	}
 
+	@Test
+	public void bigIntegerIdMapping() {
+		backendMock.expectSchema( IdWithScale.NAME, b -> b
+				.field( "id", BigInteger.class, f -> f.defaultDecimalScale( 0 ) )
+				.field( "other", BigInteger.class, f -> f.defaultDecimalScale( 0 ) )
+				.field( "decimalImplicit", BigDecimal.class, f -> f.defaultDecimalScale( 2 ) )
+		);
+
+		ormSetupHelper.start().setup( IdWithScale.class );
+		backendMock.verifyExpectationsMet();
+	}
+
+	@Test
+	public void bigDecimalIdMapping() {
+		backendMock.expectSchema( DecimalIdWithScale.NAME, b -> b
+				.field( "id", BigDecimal.class, f -> f.defaultDecimalScale( 2 ) )
+		);
+
+		ormSetupHelper.start().setup( DecimalIdWithScale.class );
+		backendMock.verifyExpectationsMet();
+	}
+
 	@Entity(name = "indexed")
 	@Indexed(index = INDEX_NAME)
 	public static final class IndexedEntity {
@@ -101,5 +123,33 @@ public class DefaultDecimalScaleMappingIT {
 		@ScaledNumberField(decimalScale = -2)
 		@Column(precision = 14, scale = -3)
 		private BigInteger bothInteger;
+	}
+
+	@Entity(name = IdWithScale.NAME)
+	@Indexed(index = IdWithScale.NAME)
+	public static class IdWithScale {
+		public static final String NAME = "id_with_scale";
+
+		@Id
+		@GenericField
+		@Column(name = "id", nullable = false, precision = 18)
+		private BigInteger id;
+
+		@GenericField
+		@Column(name = "other", nullable = false, precision = 18)
+		private BigInteger other;
+
+		@GenericField
+		private BigDecimal decimalImplicit;
+	}
+
+	@Entity(name = DecimalIdWithScale.NAME)
+	@Indexed(index = DecimalIdWithScale.NAME)
+	public static class DecimalIdWithScale {
+		public static final String NAME = "decimal_id_with_scale";
+
+		@Id
+		@GenericField
+		private BigDecimal id;
 	}
 }

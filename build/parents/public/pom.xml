@@ -22,6 +22,8 @@
 
     <properties>
         <javadoc.packagelists.directory>${project.build.directory}/dependencies-javadoc-packagelists</javadoc.packagelists.directory>
+        <!-- override the value if no property collection should happen (set to `none`)-->
+        <properties.collector.processing.phase>compile</properties.collector.processing.phase>
     </properties>
 
     <build>
@@ -252,7 +254,7 @@
                                 <goals>
                                     <goal>javadoc-no-fork</goal>
                                 </goals>
-                                <phase>prepare-package</phase>
+                                <phase>process-resources</phase>
                             </execution>
                         </executions>
                     </plugin>

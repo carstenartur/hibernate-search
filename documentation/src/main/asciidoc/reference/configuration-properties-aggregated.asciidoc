@@ -1,0 +1,4 @@
+[[configuration-properties-aggregated]]
+= List of all available configuration properties
+
+include::../../../../target/hibernate-search-configuration-properties-collector.asciidoc[opts=optional]
