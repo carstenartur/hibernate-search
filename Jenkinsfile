@@ -197,10 +197,12 @@ stage('Configure') {
 					new DatabaseBuildEnvironment(dbName: 'mysql', mavenProfile: 'ci-mysql',
                     		condition: TestCondition.AFTER_MERGE),
                     new DatabaseBuildEnvironment(dbName: 'db2', mavenProfile: 'ci-db2',
+                            slow: true,
                             condition: TestCondition.AFTER_MERGE),
                     new DatabaseBuildEnvironment(dbName: 'mssql', mavenProfile: 'ci-mssql',
                             condition: TestCondition.AFTER_MERGE),
                     new DatabaseBuildEnvironment(dbName: 'cockroachdb', mavenProfile: 'ci-cockroachdb',
+                            slow: true,
                             condition: TestCondition.AFTER_MERGE),
 			],
 			esLocal: [
@@ -248,7 +250,7 @@ stage('Configure') {
 					new EsLocalBuildEnvironment(version: '8.3.3', condition: TestCondition.ON_DEMAND),
 					new EsLocalBuildEnvironment(version: '8.4.3', condition: TestCondition.ON_DEMAND),
 					new EsLocalBuildEnvironment(version: '8.5.3', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.6.0', condition: TestCondition.BEFORE_MERGE, isDefault: true),
+					new EsLocalBuildEnvironment(version: '8.6.1', condition: TestCondition.BEFORE_MERGE, isDefault: true),
 
 					// --------------------------------------------
 					// OpenSearch
@@ -259,7 +261,8 @@ stage('Configure') {
 					new OpenSearchLocalBuildEnvironment(version: '2.1.0', condition: TestCondition.ON_DEMAND),
 					new OpenSearchLocalBuildEnvironment(version: '2.2.1', condition: TestCondition.ON_DEMAND),
 					new OpenSearchLocalBuildEnvironment(version: '2.3.0', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.4.1', condition: TestCondition.AFTER_MERGE)
+					new OpenSearchLocalBuildEnvironment(version: '2.4.1', condition: TestCondition.ON_DEMAND),
+					new OpenSearchLocalBuildEnvironment(version: '2.5.0', condition: TestCondition.AFTER_MERGE)
 					// See https://opensearch.org/lines/2x.html for a list of all 2.x versions
 			],
 			esAws: [
@@ -486,9 +489,9 @@ stage('Non-default environments') {
 	// Test ORM integration with multiple databases
 	environments.content.database.enabled.each { DatabaseBuildEnvironment buildEnv ->
 		executions.put(buildEnv.tag, {
-			// Some databases, e.g. DB2 or CockroachDB, can be really slow, so we need to raise the timeout.
-			runBuildOnNode(NODE_PATTERN_BASE, [time: 2, unit: 'HOURS']) {
+			runBuildOnNode(NODE_PATTERN_BASE, [time: buildEnv.slow ? 2 : 1, unit: 'HOURS']) {
 				withMavenWorkspace {
+					def artifactsToTest = ['hibernate-search-mapper-orm']
 					// Some modules are likely to fail for reasons unrelated to Hibernate Search anyway
 					// (for example because we didn't configure the tests to handle other DBs),
 					// so we skip them.
@@ -500,19 +503,25 @@ stage('Non-default environments') {
 							-pl !integrationtest/java/modules/orm-lucene \
 							-pl !integrationtest/java/modules/orm-elasticsearch \
 							-pl !integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
-							-pl !orm6/documentation \
-							-pl !orm6/integrationtest/mapper/orm-batch-jsr352 \
-							-pl !orm6/integrationtest/v5migrationhelper/orm \
-							-pl !orm6/integrationtest/java/modules/orm-lucene \
-							-pl !orm6/integrationtest/java/modules/orm-elasticsearch \
-							-pl !orm6/integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
-							-pl !jakarta/documentation \
-							-pl !jakarta/integrationtest/mapper/orm-batch-jsr352 \
-							-pl !jakarta/integrationtest/v5migrationhelper/orm \
-							-pl !jakarta/integrationtest/java/modules/orm-lucene \
-							-pl !jakarta/integrationtest/java/modules/orm-elasticsearch \
-							-pl !jakarta/integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
 					'''
+					if ( !buildEnv.slow ) {
+						// If the DB testing is reasonably fast, we'll also test ORM6 and Jakarta
+						artifactsToTest += ['hibernate-search-mapper-orm-orm6', 'hibernate-search-mapper-orm-jakarta']
+						mavenBuildAdditionalArgs += ''' \
+								-pl !orm6/documentation \
+								-pl !orm6/integrationtest/mapper/orm-batch-jsr352 \
+								-pl !orm6/integrationtest/v5migrationhelper/orm \
+								-pl !orm6/integrationtest/java/modules/orm-lucene \
+								-pl !orm6/integrationtest/java/modules/orm-elasticsearch \
+								-pl !orm6/integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
+								-pl !jakarta/documentation \
+								-pl !jakarta/integrationtest/mapper/orm-batch-jsr352 \
+								-pl !jakarta/integrationtest/v5migrationhelper/orm \
+								-pl !jakarta/integrationtest/java/modules/orm-lucene \
+								-pl !jakarta/integrationtest/java/modules/orm-elasticsearch \
+								-pl !jakarta/integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
+						'''
+					}
 					String mavenDockerArgs = ""
 					def startedContainers = false
 					// DB2 setup is super slow (~5 to 15 minutes).
@@ -545,11 +554,7 @@ stage('Non-default environments') {
 								-P$buildEnv.mavenProfile \
 								$mavenBuildAdditionalArgs \
 								""",
-								[
-										'hibernate-search-mapper-orm',
-										'hibernate-search-mapper-orm-orm6',
-										'hibernate-search-mapper-orm-jakarta'
-								]
+								artifactsToTest
 					}
 					finally {
 						if ( startedContainers ) {
@@ -568,7 +573,6 @@ stage('Non-default environments') {
 				withMavenWorkspace {
 					mavenNonDefaultBuild buildEnv, """ \
 							-Pdist \
-							-pl ${sh(script: "./ci/list-dependent-integration-tests.sh ${artifactsToTest.join(',')}", returnStdout: true).trim()} \
 							-Dtest.elasticsearch.distribution=$buildEnv.distribution \
 							-Dtest.elasticsearch.version=$buildEnv.version \
 							""",
@@ -734,6 +738,7 @@ class CompilerBuildEnvironment extends BuildEnvironment {
 class DatabaseBuildEnvironment extends BuildEnvironment {
 	String dbName
 	String mavenProfile
+	boolean slow
 	@Override
 	String getTag() { "database-$dbName" }
 }

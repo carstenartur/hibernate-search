@@ -12,7 +12,7 @@ import java.util.Optional;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchBackendSettings;
-import org.hibernate.search.backend.elasticsearch.cfg.spi.ElasticsearchBackendImplSettings;
+import org.hibernate.search.backend.elasticsearch.cfg.impl.ElasticsearchBackendImplSettings;
 import org.hibernate.search.backend.elasticsearch.client.impl.ElasticsearchClientFactoryImpl;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchClientFactory;
 import org.hibernate.search.backend.elasticsearch.dialect.impl.ElasticsearchDialectFactory;
@@ -127,7 +127,7 @@ public class ElasticsearchBackendFactory implements BackendFactory {
 			}
 			else {
 				// We must determine the Elasticsearch version, and thus instantiate the client, right now.
-				threads.onStart( propertySource, buildContext.threadPoolProvider() );
+				threads.onStart( propertySource, beanResolver, buildContext.threadPoolProvider() );
 				link.onStart( beanResolver, propertySource );
 
 				version = link.getElasticsearchVersion();

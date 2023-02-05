@@ -6,13 +6,14 @@
  */
 package org.hibernate.search.backend.lucene.resources.impl;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-
-import org.hibernate.search.backend.lucene.cfg.LuceneBackendSettings;
-import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
+import org.hibernate.search.backend.lucene.cfg.spi.LuceneBackendSpiSettings;
+import org.hibernate.search.backend.lucene.work.spi.LuceneWorkExecutorProvider;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
-import org.hibernate.search.engine.cfg.spi.OptionalConfigurationProperty;
+import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
+import org.hibernate.search.engine.common.execution.spi.SimpleScheduledExecutor;
+import org.hibernate.search.engine.environment.bean.BeanHolder;
+import org.hibernate.search.engine.environment.bean.BeanReference;
+import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.environment.thread.spi.ThreadPoolProvider;
 import org.hibernate.search.engine.environment.thread.spi.ThreadProvider;
 import org.hibernate.search.util.common.AssertionFailure;
@@ -20,39 +21,52 @@ import org.hibernate.search.util.common.impl.Closer;
 
 public class BackendThreads {
 
-	private static final OptionalConfigurationProperty<Integer> THREAD_POOL_SIZE =
-			ConfigurationProperty.forKey( LuceneBackendSettings.THREAD_POOL_SIZE )
-					.asIntegerStrictlyPositive()
+	private static final ConfigurationProperty<BeanReference<? extends LuceneWorkExecutorProvider>> BACKEND_WORK_EXECUTOR_PROVIDER =
+			ConfigurationProperty.forKey( LuceneBackendSpiSettings.Radicals.BACKEND_WORK_EXECUTOR_PROVIDER )
+					.asBeanReference( LuceneWorkExecutorProvider.class )
+					.withDefault( LuceneBackendSpiSettings.Defaults.BACKEND_WORK_EXECUTOR_PROVIDER )
 					.build();
-
 	private final String prefix;
 
 	private ThreadPoolProvider threadPoolProvider;
-	private ScheduledExecutorService writeExecutor;
+	private SimpleScheduledExecutor writeExecutor;
 
 	public BackendThreads(String prefix) {
 		this.prefix = prefix;
 	}
 
-	public void onStart(ConfigurationPropertySource propertySource, ThreadPoolProvider threadPoolProvider) {
+	public void onStart(ConfigurationPropertySource propertySource, BeanResolver beanResolver, ThreadPoolProvider threadPoolProvider) {
 		if ( this.writeExecutor != null ) {
 			// Already started
 			return;
 		}
 		this.threadPoolProvider = threadPoolProvider;
 
-		int threadPoolSize = THREAD_POOL_SIZE.get( propertySource )
-				.orElse( Runtime.getRuntime().availableProcessors() );
-		// We use a scheduled executor for write so that we perform all commits,
-		// scheduled or not, in the *same* thread pool.
-		this.writeExecutor = threadPoolProvider.newScheduledExecutor(
-				threadPoolSize, prefix + " - Worker thread"
-		);
+
+		try ( BeanHolder<? extends LuceneWorkExecutorProvider> provider = BACKEND_WORK_EXECUTOR_PROVIDER.getAndTransform(
+				propertySource, beanResolver::resolve ) ) {
+			this.writeExecutor = provider.get().writeExecutor( new LuceneWorkExecutorProvider.Context() {
+				@Override
+				public ThreadPoolProvider threadPoolProvider() {
+					return threadPoolProvider;
+				}
+
+				@Override
+				public ConfigurationPropertySource propertySource() {
+					return propertySource;
+				}
+
+				@Override
+				public String recommendedThreadNamePrefix() {
+					return prefix + " - Worker thread";
+				}
+			} );
+		}
 	}
 
 	public void onStop() {
 		try ( Closer<RuntimeException> closer = new Closer<>() ) {
-			closer.push( ExecutorService::shutdownNow, writeExecutor );
+			closer.push( SimpleScheduledExecutor::shutdownNow, writeExecutor );
 		}
 	}
 
@@ -61,7 +75,7 @@ public class BackendThreads {
 		return threadPoolProvider.threadProvider();
 	}
 
-	public ScheduledExecutorService getWriteExecutor() {
+	public SimpleScheduledExecutor getWriteExecutor() {
 		checkStarted();
 		return writeExecutor;
 	}
