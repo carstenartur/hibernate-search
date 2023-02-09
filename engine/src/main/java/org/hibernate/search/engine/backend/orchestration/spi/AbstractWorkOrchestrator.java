@@ -10,6 +10,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
@@ -30,6 +31,8 @@ public abstract class AbstractWorkOrchestrator<W> {
 
 	private State state = State.STOPPED; // Guarded by lifecycleLock
 	private final ReadWriteLock lifecycleLock = new ReentrantReadWriteLock();
+
+	protected final Consumer<? super W> blockingRetryProducer = w -> submit( w, OperationSubmitter.blocking() );
 
 	protected AbstractWorkOrchestrator(String name) {
 		this.name = name;
@@ -149,5 +152,4 @@ public abstract class AbstractWorkOrchestrator<W> {
 		PRE_STOPPING,
 		STOPPED;
 	}
-
 }

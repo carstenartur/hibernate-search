@@ -12,9 +12,9 @@ import java.util.List;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.TestConfiguration;
-import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.ProgrammaticMappingConfigurationContext;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.TypeMappingStep;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategy;
 import org.hibernate.search.mapper.pojo.standalone.mapping.CloseableSearchMapping;
 import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
 import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMappingBuilder;
@@ -77,7 +77,7 @@ public class MappingConfigurationIT {
 	@Test
 	public void simple() {
 		try ( SearchSession session = searchMapping.createSessionWithOptions()
-				.refreshStrategy( DocumentRefreshStrategy.FORCE )
+				.indexingPlanSynchronizationStrategy( IndexingPlanSynchronizationStrategy.sync() )
 				.build() ) {
 			Book book = new Book();
 			book.setId( 1 );

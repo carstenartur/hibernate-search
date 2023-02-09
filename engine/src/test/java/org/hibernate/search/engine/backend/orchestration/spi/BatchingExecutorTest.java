@@ -8,8 +8,10 @@ package org.hibernate.search.engine.backend.orchestration.spi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 import static org.hibernate.search.util.impl.test.FutureAssert.assertThatFuture;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -23,12 +25,12 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -63,9 +65,11 @@ public class BatchingExecutorTest {
 
 	@Parameterized.Parameters(name = "operation submitter = {0}")
 	public static Object[][] params() {
-		return Arrays.stream( OperationSubmitter.values() )
-				.map( value -> new Object[] { value } )
-				.toArray( Object[][]::new );
+		return new Object[][] {
+				{ "BLOCKING", OperationSubmitter.blocking() },
+				{ "REJECTING", OperationSubmitter.rejecting() },
+				{ "OFFLOADING", OperationSubmitter.offloading( CompletableFuture::runAsync ) }
+		};
 	}
 
 	@Rule
@@ -85,11 +89,11 @@ public class BatchingExecutorTest {
 	private final ForkJoinPool asyncExecutor = new ForkJoinPool( 12 );
 
 	private ScheduledExecutorService executorService;
-	private BatchingExecutor<StubWorkProcessor> executor;
+	private BatchingExecutor<StubWorkProcessor, StubWork> executor;
 
 	private final OperationSubmitter operationSubmitter;
 
-	public BatchingExecutorTest(OperationSubmitter operationSubmitter) {
+	public BatchingExecutorTest(String name, OperationSubmitter operationSubmitter) {
 		this.operationSubmitter = operationSubmitter;
 	}
 
@@ -347,7 +351,7 @@ public class BatchingExecutorTest {
 
 		assumeTrue(
 				"This test only makes sense for nonblocking submitter",
-				OperationSubmitter.REJECTED_EXECUTION_EXCEPTION.equals( operationSubmitter )
+				OperationSubmitter.rejecting().equals( operationSubmitter )
 		);
 
 		Runnable unblockExecutorSwitch = blockExecutor();
@@ -383,7 +387,7 @@ public class BatchingExecutorTest {
 
 		assumeTrue(
 				"This test only makes sense for blocking submitter",
-				OperationSubmitter.BLOCKING.equals( operationSubmitter )
+				OperationSubmitter.blocking().equals( operationSubmitter )
 		);
 
 		Runnable unblockExecutorSwitch = blockExecutor();
@@ -443,6 +447,74 @@ public class BatchingExecutorTest {
 		checkPostExecution();
 	}
 
+	@Test
+	public void simple_newTasksBlockedAndOffloadedCompletes() throws InterruptedException {
+		AtomicReference<Runnable> offloadAction = new AtomicReference<>( () -> { } );
+		createAndStartExecutor( 2, true, w -> offloadAction.get().run() );
+
+		assumeFalse(
+				"This test only makes sense for offloading submitter",
+				OperationSubmitter.blocking().equals( operationSubmitter ) ||
+						OperationSubmitter.rejecting().equals( operationSubmitter )
+		);
+
+		Runnable unblockExecutorSwitch = blockExecutor();
+
+		StubWork work1Mock = workMock( 1 );
+		StubWork work2Mock = workMock( 2 );
+		StubWork work3Mock = workMock( 3 );
+
+		executor.submit( work1Mock, operationSubmitter );
+		executor.submit( work2Mock, operationSubmitter );
+
+		AtomicReference<Thread> work3SubmitThread = new AtomicReference<>();
+		AtomicBoolean work3Submitted = new AtomicBoolean( false );
+		offloadAction.set( () -> {
+			work3SubmitThread.set( Thread.currentThread() );
+			try {
+				executor.submit( work3Mock, OperationSubmitter.blocking() );
+				work3Submitted.set( true );
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		} );
+		executor.submit( work3Mock, operationSubmitter );
+
+		// wait until the thread submitting work3 is submitting and blocked
+		Awaitility.await().untilAsserted( () -> assertThat( work3SubmitThread )
+				.hasValueSatisfying( thread -> assertThat( thread.getState() )
+						.isIn( Thread.State.BLOCKED, Thread.State.WAITING, Thread.State.TIMED_WAITING ) ) );
+
+		when( processorMock.endBatch() ).thenReturn( CompletableFuture.completedFuture( null ) );
+
+		doAnswer( invocation -> {
+			// See https://hibernate.atlassian.net/browse/HSEARCH-4750
+			// Just make sure that we don't finish the batch until work3 has actually been submitted.
+			// If we don't do this, and the batch finishes before work3 has been submitted,
+			// then processorMock.complete() gets called and the call to verifyAsynchronouslyAndReset
+			// below fails. Since that can happen randomly, it's very inconvenient and leads to flaky tests.
+			Awaitility.await().until( work3Submitted::get );
+			return null;
+		} ).when( work2Mock ).submitTo( any( StubWorkProcessor.class ) );
+
+		unblockExecutorSwitch.run();
+
+		verifyAsynchronouslyAndReset( inOrder -> {
+			inOrder.verify( processorMock ).beginBatch();
+			inOrder.verify( work1Mock ).submitTo( processorMock );
+			inOrder.verify( work2Mock ).submitTo( processorMock );
+			inOrder.verify( processorMock ).endBatch();
+			inOrder.verify( processorMock ).beginBatch();
+			inOrder.verify( work3Mock ).submitTo( processorMock );
+			inOrder.verify( processorMock ).endBatch();
+			inOrder.verify( processorMock ).complete();
+		} );
+
+		// Submitting other works should start the executor/processor again
+		checkPostExecution();
+	}
+
 	private void verifyAsynchronouslyAndReset(Consumer<InOrder> verify) {
 		await().untilAsserted( () -> {
 			InOrder inOrder = inOrder( mocks.toArray() );
@@ -473,15 +545,18 @@ public class BatchingExecutorTest {
 	}
 
 	private void createAndStartExecutor(int maxTasksPerBatch, boolean fair) {
+		createAndStartExecutor( maxTasksPerBatch, fair, w -> fail( "Work shouldn't be offloaded." ) );
+	}
+	private void createAndStartExecutor(int maxTasksPerBatch, boolean fair, Consumer<? super BatchedWork<? super StubWorkProcessor>> blockingRetryProducer) {
 		this.executor = new BatchingExecutor<>(
-				NAME, processorMock, maxTasksPerBatch, fair, failureHandlerMock
+				NAME, processorMock, maxTasksPerBatch, fair, failureHandlerMock, blockingRetryProducer
 		);
 
 		// Having multiple threads should not matter:
 		// the batching executor takes care of executing in only one thread at a time.
 		this.executorService = threadPoolProvider.newScheduledExecutor( 4, "BatchingExecutorTest" );
 
-		executor.start( new DelegatingSimpleScheduledExecutor( executorService ) );
+		executor.start( new DelegatingSimpleScheduledExecutor( executorService, true ) );
 		verifyAsynchronouslyAndReset( inOrder -> {
 			// No calls expected yet
 		} );

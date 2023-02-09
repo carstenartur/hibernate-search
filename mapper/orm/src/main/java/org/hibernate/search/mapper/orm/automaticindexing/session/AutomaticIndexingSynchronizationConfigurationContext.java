@@ -14,8 +14,13 @@ import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrateg
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.reporting.FailureHandler;
 import org.hibernate.search.mapper.orm.work.SearchIndexingPlanExecutionReport;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategyConfigurationContext;
 import org.hibernate.search.util.common.annotation.Incubating;
 
+/**
+ * @deprecated Use {@link IndexingPlanSynchronizationStrategyConfigurationContext}
+ */
+@Deprecated
 public interface AutomaticIndexingSynchronizationConfigurationContext {
 
 	/**
@@ -55,7 +60,7 @@ public interface AutomaticIndexingSynchronizationConfigurationContext {
 	/**
 	 * Set operation submitter to be applied while executing underlying plans.
 	 *
-	 * Using {@link OperationSubmitter#BLOCKING} by default.
+	 * Using {@link OperationSubmitter#blocking()} by default.
 	 *
 	 * @param operationSubmitter How to handle request to submit operation when the queue is full
 	 * @see OperationSubmitter

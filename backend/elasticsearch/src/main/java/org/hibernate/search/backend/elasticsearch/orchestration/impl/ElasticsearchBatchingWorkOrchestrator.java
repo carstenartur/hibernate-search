@@ -57,7 +57,7 @@ public class ElasticsearchBatchingWorkOrchestrator
 	private final BackendThreads threads;
 	private final FailureHandler failureHandler;
 
-	private HashTable<BatchingExecutor<ElasticsearchBatchedWorkProcessor>> executors;
+	private HashTable<BatchingExecutor<ElasticsearchBatchedWorkProcessor, ElasticsearchBatchedWork<?>>> executors;
 
 	/**
 	 * @param name The name of the orchestrator thread (and of this orchestrator when reporting errors)
@@ -97,11 +97,12 @@ public class ElasticsearchBatchingWorkOrchestrator
 					processor,
 					queueSize,
 					true,
-					failureHandler
+					failureHandler,
+					blockingRetryProducer
 			) );
 		}
 
-		for ( BatchingExecutor<?> executor : executors ) {
+		for ( BatchingExecutor<?, ?> executor : executors ) {
 			executor.start( threads.getWorkExecutor() );
 		}
 	}

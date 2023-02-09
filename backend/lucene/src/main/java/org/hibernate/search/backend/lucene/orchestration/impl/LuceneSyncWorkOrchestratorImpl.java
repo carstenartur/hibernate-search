@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.hibernate.search.backend.lucene.cache.impl.LuceneQueryCachingContext;
 import org.hibernate.search.backend.lucene.logging.impl.Log;
 import org.hibernate.search.backend.lucene.lowlevel.reader.impl.HibernateSearchMultiReader;
 import org.hibernate.search.backend.lucene.lowlevel.reader.impl.IndexReaderMetadataResolver;
@@ -28,7 +29,6 @@ import org.hibernate.search.util.common.reporting.EventContext;
 
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.similarities.Similarity;
-import org.hibernate.search.backend.lucene.cache.impl.LuceneQueryCachingContext;
 
 public class LuceneSyncWorkOrchestratorImpl
 		extends AbstractWorkOrchestrator<LuceneSyncWorkOrchestratorImpl.WorkExecution<?>>
@@ -56,7 +56,7 @@ public class LuceneSyncWorkOrchestratorImpl
 		);
 		Throwable throwable = null;
 		try {
-			submit( workExecution, OperationSubmitter.BLOCKING );
+			submit( workExecution, OperationSubmitter.blocking() );
 			// If we get there, the task succeeded and we are sure there is a result.
 			return workExecution.getResult();
 		}
@@ -84,7 +84,7 @@ public class LuceneSyncWorkOrchestratorImpl
 
 	@Override
 	protected void doSubmit(WorkExecution<?> work, OperationSubmitter operationSubmitter) {
-		if ( !OperationSubmitter.BLOCKING.equals( operationSubmitter ) ) {
+		if ( !OperationSubmitter.blocking().equals( operationSubmitter ) ) {
 			throw log.nonblockingOperationSubmitterNotSupported();
 		}
 		work.execute();

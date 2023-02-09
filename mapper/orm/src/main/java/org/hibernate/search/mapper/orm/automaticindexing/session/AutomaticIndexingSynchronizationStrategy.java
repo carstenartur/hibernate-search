@@ -7,17 +7,17 @@
 package org.hibernate.search.mapper.orm.automaticindexing.session;
 
 import org.hibernate.search.mapper.orm.session.SearchSession;
-import org.hibernate.search.mapper.orm.automaticindexing.session.impl.ReadSyncAutomaticIndexingSynchronizationStrategy;
-import org.hibernate.search.mapper.orm.automaticindexing.session.impl.WriteSyncAutomaticIndexingSynchronizationStrategy;
-import org.hibernate.search.mapper.orm.automaticindexing.session.impl.AsyncAutomaticIndexingSynchronizationStrategy;
-import org.hibernate.search.mapper.orm.automaticindexing.session.impl.SyncAutomaticIndexingSynchronizationStrategy;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategy;
 
 /**
  * Determines how the thread will block upon committing a transaction
  * where indexed entities were modified.
  *
  * @see SearchSession#automaticIndexingSynchronizationStrategy(AutomaticIndexingSynchronizationStrategy)
+ *
+ * @deprecated See {@link IndexingPlanSynchronizationStrategy}
  */
+@Deprecated
 public interface AutomaticIndexingSynchronizationStrategy {
 
 	void apply(AutomaticIndexingSynchronizationConfigurationContext context);
@@ -27,7 +27,7 @@ public interface AutomaticIndexingSynchronizationStrategy {
 	 * See the reference documentation for details.
 	 */
 	static AutomaticIndexingSynchronizationStrategy async() {
-		return AsyncAutomaticIndexingSynchronizationStrategy.INSTANCE;
+		return org.hibernate.search.mapper.orm.automaticindexing.session.impl.AutomaticIndexingSynchronizationStrategy.ASYNC;
 	}
 
 	/**
@@ -35,7 +35,7 @@ public interface AutomaticIndexingSynchronizationStrategy {
 	 * See the reference documentation for details.
 	 */
 	static AutomaticIndexingSynchronizationStrategy writeSync() {
-		return WriteSyncAutomaticIndexingSynchronizationStrategy.INSTANCE;
+		return org.hibernate.search.mapper.orm.automaticindexing.session.impl.AutomaticIndexingSynchronizationStrategy.WRITE_SYNC;
 	}
 
 	/**
@@ -43,7 +43,7 @@ public interface AutomaticIndexingSynchronizationStrategy {
 	 * See the reference documentation for details.
 	 */
 	static AutomaticIndexingSynchronizationStrategy readSync() {
-		return ReadSyncAutomaticIndexingSynchronizationStrategy.INSTANCE;
+		return org.hibernate.search.mapper.orm.automaticindexing.session.impl.AutomaticIndexingSynchronizationStrategy.READ_SYNC;
 	}
 
 	/**
@@ -52,7 +52,7 @@ public interface AutomaticIndexingSynchronizationStrategy {
 	 * See the reference documentation for details.
 	 */
 	static AutomaticIndexingSynchronizationStrategy sync() {
-		return SyncAutomaticIndexingSynchronizationStrategy.INSTANCE;
+		return org.hibernate.search.mapper.orm.automaticindexing.session.impl.AutomaticIndexingSynchronizationStrategy.SYNC;
 	}
 
 }

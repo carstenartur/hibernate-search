@@ -12,8 +12,7 @@ import java.util.Arrays;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.TestConfiguration;
-import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
-import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategy;
 import org.hibernate.search.mapper.pojo.standalone.entity.SearchIndexedEntity;
 import org.hibernate.search.mapper.pojo.standalone.mapping.CloseableSearchMapping;
 import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
@@ -102,8 +101,7 @@ public class StandalonePojoEntryPointsIT {
 				theSearchMapping;
 		// tag::searchSession-withOptions[]
 		try ( SearchSession searchSession = searchMapping.createSessionWithOptions() // <2>
-				.commitStrategy( DocumentCommitStrategy.FORCE ) // <3>
-				.refreshStrategy( DocumentRefreshStrategy.FORCE )
+				.indexingPlanSynchronizationStrategy( IndexingPlanSynchronizationStrategy.sync() )// <3>
 				.tenantId( "myTenant" )
 				.build() ) { // <4>
 			// ...

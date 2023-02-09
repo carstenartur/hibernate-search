@@ -20,7 +20,6 @@ import org.hibernate.SessionFactory;
 import org.hibernate.mapping.Value;
 import org.hibernate.resource.beans.container.spi.BeanContainer;
 import org.hibernate.search.engine.environment.bean.spi.BeanNotFoundException;
-import org.hibernate.search.mapper.orm.common.EntityReference;
 import org.hibernate.search.mapper.orm.search.loading.EntityLoadingCacheLookupStrategy;
 import org.hibernate.search.mapper.pojo.logging.spi.PojoModelPathFormatter;
 import org.hibernate.search.mapper.pojo.logging.spi.PojoTypeModelFormatter;
@@ -155,10 +154,7 @@ public interface Log extends BasicLogger {
 	SearchException hibernateSessionFactoryAccessError(String causeMessage, @Cause IllegalStateException cause);
 
 	@Message(id = ID_OFFSET + 22, value = "Indexing failure: %1$s.\nThe following entities may not have been updated correctly in the index: %2$s.")
-	SearchException indexingFailure(String causeMessage, List<EntityReference> failingEntities, @Cause Throwable cause);
-
-	@Message(value = "Automatic indexing of Hibernate ORM entities")
-	String automaticIndexing();
+	SearchException indexingFailure(String causeMessage, List<?> failingEntities, @Cause Throwable cause);
 
 	@Message(id = ID_OFFSET + 23, value = "Unable to process entities for automatic indexing before transaction completion: %1$s")
 	SearchException synchronizationBeforeTransactionFailure(String causeMessage, @Cause Throwable cause);
@@ -317,4 +313,12 @@ public interface Log extends BasicLogger {
 					+ " %2$s") // Context
 	void failedToResolveStateRepresentation(String path, @FormatWith(EventContextFormatter.class) EventContext context, String causeMessage,
 			@Cause Exception cause);
+
+	@Message(id = ID_OFFSET + 122,
+			value = "Both '%1$s' and '%2$s' are configured. Use only '%1$s' to set the indexing plan synchronization strategy. ")
+	SearchException bothNewAndOldConfigurationPropertiesForIndexingPlanSyncAreUsed(String key1, String key2);
+
+	@LogMessage(level = WARN)
+	@Message(id = ID_OFFSET + 123, value = "Configuration property '%1$s' is deprecated; use '%2$s' instead.")
+	void automaticIndexingSynchronizationStrategyIsDeprecated(String deprecatedProperty, String newProperty);
 }

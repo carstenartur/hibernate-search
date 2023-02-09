@@ -18,7 +18,6 @@ import javax.persistence.Id;
 
 import org.hibernate.search.integrationtest.mapper.orm.realbackend.testsupport.BackendConfigurations;
 import org.hibernate.search.mapper.orm.Search;
-import org.hibernate.search.mapper.orm.automaticindexing.session.AutomaticIndexingSynchronizationStrategyNames;
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
 import org.hibernate.search.mapper.pojo.bridge.RoutingBridge;
 import org.hibernate.search.mapper.pojo.bridge.binding.RoutingBindingContext;
@@ -26,6 +25,7 @@ import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.RoutingBinderR
 import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.RoutingBinder;
 import org.hibernate.search.mapper.pojo.bridge.runtime.RoutingBridgeRouteContext;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategyNames;
 import org.hibernate.search.mapper.pojo.route.DocumentRoutes;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmSetupHelper;
 
@@ -50,8 +50,8 @@ public class RoutingBridgeRoutingKeyIT {
 	@Before
 	public void setup() {
 		entityManagerFactory = setupHelper.start()
-				.withProperty( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_SYNCHRONIZATION_STRATEGY,
-						AutomaticIndexingSynchronizationStrategyNames.READ_SYNC )
+				.withProperty( HibernateOrmMapperSettings.INDEXING_PLAN_SYNCHRONIZATION_STRATEGY,
+						IndexingPlanSynchronizationStrategyNames.READ_SYNC )
 				// This call in testLifecycle to Elasticsearch sever may exceed 30 seconds,
 				// from some machine. This is a server (not Hibernate Search) latency.
 				// E.g: > query parameters {} and 1 objects in payload in 30617ms.

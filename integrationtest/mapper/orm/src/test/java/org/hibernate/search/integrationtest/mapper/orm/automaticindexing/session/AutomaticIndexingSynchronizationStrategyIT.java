@@ -52,6 +52,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.Awaitility;
 import org.hamcrest.CoreMatchers;
 
+@Deprecated
 public class AutomaticIndexingSynchronizationStrategyIT {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
@@ -225,7 +226,7 @@ public class AutomaticIndexingSynchronizationStrategyIT {
 		AtomicReference<CompletableFuture<?>> futureThatTookTooLong = new AtomicReference<>( null );
 
 		SessionFactory sessionFactory = setup(
-				new CustomAutomaticIndexingSynchronizationStrategy( futureThatTookTooLong, OperationSubmitter.BLOCKING )
+				new CustomAutomaticIndexingSynchronizationStrategy( futureThatTookTooLong, OperationSubmitter.blocking() )
 		);
 		CompletableFuture<?> indexingWorkFuture = new CompletableFuture<>();
 
@@ -247,7 +248,7 @@ public class AutomaticIndexingSynchronizationStrategyIT {
 		AtomicReference<CompletableFuture<?>> futureThatTookTooLong = new AtomicReference<>( null );
 
 		SessionFactory sessionFactory = setup(
-				new CustomAutomaticIndexingSynchronizationStrategy( futureThatTookTooLong, OperationSubmitter.REJECTED_EXECUTION_EXCEPTION )
+				new CustomAutomaticIndexingSynchronizationStrategy( futureThatTookTooLong, OperationSubmitter.rejecting() )
 		);
 		CompletableFuture<?> indexingWorkFuture = new CompletableFuture<>();
 
@@ -274,7 +275,7 @@ public class AutomaticIndexingSynchronizationStrategyIT {
 				Level.ERROR,
 				CoreMatchers.sameInstance( indexingWorkException ),
 				"Failing operation:",
-				"Automatic indexing of Hibernate ORM entities",
+				"Automatic indexing of entities",
 				"Entities that could not be indexed correctly:",
 				IndexedEntity.NAME + "#" + ENTITY_1_ID + " " + IndexedEntity.NAME + "#" + ENTITY_2_ID
 		);
@@ -656,7 +657,7 @@ public class AutomaticIndexingSynchronizationStrategyIT {
 		private final OperationSubmitter operationSubmitter;
 
 		private CustomAutomaticIndexingSynchronizationStrategy(AtomicReference<CompletableFuture<?>> futureThatTookTooLong) {
-			this( futureThatTookTooLong, OperationSubmitter.BLOCKING );
+			this( futureThatTookTooLong, OperationSubmitter.blocking() );
 		}
 
 		private CustomAutomaticIndexingSynchronizationStrategy(
@@ -682,7 +683,7 @@ public class AutomaticIndexingSynchronizationStrategyIT {
 				}
 				catch (TimeoutException e) {
 					/*
-					 * If it takes too long, push the the completable future to some background service
+					 * If it takes too long, push the completable future to some background service
 					 * to wait on it and report errors asynchronously if necessary.
 					 * Here we just simulate this by setting an AtomicReference.
 					 */

@@ -8,8 +8,7 @@ package org.hibernate.search.mapper.pojo.standalone.session;
 
 import java.util.function.Consumer;
 
-import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
-import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategy;
 import org.hibernate.search.mapper.pojo.standalone.loading.dsl.SelectionLoadingOptionsStep;
 import org.hibernate.search.util.common.annotation.Incubating;
 
@@ -24,16 +23,13 @@ public interface SearchSessionBuilder {
 	SearchSessionBuilder tenantId(String tenantId);
 
 	/**
-	 * @param commitStrategy The commit strategy for indexing works added to the {@link SearchSession#indexingPlan() indexing plan}.
+	 * @param synchronizationStrategy The synchronization strategy for indexing works added to the {@link SearchSession#indexingPlan() indexing plan}.
 	 * @return {@code this} for method chaining.
+	 *
+	 * @see IndexingPlanSynchronizationStrategy
+	 * @see IndexingPlanSynchronizationStrategy
 	 */
-	SearchSessionBuilder commitStrategy(DocumentCommitStrategy commitStrategy);
-
-	/**
-	 * @param refreshStrategy The refresh strategy for indexing works added to the {@link SearchSession#indexingPlan() indexing plan}.
-	 * @return {@code this} for method chaining.
-	 */
-	SearchSessionBuilder refreshStrategy(DocumentRefreshStrategy refreshStrategy);
+	SearchSessionBuilder indexingPlanSynchronizationStrategy(IndexingPlanSynchronizationStrategy synchronizationStrategy);
 
 	/**
 	 * @param loadingOptionsContributor The default loading options.

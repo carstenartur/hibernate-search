@@ -35,6 +35,7 @@ import org.hibernate.search.mapper.orm.session.SearchSession;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategyNames;
 import org.hibernate.search.util.common.impl.SuppressingCloser;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmSetupHelper;
 
@@ -60,7 +61,8 @@ public class ConcurrentEmbeddedUpdateLimitationIT {
 		synchronizationAsync = false;
 		sessionFactory = setupHelper.start()
 				// This is absolutely necessary to avoid false positives in this test
-				.withProperty( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_SYNCHRONIZATION_STRATEGY, "sync" )
+				.withProperty( HibernateOrmMapperSettings.INDEXING_PLAN_SYNCHRONIZATION_STRATEGY,
+						IndexingPlanSynchronizationStrategyNames.SYNC )
 				.skipTestForDialect( SQLServerDialect.class,
 						"The execution could provoke a failure caused by a deadlock on SQLServer, "
 						+ "which will abort our requests and will make the tests fail." )

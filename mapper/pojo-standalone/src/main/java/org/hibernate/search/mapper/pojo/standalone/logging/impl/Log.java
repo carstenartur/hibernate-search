@@ -90,5 +90,4 @@ public interface Log extends BasicLogger {
 			+ " Valid classes for mapped entity types are: %2$s")
 	SearchException unknownClassForMappedEntityType(@FormatWith(ClassFormatter.class) Class<?> invalidClass,
 			@FormatWith(CommaSeparatedClassesFormatter.class) Collection<Class<?>> validClasses);
-
 }

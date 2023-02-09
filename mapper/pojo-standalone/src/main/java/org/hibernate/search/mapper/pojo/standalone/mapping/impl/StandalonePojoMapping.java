@@ -6,7 +6,6 @@
  */
 package org.hibernate.search.mapper.pojo.standalone.mapping.impl;
 
-import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,10 +32,9 @@ import org.hibernate.search.mapper.pojo.standalone.common.EntityReference;
 import org.hibernate.search.mapper.pojo.standalone.common.impl.EntityReferenceImpl;
 import org.hibernate.search.mapper.pojo.standalone.entity.SearchIndexedEntity;
 import org.hibernate.search.mapper.pojo.standalone.loading.impl.StandalonePojoLoadingContext;
-import org.hibernate.search.mapper.pojo.standalone.logging.impl.Log;
-import org.hibernate.search.mapper.pojo.standalone.reporting.impl.StandalonePojoMappingHints;
 import org.hibernate.search.mapper.pojo.standalone.mapping.CloseableSearchMapping;
 import org.hibernate.search.mapper.pojo.standalone.massindexing.impl.StandalonePojoMassIndexingSessionContext;
+import org.hibernate.search.mapper.pojo.standalone.reporting.impl.StandalonePojoMappingHints;
 import org.hibernate.search.mapper.pojo.standalone.schema.management.impl.SchemaManagementListener;
 import org.hibernate.search.mapper.pojo.standalone.scope.SearchScope;
 import org.hibernate.search.mapper.pojo.standalone.scope.impl.SearchScopeImpl;
@@ -47,32 +45,34 @@ import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSe
 import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSearchSessionMappingContext;
 import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSessionIndexedTypeContext;
 import org.hibernate.search.util.common.impl.Closer;
-import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 public class StandalonePojoMapping extends AbstractPojoMappingImplementor<StandalonePojoMapping>
 		implements CloseableSearchMapping, StandalonePojoSearchSessionMappingContext, EntityReferenceFactory<EntityReference> {
 
-	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
-
 	private final StandalonePojoTypeContextContainer typeContextContainer;
+	private final SchemaManagementListener schemaManagementListener;
+	private final ConfiguredIndexingPlanSynchronizationStrategyHolder configuredIndexingPlanSynchronizationStrategyHolder;
 
 	private SearchIntegration.Handle integrationHandle;
-
 	private boolean active;
 
-	private final SchemaManagementListener schemaManagementListener;
 
 	StandalonePojoMapping(PojoMappingDelegate mappingDelegate, StandalonePojoTypeContextContainer typeContextContainer,
 			SchemaManagementListener schemaManagementListener) {
 		super( mappingDelegate );
 		this.typeContextContainer = typeContextContainer;
 		this.schemaManagementListener = schemaManagementListener;
+		this.configuredIndexingPlanSynchronizationStrategyHolder = new ConfiguredIndexingPlanSynchronizationStrategyHolder(
+				this );
 		this.active = true;
 	}
 
 	@Override
 	public CompletableFuture<?> start(MappingStartContext context) {
 		integrationHandle = context.integrationHandle();
+
+		configuredIndexingPlanSynchronizationStrategyHolder.start( context );
+
 		Optional<SearchScopeImpl<Object>> scopeOptional = createAllScope();
 		if ( !scopeOptional.isPresent() ) {
 			// No indexed type
@@ -104,6 +104,10 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 		}
 		try ( Closer<RuntimeException> closer = new Closer<>() ) {
 			closer.push( SearchIntegration::close, integrationHandle, SearchIntegration.Handle::getOrNull );
+			closer.push(
+					ConfiguredIndexingPlanSynchronizationStrategyHolder::close,
+					configuredIndexingPlanSynchronizationStrategyHolder
+			);
 			integrationHandle = null;
 			active = false;
 		}
@@ -230,7 +234,7 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 
 	private StandalonePojoSearchSession.Builder createSessionBuilder() {
 		return new StandalonePojoSearchSession.Builder(
-				this, typeContextContainer
+				this, configuredIndexingPlanSynchronizationStrategyHolder, typeContextContainer
 		);
 	}
 }

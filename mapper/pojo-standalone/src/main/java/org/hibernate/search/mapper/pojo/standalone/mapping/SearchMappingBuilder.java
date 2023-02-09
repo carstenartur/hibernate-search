@@ -116,6 +116,7 @@ public final class SearchMappingBuilder {
 
 			SearchIntegrationFinalizer finalizer =
 					integrationPartialBuildState.finalizer( propertySource, propertyChecker );
+
 			mapping = finalizer.finalizeMapping(
 					mappingKey,
 					(context, partialMapping) -> partialMapping.finalizeMapping()
