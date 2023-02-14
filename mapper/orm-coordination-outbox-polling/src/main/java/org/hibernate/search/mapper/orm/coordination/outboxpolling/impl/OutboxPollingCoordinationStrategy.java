@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -28,6 +27,8 @@ import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrat
 import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrategyPreStopContext;
 import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrategyStartContext;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.HibernateOrmMapperOutboxPollingSettings;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.OutboxEventProcessingOrder;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.UuidGenerationStrategy;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.impl.HibernateOrmMapperOutboxPollingImplSettings;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentRepositoryProvider;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.DefaultAgentRepository;
@@ -35,6 +36,7 @@ import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.O
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.ShardAssignmentDescriptor;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.DefaultOutboxEventFinder;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxEventFinderProvider;
+import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxEventOrder;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxPollingEventProcessor;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxPollingMassIndexerAgent;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxPollingOutboxEventAdditionalJaxbMappingProducer;
@@ -68,18 +70,20 @@ public class OutboxPollingCoordinationStrategy implements CoordinationStrategy {
 					.multivalued()
 					.build();
 
-	private static final OptionalConfigurationProperty<BeanReference<? extends AgentRepositoryProvider>> AGENT_REPOSITORY_PROVIDER =
-			ConfigurationProperty.forKey( HibernateOrmMapperOutboxPollingImplSettings.CoordinationRadicals.AGENT_REPOSITORY_PROVIDER )
-					.asBeanReference( AgentRepositoryProvider.class )
+	private static final ConfigurationProperty<OutboxEventProcessingOrder> EVENT_PROCESSOR_ORDER =
+			ConfigurationProperty.forKey( HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.EVENT_PROCESSOR_ORDER )
+					.as( OutboxEventProcessingOrder.class, OutboxEventProcessingOrder::of )
+					.withDefault( HibernateOrmMapperOutboxPollingSettings.Defaults.COORDINATION_EVENT_PROCESSOR_ORDER )
 					.build();
 
-	private static final OptionalConfigurationProperty<BeanReference<? extends OutboxEventFinderProvider>> OUTBOX_EVENT_FINDER_PROVIDER =
-			ConfigurationProperty.forKey( HibernateOrmMapperOutboxPollingImplSettings.CoordinationRadicals.OUTBOX_EVENT_FINDER_PROVIDER )
-					.asBeanReference( OutboxEventFinderProvider.class )
+	private static final ConfigurationProperty<BeanReference<? extends OutboxPollingInternalConfigurer>> INTERNAL_CONFIGURER =
+			ConfigurationProperty.forKey( HibernateOrmMapperOutboxPollingImplSettings.CoordinationRadicals.INTERNAL_CONFIGURER )
+					.asBeanReference( OutboxPollingInternalConfigurer.class )
+					.withDefault( BeanReference.ofInstance( OutboxPollingInternalConfigurer.DEFAULT ) )
 					.build();
 
-	private BeanHolder<? extends OutboxEventFinderProvider> finderProviderHolder;
-	private BeanHolder<? extends AgentRepositoryProvider> agentRepositoryProviderHolder;
+	private OutboxEventFinderProvider finderProvider;
+	private AgentRepositoryProvider agentRepositoryProvider;
 
 	private TenancyConfiguration tenancyConfiguration;
 	private final Map<String, TenantDelegate> tenantDelegates = new LinkedHashMap<>();
@@ -94,32 +98,22 @@ public class OutboxPollingCoordinationStrategy implements CoordinationStrategy {
 
 	@Override
 	public CompletableFuture<?> start(CoordinationStrategyStartContext context) {
-		Optional<BeanHolder<? extends AgentRepositoryProvider>> agentRepositoryProviderHolderOptional =
-				AGENT_REPOSITORY_PROVIDER.getAndMap(
-						context.configurationPropertySource(), context.beanResolver()::resolve );
-		if ( agentRepositoryProviderHolderOptional.isPresent() ) {
-			agentRepositoryProviderHolder = agentRepositoryProviderHolderOptional.get();
-			log.debugf(
-					"Outbox processing will use custom agent repository provider '%s'.",
-					agentRepositoryProviderHolder.get()
-			);
-		}
-		else {
-			agentRepositoryProviderHolder = BeanHolder.of( new DefaultAgentRepository.Provider() );
-		}
+		ConfigurationPropertySource configurationSource = context.configurationPropertySource();
 
-		Optional<BeanHolder<? extends OutboxEventFinderProvider>> finderProviderHolderOptional =
-				OUTBOX_EVENT_FINDER_PROVIDER.getAndMap(
-						context.configurationPropertySource(), context.beanResolver()::resolve );
-		if ( finderProviderHolderOptional.isPresent() ) {
-			finderProviderHolder = finderProviderHolderOptional.get();
-			log.debugf(
-					"Outbox processing will use custom outbox event finder provider '%s'.",
-					finderProviderHolder.get()
-			);
-		}
-		else {
-			finderProviderHolder = BeanHolder.of( new DefaultOutboxEventFinder.Provider() );
+		OutboxEventOrder processingOrder = OutboxEventOrder.of(
+				EVENT_PROCESSOR_ORDER.get( configurationSource ),
+				OutboxPollingOutboxEventAdditionalJaxbMappingProducer.ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY
+						.get( configurationSource )
+						.orElse( UuidGenerationStrategy.AUTO ),
+				context.mapping().sessionFactory().getJdbcServices().getDialect()
+		);
+
+		try ( BeanHolder<? extends OutboxPollingInternalConfigurer> internalConfigurerHolder =
+				INTERNAL_CONFIGURER.getAndTransform( configurationSource, context.beanResolver()::resolve ) ) {
+			OutboxPollingInternalConfigurer internalConfigurer = internalConfigurerHolder.get();
+			agentRepositoryProvider = internalConfigurer.wrapAgentRepository( new DefaultAgentRepository.Provider() );
+			finderProvider = internalConfigurer.wrapEventFinder(
+					new DefaultOutboxEventFinder.Provider( processingOrder ) );
 		}
 
 		tenancyConfiguration = context.tenancyConfiguration();
@@ -129,19 +123,18 @@ public class OutboxPollingCoordinationStrategy implements CoordinationStrategy {
 			// Single-tenant
 			TenantDelegate tenantDelegate = new TenantDelegate( null );
 			tenantDelegates.put( null, tenantDelegate );
-			tenantDelegate.start( context, context.configurationPropertySource() );
+			tenantDelegate.start( context, configurationSource );
 		}
 		else {
 			// Multi-tenant
 			for ( String tenantId : tenantIds ) {
 				TenantDelegate tenantDelegate = new TenantDelegate( tenantId );
 				tenantDelegates.put( tenantId, tenantDelegate );
-				ConfigurationPropertySource configurationSource = context.configurationPropertySource();
-				configurationSource = configurationSource
+				ConfigurationPropertySource tenantConfigurationSource = configurationSource
 						.withMask( HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.TENANTS )
 						.withMask( tenantId )
 						.withFallback( configurationSource );
-				tenantDelegate.start( context, configurationSource );
+				tenantDelegate.start( context, tenantConfigurationSource );
 			}
 		}
 
@@ -151,7 +144,7 @@ public class OutboxPollingCoordinationStrategy implements CoordinationStrategy {
 	@Override
 	public PojoMassIndexerAgent createMassIndexerAgent(PojoMassIndexerAgentCreateContext context) {
 		return tenantDelegate( context.tenantIdentifier() ).massIndexerAgentFactory
-				.create( context, agentRepositoryProviderHolder.get() );
+				.create( context, agentRepositoryProvider );
 	}
 
 	private TenantDelegate tenantDelegate(String tenantId) {
@@ -197,8 +190,6 @@ public class OutboxPollingCoordinationStrategy implements CoordinationStrategy {
 				closer.pushAll( OutboxPollingEventProcessor::stop, tenantDelegate.eventProcessors );
 				closer.push( ScheduledExecutorService::shutdownNow, tenantDelegate.eventProcessorExecutor );
 			}
-			closer.push( BeanHolder::close, finderProviderHolder );
-			closer.push( BeanHolder::close, agentRepositoryProviderHolder );
 		}
 	}
 
@@ -260,8 +251,8 @@ public class OutboxPollingCoordinationStrategy implements CoordinationStrategy {
 							OutboxPollingEventProcessor.namePrefix( tenantId ) );
 			eventProcessors = new ArrayList<>();
 			for ( ShardAssignmentDescriptor shardAssignmentOrNull : shardAssignmentOrNulls ) {
-				eventProcessors.add( factory.create( eventProcessorExecutor, finderProviderHolder.get(),
-						agentRepositoryProviderHolder.get(), shardAssignmentOrNull ) );
+				eventProcessors.add( factory.create( eventProcessorExecutor, finderProvider,
+						agentRepositoryProvider, shardAssignmentOrNull ) );
 			}
 			for ( OutboxPollingEventProcessor eventProcessor : eventProcessors ) {
 				eventProcessor.start();

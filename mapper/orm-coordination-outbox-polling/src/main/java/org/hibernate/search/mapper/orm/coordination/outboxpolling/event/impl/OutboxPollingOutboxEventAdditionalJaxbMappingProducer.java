@@ -68,13 +68,12 @@ public final class OutboxPollingOutboxEventAdditionalJaxbMappingProducer
 			"                <column length=\"2147483647\" />\n" +
 			"        </property>\n" +
 			"        <property name=\"retries\" type=\"integer\" nullable=\"false\" />\n" +
-			"        <property name=\"processAfter\" type=\"Instant\" index=\"processAfter\" nullable=\"true\" />\n" +
+			"        <property name=\"processAfter\" type=\"Instant\" index=\"processAfter\" nullable=\"false\" />\n" +
 			"        <property name=\"status\" index=\"status\" nullable=\"false\">\n" +
 			"            <type name=\"org.hibernate.type.EnumType\">\n" +
 			"                <param name=\"enumClass\">" + OutboxEvent.Status.class.getName() + "</param>\n" +
 			"            </type>\n" +
 			"        </property>\n" +
-			"        <property name=\"created\" type=\"Instant\" index=\"created\" nullable=\"false\" />\n" +
 			"    </class>\n" +
 			"</hibernate-mapping>\n";
 
@@ -109,7 +108,7 @@ public final class OutboxPollingOutboxEventAdditionalJaxbMappingProducer
 					.asString()
 					.build();
 
-	private static final OptionalConfigurationProperty<UuidGenerationStrategy> ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY =
+	public static final OptionalConfigurationProperty<UuidGenerationStrategy> ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY =
 			ConfigurationProperty.forKey(
 							HibernateOrmMapperOutboxPollingSettings.CoordinationRadicals.ENTITY_MAPPING_OUTBOXEVENT_UUID_GEN_STRATEGY )
 					.as( UuidGenerationStrategy.class, UuidGenerationStrategy::of )

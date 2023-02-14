@@ -29,6 +29,7 @@ import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.A
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentType;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.AgentState;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.ShardAssignmentDescriptor;
+import org.hibernate.search.util.common.impl.ToStringTreeBuilder;
 
 import org.junit.After;
 import org.junit.Before;
@@ -75,12 +76,18 @@ abstract class AbstractEventProcessorClusterLinkTest {
 	@Mock(stubOnly = true, strictness = Mock.Strictness.LENIENT)
 	public AgentClusterLinkContext contextMock;
 
-	protected final OutboxEventFinderProvider eventFinderProviderStub = new OutboxEventFinderProvider() {
-		@Override
-		public OutboxEventFinder create(Optional<OutboxEventPredicate> predicate) {
-			return eventFinderMock;
-		}
-	};
+	protected final ShardAssignment.Provider shardAssignmentProviderStub =
+			new ShardAssignment.Provider( new OutboxEventFinderProvider() {
+				@Override
+				public OutboxEventFinder create(Optional<OutboxEventPredicate> predicate) {
+					return eventFinderMock;
+				}
+
+				@Override
+				public void appendTo(ToStringTreeBuilder builder) {
+					builder.attribute( "stub", true );
+				}
+			} );
 
 	private final List<Object> allMocks = new ArrayList<>();
 

@@ -25,6 +25,7 @@ import org.hibernate.search.mapper.orm.coordination.outboxpolling.cluster.impl.S
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.logging.impl.Log;
 import org.hibernate.search.util.common.AssertionFailure;
 import org.hibernate.search.util.common.SearchException;
+import org.hibernate.search.util.common.impl.ToStringTreeBuilder;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 import org.jboss.logging.Logger;
@@ -33,14 +34,14 @@ public final class OutboxPollingEventProcessorClusterLink
 		extends AbstractAgentClusterLink<OutboxPollingEventProcessingInstructions> {
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
-	private final OutboxEventFinderProvider finderProvider;
+	private final ShardAssignment.Provider shardAssignmentProvider;
 
 	// Accessible for test purposes
 	final boolean shardAssignmentIsStatic;
 	ShardAssignment lastShardAssignment;
 
 	public OutboxPollingEventProcessorClusterLink(String agentName,
-			FailureHandler failureHandler, Clock clock, OutboxEventFinderProvider finderProvider,
+			FailureHandler failureHandler, Clock clock, ShardAssignment.Provider shardAssignmentProvider,
 			Duration pollingInterval, Duration pulseInterval, Duration pulseExpiration,
 			ShardAssignmentDescriptor staticShardAssignment) {
 		super(
@@ -52,7 +53,7 @@ public final class OutboxPollingEventProcessorClusterLink
 				failureHandler, clock,
 				pollingInterval, pulseInterval, pulseExpiration
 		);
-		this.finderProvider = finderProvider;
+		this.shardAssignmentProvider = shardAssignmentProvider;
 
 		if ( staticShardAssignment == null ) {
 			this.shardAssignmentIsStatic = false;
@@ -60,10 +61,15 @@ public final class OutboxPollingEventProcessorClusterLink
 		}
 		else {
 			this.shardAssignmentIsStatic = true;
-			this.lastShardAssignment = ShardAssignment.of( staticShardAssignment, finderProvider );
+			this.lastShardAssignment = shardAssignmentProvider.create( staticShardAssignment );
 		}
-		log.tracef( "Agent '%s': created, staticShardAssignment = %s",
-				agentName, staticShardAssignment );
+	}
+
+	@Override
+	public void appendTo(ToStringTreeBuilder builder) {
+		super.appendTo( builder );
+		builder.attribute( "shardAssignmentProvider", shardAssignmentProvider )
+				.attribute( "shardAssignmentIsStatic", shardAssignmentIsStatic );
 	}
 
 	@Override
@@ -175,7 +181,7 @@ public final class OutboxPollingEventProcessorClusterLink
 						+ " (" + lastShardAssignment + ")" );
 			}
 			log.infof( "Agent '%s': assigning to %s", selfReference(), targetShardAssignment );
-			this.lastShardAssignment = ShardAssignment.of( targetShardAssignment, finderProvider );
+			this.lastShardAssignment = shardAssignmentProvider.create( targetShardAssignment );
 		}
 		return (now, self, agentPersister) -> {
 			agentPersister.setRunning( self, clusterTarget.descriptor );

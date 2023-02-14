@@ -7,7 +7,7 @@
 package org.hibernate.search.integrationtest.mapper.orm.coordination.outboxpolling.automaticindexing;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hibernate.search.integrationtest.mapper.orm.coordination.outboxpolling.automaticindexing.OutboxPollingTestUtils.awaitAllAgentsRunningInOneCluster;
+import static org.hibernate.search.integrationtest.mapper.orm.coordination.outboxpolling.testsupport.util.OutboxPollingTestUtils.awaitAllAgentsRunningInOneCluster;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.ArrayList;
@@ -18,6 +18,7 @@ import javax.persistence.Id;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Environment;
 import org.hibernate.search.engine.backend.analysis.AnalyzerNames;
+import org.hibernate.search.integrationtest.mapper.orm.coordination.outboxpolling.testsupport.util.TestFailureHandler;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
@@ -33,7 +34,7 @@ import org.junit.Test;
  * Tests highly concurrent background processing of events,
  * and checks in particular that it does not result in processing errors and/or deadlocks.
  * <p>
- * This used to fail on MS SQL Server, in particular, because of its lock escalation mechanism.
+ * This used to fail on Microsoft SQL Server, in particular, because of its lock escalation mechanism.
  */
 @TestForIssue(jiraKey = "HSEARCH-4141")
 public class OutboxPollingAutomaticIndexingConcurrencyIT {
