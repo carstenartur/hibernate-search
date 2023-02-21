@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -38,10 +39,11 @@ import org.hibernate.search.util.common.impl.Futures;
 public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHandledRunnable {
 
 	private final PojoMassIndexingMappingContext mappingContext;
+	private final PojoMassIndexerAgentStartContextImpl agentStartContext;
 	private final List<PojoMassIndexingIndexedTypeGroup<?>> typeGroupsToIndex;
 
 	private final PojoScopeSchemaManager scopeSchemaManager;
-	private final Collection<String> tenantIds;
+	private final Set<String> tenantIds;
 	private final PojoScopeDelegate<?, ?, ?> pojoScopeDelegate;
 	private final int typesToIndexInParallel;
 	private final int documentBuilderThreads;
@@ -53,12 +55,13 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 	private final List<CompletableFuture<?>> indexingFutures = new ArrayList<>();
 
 	private final Collection<SessionContext> sessionContexts = new ArrayList<>();
+	private PojoScopeWorkspace allTenantsWorkspace;
 
 	public PojoMassIndexingBatchCoordinator(PojoMassIndexingMappingContext mappingContext,
 			PojoMassIndexingNotifier notifier,
 			List<PojoMassIndexingIndexedTypeGroup<?>> typeGroupsToIndex,
 			PojoScopeSchemaManager scopeSchemaManager,
-			Collection<String> tenantIds,
+			Set<String> tenantIds,
 			PojoScopeDelegate<?, ?, ?> pojoScopeDelegate,
 			MassIndexingEnvironment environment,
 			int typesToIndexInParallel, int documentBuilderThreads, boolean mergeSegmentsOnFinish,
@@ -76,6 +79,11 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 		this.dropAndCreateSchemaOnStart = dropAndCreateSchemaOnStart;
 		this.purgeAtStart = purgeAtStart;
 		this.mergeSegmentsAfterPurge = mergeSegmentsAfterPurge;
+
+		this.agentStartContext = new PojoMassIndexerAgentStartContextImpl(
+				mappingContext.threadPoolProvider(),
+				mappingContext.failureHandler()
+		);
 	}
 
 	@Override
@@ -100,22 +108,18 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 	 * Operations to do before the multiple-threads start indexing
 	 */
 	private void beforeBatch() throws InterruptedException {
+		allTenantsWorkspace = pojoScopeDelegate.workspace( tenantIds );
 		// Prepare the contexts first. These will be used for all batch related work:
 		for ( String tenantId : tenantIds ) {
-			sessionContexts.add(
-					new SessionContext(
-							// Create an agent to suspend concurrent indexing
-							mappingContext.createMassIndexerAgent(
-									new PojoMassIndexerAgentCreateContextImpl( mappingContext, tenantId )
-							),
-							pojoScopeDelegate.workspace( tenantId ),
-							tenantId
-					)
-			);
+			sessionContexts.add( createSessionContext( tenantId ) );
+		}
+		// means we are in a single tenant:
+		if ( sessionContexts.isEmpty() ) {
+			sessionContexts.add( createSessionContext( null ) );
 		}
 
 		// Start the agent and wait until concurrent indexing actually gets suspended
-		applyToAllContexts( c -> c.agent().start() );
+		applyToAllContexts( c -> c.agent().start( agentStartContext ) );
 
 
 		if ( dropAndCreateSchemaOnStart ) {
@@ -127,19 +131,27 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 		}
 
 		if ( purgeAtStart ) {
-			applyToAllContexts(
-					context -> context.scopeWorkspace().purge( Collections.emptySet(), OperationSubmitter.blocking() )
+			Futures.unwrappedExceptionGet(
+					allTenantsWorkspace.purge( Collections.emptySet(), OperationSubmitter.blocking() )
 			);
+
 			if ( mergeSegmentsAfterPurge ) {
-				// TODO: HSEARCH-4767 Note this only works fine as long as we have only a discriminator-based multitenancy.
-				// We deliberately are targeting a single context as the underlying operation at this point is not tenant dependent
-				// and calling it for multiple tenants would just request doing the same work.
 				Futures.unwrappedExceptionGet(
-						sessionContexts.iterator().next()
-								.scopeWorkspace().mergeSegments( OperationSubmitter.blocking() )
+						allTenantsWorkspace.mergeSegments( OperationSubmitter.blocking() )
 				);
 			}
 		}
+	}
+
+	private SessionContext createSessionContext(String tenantId) {
+		return new SessionContext(
+				// Create an agent to suspend concurrent indexing
+				mappingContext.createMassIndexerAgent(
+						new PojoMassIndexerAgentCreateContextImpl( mappingContext, tenantId )
+				),
+				pojoScopeDelegate.workspace( tenantId ),
+				tenantId
+		);
 	}
 
 	/**
@@ -181,12 +193,7 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 	 */
 	private void afterBatch() throws InterruptedException {
 		if ( mergeSegmentsOnFinish ) {
-			// TODO: HSEARCH-4767 Note this only works fine as long as we have only a discriminator-based multitenancy.
-			// We deliberately are targeting a single context as the underlying operation at this point is not tenant dependent
-			// and calling it for multiple tenants would just request doing the same work.
-			Futures.unwrappedExceptionGet( sessionContexts.iterator().next()
-					.scopeWorkspace().mergeSegments( OperationSubmitter.blocking() )
-			);
+			Futures.unwrappedExceptionGet( allTenantsWorkspace.mergeSegments( OperationSubmitter.blocking() ) );
 		}
 		flushAndRefresh();
 		applyToAllContexts(
@@ -198,15 +205,12 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 			context.agent().stop();
 		}
 		sessionContexts.clear();
+		agentStartContext.clear();
 	}
 
 	private void flushAndRefresh() throws InterruptedException {
-		// TODO: HSEARCH-4767 Note this only works fine as long as we have only a discriminator-based multitenancy.
-		// We deliberately are targeting a single context as the underlying operation at this point is not tenant dependent
-		// and calling it for multiple tenants would just request doing the same work.
-		SessionContext context = sessionContexts.iterator().next();
-		Futures.unwrappedExceptionGet( context.scopeWorkspace().flush( OperationSubmitter.blocking() ) );
-		Futures.unwrappedExceptionGet( context.scopeWorkspace().refresh( OperationSubmitter.blocking() ) );
+		Futures.unwrappedExceptionGet( allTenantsWorkspace.flush( OperationSubmitter.blocking() ) );
+		Futures.unwrappedExceptionGet( allTenantsWorkspace.refresh( OperationSubmitter.blocking() ) );
 	}
 
 	@Override
@@ -217,6 +221,7 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 			// in order to leave the index in a consistent state
 			closer.push( PojoMassIndexingBatchCoordinator::flushAndRefresh, this );
 			closer.pushAll( PojoMassIndexerAgent::stop, sessionContexts, SessionContext::agent );
+			closer.push( PojoMassIndexerAgentStartContextImpl::clear, agentStartContext );
 			sessionContexts.clear();
 		}
 	}
@@ -226,6 +231,7 @@ public class PojoMassIndexingBatchCoordinator extends PojoMassIndexingFailureHan
 		try ( Closer<RuntimeException> closer = new Closer<>() ) {
 			closer.pushAll( this::cancelPendingTask, indexingFutures );
 			closer.pushAll( PojoMassIndexerAgent::stop, sessionContexts, SessionContext::agent );
+			closer.push( PojoMassIndexerAgentStartContextImpl::clear, agentStartContext );
 			sessionContexts.clear();
 		}
 	}
