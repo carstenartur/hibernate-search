@@ -223,13 +223,13 @@
         <version.org.elasticsearch.latest>8.6.2</version.org.elasticsearch.latest>
         <!-- The versions of OpenSearch advertised as compatible with Hibernate Search -->
         <!-- Make sure to only mention tested versions here -->
-        <version.org.opensearch.compatible.regularly-tested.text>1.3 or 2.5</version.org.opensearch.compatible.regularly-tested.text>
+        <version.org.opensearch.compatible.regularly-tested.text>1.3 or 2.6</version.org.opensearch.compatible.regularly-tested.text>
         <!-- These are the versions same as above, but pointing only to the major part (used in compatibility section of ES backend documentation
           as versions that Hibernate Search is compatible with. -->
         <!-- NOTE: Adding new major versions would require to update the compatibility table in `backend-elasticsearch-compatibility` section of `backend-elasticsearch.asciidoc`. -->
         <version.org.opensearch.compatible.expected.text>1.x or 2.x</version.org.opensearch.compatible.expected.text>
         <!-- The latest version of OpenSearch tested against by default -->
-        <version.org.opensearch.latest>2.5.0</version.org.opensearch.latest>
+        <version.org.opensearch.latest>2.6.0</version.org.opensearch.latest>
 
         <version.com.google.code.gson>2.9.1</version.com.google.code.gson>
         <version.software.amazon.awssdk>2.20.2</version.software.amazon.awssdk>
@@ -277,7 +277,7 @@
         <version.jakarta.xml.bind.orm5>3.0.1</version.jakarta.xml.bind.orm5>
 
         <!-- >>> ORM 6 with Jakarta Persistence -->
-        <version.org.hibernate.orm>6.2.0.CR2</version.org.hibernate.orm>
+        <version.org.hibernate.orm>6.2.0.CR3</version.org.hibernate.orm>
         <javadoc.org.hibernate.orm.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.orm.majorVersion}.${parsed-version.org.hibernate.orm.minorVersion}/javadocs/</javadoc.org.hibernate.orm.url>
         <documentation.org.hibernate.orm.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.orm.majorVersion}.${parsed-version.org.hibernate.orm.minorVersion}/userguide/html_single/Hibernate_User_Guide.html</documentation.org.hibernate.orm.url>
         <!-- These version must be kept in sync with the version of the dependency in Hibernate ORM 6.
@@ -312,7 +312,7 @@
         <!-- Test dependencies -->
 
         <!-- >>> Common -->
-        <version.log4j>2.19.0</version.log4j>
+        <version.log4j>2.20.0</version.log4j>
         <version.junit>4.13.2</version.junit>
         <version.org.osgi.core>6.0.0</version.org.osgi.core>
 
@@ -374,11 +374,11 @@
         <version.enforcer.plugin>3.2.1</version.enforcer.plugin>
         <version.exec.plugin>3.1.0</version.exec.plugin>
         <version.forbiddenapis.plugin>3.4</version.forbiddenapis.plugin>
-        <version.help.plugin>3.3.0</version.help.plugin>
+        <version.help.plugin>3.4.0</version.help.plugin>
         <version.install.plugin>3.1.0</version.install.plugin>
         <version.io.takari.maven>0.7.7</version.io.takari.maven>
         <version.jandex.plugin>1.2.3</version.jandex.plugin>
-        <version.japicmp.plugin>0.17.1</version.japicmp.plugin>
+        <version.japicmp.plugin>0.17.2</version.japicmp.plugin>
         <version.jar.plugin>3.3.0</version.jar.plugin>
         <version.javadoc.plugin>3.5.0</version.javadoc.plugin>
         <version.jdeps.plugin>0.5.1</version.jdeps.plugin>
@@ -400,13 +400,13 @@
         <version.sonar.plugin>3.9.1.2184</version.sonar.plugin>
         <version.scripting.plugin>3.0.0</version.scripting.plugin>
         <version.gpg.plugin>3.0.1</version.gpg.plugin>
-        <version.org.codehaus.groovy-jsr223>3.0.15</version.org.codehaus.groovy-jsr223>
+        <version.org.codehaus.groovy-jsr223>3.0.16</version.org.codehaus.groovy-jsr223>
         <version.com.puppycrawl.tools.checkstyle>10.3.4</version.com.puppycrawl.tools.checkstyle>
         <version.versions.plugin>2.12.0</version.versions.plugin>
 
         <!-- Asciidoctor -->
 
-        <version.asciidoctor.plugin>2.2.2</version.asciidoctor.plugin>
+        <version.asciidoctor.plugin>2.2.3</version.asciidoctor.plugin>
         <version.org.hibernate.infra.hibernate-asciidoctor-theme>1.0.6.Final</version.org.hibernate.infra.hibernate-asciidoctor-theme>
         <version.org.jruby>9.3.2.0</version.org.jruby>
         <version.org.asciidoctor.asciidoctorj>2.5.6</version.org.asciidoctor.asciidoctorj>
@@ -487,7 +487,7 @@
                 is outdated and leads to compilation errors.
          -->
         <version.org.codehaus.plexus.plexus-compiler.compiler-eclipse>2.12.1</version.org.codehaus.plexus.plexus-compiler.compiler-eclipse>
-        <version.org.eclipse.jdt.ecj>3.32.0</version.org.eclipse.jdt.ecj>
+        <version.org.eclipse.jdt.ecj>3.33.0</version.org.eclipse.jdt.ecj>
 
         <!--
             The absolute path to the root project directory.
