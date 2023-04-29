@@ -272,7 +272,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 		// https://github.com/elastic/elasticsearch/issues/91246
 		// Hopefully this will get fixed in a future version.
 		return isActualVersion(
-				esVersion -> !esVersion.isBetween( "7.17.7", "7.17" ) && !esVersion.isBetween( "8.5.0", "8.6.2" ),
+				esVersion -> !esVersion.isBetween( "7.17.7", "7.17" ) && !esVersion.isBetween( "8.5.0", "8.7.0" ),
 				osVersion -> true
 		);
 	}
@@ -286,5 +286,17 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 				esVersion -> !esVersion.isBetween( "7.17.7", "7.17" ) && !esVersion.isBetween( "8.0.0", "8.0" ),
 				osVersion -> true
 		);
+	}
+
+	@Override
+	public boolean supportsHighlighterEncoderAtFieldLevel() {
+		// https://github.com/elastic/elasticsearch/issues/94028
+		return false;
+	}
+
+	@Override
+	public boolean supportsHighlighterFastVectorNoMatchSizeOnMultivaluedFields() {
+		// https://github.com/elastic/elasticsearch/issues/94550
+		return false;
 	}
 }

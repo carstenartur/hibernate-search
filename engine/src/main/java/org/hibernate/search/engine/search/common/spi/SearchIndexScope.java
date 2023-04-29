@@ -38,5 +38,4 @@ public interface SearchIndexScope<S extends SearchIndexScope<?>>
 	<T> T rootQueryElement(SearchQueryElementTypeKey<T> key);
 
 	<T> T fieldQueryElement(String fieldPath, SearchQueryElementTypeKey<T> key);
-
 }

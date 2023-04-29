@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.reporting.spi.ContextualFailureCollector;
 import org.hibernate.search.util.common.SearchException;
+import org.hibernate.search.util.common.annotation.Incubating;
 
 /**
  * A manager for the schema of a single index,
@@ -97,4 +98,9 @@ public interface IndexSchemaManager {
 	 */
 	CompletableFuture<?> validate(ContextualFailureCollector failureCollector, OperationSubmitter operationSubmitter);
 
+	/**
+	 * Accepts a collector that will receive the schema export represented by this index schema manager.
+	 */
+	@Incubating
+	void exportExpectedSchema(IndexSchemaCollector collector);
 }

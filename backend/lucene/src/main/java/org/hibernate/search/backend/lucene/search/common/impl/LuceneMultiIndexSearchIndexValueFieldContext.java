@@ -58,4 +58,9 @@ public class LuceneMultiIndexSearchIndexValueFieldContext<F>
 				"searchAnalyzerOrNormalizer" );
 	}
 
+	@Override
+	public boolean hasTermVectorsConfigured() {
+		return fromTypeIfCompatible( LuceneSearchIndexValueFieldTypeContext::hasTermVectorsConfigured, Object::equals,
+				"hasTermVectorsConfigured" );
+	}
 }

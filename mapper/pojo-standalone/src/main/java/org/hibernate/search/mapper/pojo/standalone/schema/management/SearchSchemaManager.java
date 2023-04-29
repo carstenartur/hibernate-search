@@ -6,6 +6,9 @@
  */
 package org.hibernate.search.mapper.pojo.standalone.schema.management;
 
+import java.nio.file.Path;
+
+import org.hibernate.search.mapper.pojo.schema.management.SearchSchemaCollector;
 import org.hibernate.search.util.common.annotation.Incubating;
 
 /**
@@ -99,4 +102,19 @@ public interface SearchSchemaManager {
 	void dropAndCreate();
 
 
+	/**
+	 * Accepts a collector that walks through schema exports created from indexes represented by this schema manager.
+	 *
+	 * @see SearchSchemaCollector
+	 */
+	@Incubating
+	void exportExpectedSchema(SearchSchemaCollector collector);
+
+	/**
+	 * Exports the schema represented by this schema manager as a file tree created within the provided target directory.
+	 *
+	 * @param targetDirectory The target directory to generate the output into.
+	 */
+	@Incubating
+	void exportExpectedSchema(Path targetDirectory);
 }

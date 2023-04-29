@@ -8,6 +8,7 @@ package org.hibernate.search.util.impl.integrationtest.common.stub.backend.index
 
 import java.util.concurrent.CompletableFuture;
 
+import org.hibernate.search.engine.backend.schema.management.spi.IndexSchemaCollector;
 import org.hibernate.search.engine.backend.schema.management.spi.IndexSchemaManager;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.reporting.spi.ContextualFailureCollector;
@@ -60,5 +61,10 @@ public class StubIndexSchemaManager implements IndexSchemaManager {
 			OperationSubmitter operationSubmitter) {
 		StubSchemaManagementWork work = StubSchemaManagementWork.builder( StubSchemaManagementWork.Type.VALIDATE ).build();
 		return behavior.executeSchemaManagementWork( indexName, work, failureCollector );
+	}
+
+	@Override
+	public void exportExpectedSchema(IndexSchemaCollector collector) {
+		throw new UnsupportedOperationException( "Shouldn't be called" );
 	}
 }

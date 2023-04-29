@@ -9,7 +9,6 @@ package org.hibernate.search.backend.lucene.cfg;
 import org.hibernate.search.backend.lucene.analysis.LuceneAnalysisConfigurer;
 import org.hibernate.search.backend.lucene.cache.QueryCachingConfigurer;
 import org.hibernate.search.backend.lucene.multitenancy.MultiTenancyStrategyName;
-import org.hibernate.search.util.common.impl.HibernateSearchConfiguration;
 
 import org.apache.lucene.util.Version;
 
@@ -19,24 +18,19 @@ import org.apache.lucene.util.Version;
  * Constants in this class are to be appended to a prefix to form a property key;
  * see {@link org.hibernate.search.engine.cfg.BackendSettings} for details.
  */
-@HibernateSearchConfiguration(
-		prefix = { "hibernate.search.backend.", "hibernate.search.backends.<backend name>." },
-		title = "Hibernate Search Backend - Lucene",
-		anchorPrefix = "hibernate-search-backend-lucene-"
-)
 public final class LuceneBackendSettings {
 
 	private LuceneBackendSettings() {
 	}
 
 	/**
-	 * The name to use for the {@link org.hibernate.search.engine.cfg.BackendSettings#TYPE backend type}
-	 * configuration property so that a Lucene backend is instantiated by Hibernate Search.
+	 * The value to set the {@link org.hibernate.search.engine.cfg.BackendSettings#TYPE backend type}
+	 * configuration property to
+	 * in order to get a Lucene backend instantiated by Hibernate Search.
 	 * <p>
 	 * Only useful if you have more than one backend technology in the classpath;
 	 * otherwise the backend type is automatically detected.
 	 */
-	@HibernateSearchConfiguration(ignore = true)
 	public static final String TYPE_NAME = "lucene";
 
 	/**
@@ -44,16 +38,17 @@ public final class LuceneBackendSettings {
 	 * <p>
 	 * This should be set in order to get consistent behavior when Lucene is upgraded.
 	 * <p>
-	 * Expects a {@link org.apache.lucene.util.Version},
+	 * Expects a Lucene {@link org.apache.lucene.util.Version} object,
 	 * or a String accepted by {@link org.apache.lucene.util.Version#parseLeniently(java.lang.String)}
 	 * <p>
 	 * Defaults to {@link Defaults#LUCENE_VERSION}, which may change when Hibernate Search or Lucene is upgraded,
-	 * and therefore is really not a good choice. You really should set this property with your own value.
+	 * and therefore does not offer any backwards-compatibility guarantees.
+	 * The recommended approach is to set this property explicitly to the version of Lucene you want to target.
 	 */
 	public static final String LUCENE_VERSION = "lucene_version";
 
 	/**
-	 * The multi-tenancy strategy to use.
+	 * How to implement multi-tenancy.
 	 * <p>
 	 * Expects a {@link MultiTenancyStrategyName} value, or a String representation of such value.
 	 * <p>
@@ -62,7 +57,7 @@ public final class LuceneBackendSettings {
 	public static final String MULTI_TENANCY_STRATEGY = "multi_tenancy.strategy";
 
 	/**
-	 * The analysis configurer to use.
+	 * The configurer for analysis.
 	 * <p>
 	 * Expects a single-valued or multi-valued reference to beans of type {@link LuceneAnalysisConfigurer}.
 	 * <p>
@@ -74,7 +69,7 @@ public final class LuceneBackendSettings {
 	public static final String ANALYSIS_CONFIGURER = "analysis.configurer";
 
 	/**
-	 * The query caching configurer to use.
+	 * The configurer for query caching.
 	 * <p>
 	 * Expects a single-valued or multi-valued reference to beans of type {@link QueryCachingConfigurer}.
 	 * <p>
@@ -89,12 +84,12 @@ public final class LuceneBackendSettings {
 	 * The size of the thread pool assigned to the backend.
 	 * <p>
 	 * Expects a strictly positive integer value,
-	 * or a string that can be parsed to such integer value.
-	 * <p>
-	 * Defaults to the number of processor cores available to the JVM on startup.
+	 * or a string that can be parsed into an integer value.
 	 * <p>
 	 * See the reference documentation, section "Lucene backend - Threads",
 	 * for more information about this setting and its implications.
+	 * <p>
+	 * Defaults to the number of processor cores available to the JVM on startup.
 	 */
 	public static final String THREAD_POOL_SIZE = "thread_pool.size";
 

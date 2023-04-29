@@ -18,10 +18,15 @@ import java.util.Set;
 
 import org.hibernate.search.backend.lucene.index.LuceneIndexManager;
 import org.hibernate.search.engine.backend.scope.spi.IndexScopeBuilder;
+import org.hibernate.search.engine.backend.types.Highlightable;
+import org.hibernate.search.engine.backend.types.TermVector;
 import org.hibernate.search.engine.logging.spi.AggregationKeyFormatter;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.aggregation.SearchAggregation;
 import org.hibernate.search.engine.search.common.SortMode;
+import org.hibernate.search.engine.search.highlighter.SearchHighlighter;
+import org.hibernate.search.engine.search.highlighter.spi.BoundaryScannerType;
+import org.hibernate.search.engine.search.highlighter.spi.SearchHighlighterType;
 import org.hibernate.search.engine.search.predicate.SearchPredicate;
 import org.hibernate.search.engine.search.projection.SearchProjection;
 import org.hibernate.search.engine.search.sort.SearchSort;
@@ -622,4 +627,86 @@ public interface Log extends BasicLogger {
 
 	@Message(id = ID_OFFSET + 156, value = "Nonblocking operation submitter is not supported.")
 	SearchException nonblockingOperationSubmitterNotSupported();
+
+	@Message(id = ID_OFFSET + 157, value = "Unable to export the schema for '%1$s' index: %2$s" )
+	SearchException unableToExportSchema(String indexName, String message, @Cause Exception cause);
+
+	@Message(id = ID_OFFSET + 158,
+			value = "Invalid highlighter: '%1$s'. You must build the highlighter from a Lucene search scope.")
+	SearchException cannotMixLuceneSearchQueryWithOtherQueryHighlighters(SearchHighlighter highlighter);
+
+	@Message(id = ID_OFFSET + 159,
+			value = "Invalid highlighter: '%1$s'. You must build the highlighter from a scope targeting indexes %3$s,"
+					+ " but the given highlighter was built from a scope targeting indexes %2$s.")
+	SearchException queryHighlighterDefinedOnDifferentIndexes(SearchHighlighter highlighter, Set<String> indexNames, Set<String> hibernateSearchIndexNames);
+
+	@Message(id = ID_OFFSET + 160,
+			value = "Overriding a '%2$s' highlighter with a '%1$s' is not supported. " +
+					"Overriding highlighters should be of the same type as the global is if the global highlighter was configured.")
+	SearchException cannotMixDifferentHighlighterTypesAtOverrideLevel(SearchHighlighterType override, SearchHighlighterType parent);
+
+	@Message(id = ID_OFFSET + 161,
+			value = "Cannot find a highlighter with name '%1$s'." +
+					" Available highlighters are: %2$s." +
+					" Was it configured with `highlighter(\"%1$s\", highlighterContributor)`?")
+	SearchException cannotFindHighlighterWithName(String name, Collection<String> availableHighlighterNames);
+
+	@Message(id = ID_OFFSET + 162,
+			value = "'%1$s' highlighter does not support '%2$s' boundary scanner type.")
+	SearchException unsupportedBoundaryScannerType(String type, BoundaryScannerType boundaryScannerType);
+
+	@Message(id = ID_OFFSET + 163, value = "Named highlighters cannot use a blank string as name.")
+	SearchException highlighterNameCannotBeBlank();
+
+	@Message(id = ID_OFFSET + 164,
+			value = "Highlighter with name '%1$s' is already defined. Use a different name to add another highlighter.")
+	SearchException highlighterWithTheSameNameCannotBeAdded(String highlighterName);
+
+	@Message(id = ID_OFFSET + 165,
+			value = "'%1$s' highlighter type cannot be applied to '%2$s' field. " +
+					"'%2$s' must have either 'ANY' or '%1$s' among the configured highlightable values.")
+	SearchException highlighterTypeNotSupported(SearchHighlighterType type, String field);
+
+	@Message(id = ID_OFFSET + 166,
+			value = "Cannot use 'NO' in combination with other highlightable values. Applied values are: '%1$s'")
+	SearchException unsupportedMixOfHighlightableValues(Set<Highlightable> highlightable);
+
+	@Message(id = ID_OFFSET + 167,
+			value = "The '%1$s' term vector storage strategy is not compatible with the fast vector highlighter. " +
+					"Either change the strategy to one of `WITH_POSITIONS_PAYLOADS`/`WITH_POSITIONS_OFFSETS_PAYLOADS` or remove the requirement for the fast vector highlighter support.")
+	SearchException termVectorDontAllowFastVectorHighlighter(TermVector termVector);
+
+	@Message(id = ID_OFFSET + 168,
+			value = "Setting the `highlightable` attribute to an empty array is not supported. " +
+					"Set the value to `NO` if the field does not require the highlight projection.")
+	SearchException noHighlightableProvided();
+
+	@LogMessage(level = Level.WARN)
+	@Message(id = ID_OFFSET + 169,
+			value = "Lucene's unified highlighter cannot limit the size of a fragment returned when no match is found. " +
+					"Instead if no match size was set to any positive integer - all text will be returned. " +
+					"Configured value '%1$s' will be ignored, and the fragment will not be limited. " +
+					"If you don't want to see this warning set the value to Integer.MAX_VALUE.")
+	void unifiedHighlighterNoMatchSizeWarning(Integer value);
+
+	@Message(id = ID_OFFSET + 170,
+			value = "Lucene's unified highlighter does not support the size fragment setting. " +
+					"Either use a plain or fast vector highlighters, or do not set this setting.")
+	SearchException unifiedHighlighterFragmentSizeNotSupported();
+
+	@Message(id = ID_OFFSET + 171,
+			value = "Lucene's unified highlighter does not support the max analyzed offset setting " +
+					"on fields that have non default term vector storage strategy configured. " +
+					"The strategy was either configured explicitly, or implicitly because the fast vector highlighter type was requested to be supported. " +
+					"Either use a plain or fast vector highlighters, or do not set this setting.")
+	SearchException unifiedHighlighterMaxAnalyzedOffsetNotSupported();
+
+	@Message(id = ID_OFFSET + 172,
+			value = "Highlight projection cannot be applied within nested context of '%1$s'.")
+	SearchException cannotHighlightInNestedContext(String currentNestingField,
+			@Param EventContext eventContext);
+
+	@Message(id = ID_OFFSET + 173,
+			value = "The highlight projection cannot be applied to a field from an object using `ObjectStructure.NESTED` structure.")
+	SearchException cannotHighlightFieldFromNestedObjectStructure(@Param EventContext eventContext);
 }

@@ -474,7 +474,7 @@ public interface Log extends BasicLogger {
 			@FormatWith(EventContextNoPrefixFormatter.class) EventContext elementContext,
 			SearchQueryElementTypeKey<?> key, String hint, @Param EventContext context, @Cause Exception cause);
 
-	@Message(value = "Make sure the field is marked as searchable/sortable/projectable/aggregable (whichever is relevant)."
+	@Message(value = "Make sure the field is marked as searchable/sortable/projectable/aggregable/highlightable (whichever is relevant)."
 			+ " If it already is, then '%1$s' is not available for fields of this type.")
 	String missingSupportHintForValueField(SearchQueryElementTypeKey<?> key);
 
@@ -487,7 +487,7 @@ public interface Log extends BasicLogger {
 			value = "'%1$s' can be used in some of the targeted indexes, but not all of them. %2$s")
 	SearchException partialSupportForQueryElement(SearchQueryElementTypeKey<?> key, String hint);
 
-	@Message(value = "Make sure the field is marked as searchable/sortable/projectable/aggregable"
+	@Message(value = "Make sure the field is marked as searchable/sortable/projectable/aggregable/highlightable"
 			+ " (whichever is relevant) in all indexes,"
 			+ " and that the field has the same type in all indexes.")
 	String partialSupportHintForValueField();
@@ -536,4 +536,5 @@ public interface Log extends BasicLogger {
 	@Message(id = ID_OFFSET + 116,
 			value = "Ignoring ServiceConfigurationError caught while trying to instantiate service '%s'.")
 	void ignoringServiceConfigurationError(Class<?> serviceContract, @Cause ServiceConfigurationError error);
+
 }

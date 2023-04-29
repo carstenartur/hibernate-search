@@ -7,19 +7,12 @@
 package org.hibernate.search.backend.elasticsearch.aws.cfg;
 
 
-import org.hibernate.search.util.common.impl.HibernateSearchConfiguration;
-
 /**
  * AWS-specific configuration properties for Elasticsearch backends.
  * <p>
  * Constants in this class are to be appended to a prefix to form a property key;
  * see {@link org.hibernate.search.engine.cfg.BackendSettings} for details.
  */
-@HibernateSearchConfiguration(
-		prefix = { "hibernate.search.backend.", "hibernate.search.backends.<backend name>." },
-		title = "Hibernate Search Backend - Elasticsearch - AWS integration",
-		anchorPrefix = "hibernate-search-backend-elasticsearch-aws-"
-)
 public final class ElasticsearchAwsBackendSettings {
 
 	private ElasticsearchAwsBackendSettings() {
@@ -29,7 +22,7 @@ public final class ElasticsearchAwsBackendSettings {
 	 * Whether requests should be signed using the AWS credentials.
 	 * <p>
 	 * Expects a Boolean value such as {@code true} or {@code false},
-	 * or a string that can be parsed to such Boolean value.
+	 * or a string that can be parsed into a Boolean value.
 	 * <p>
 	 * Defaults to {@link Defaults#SIGNING_ENABLED}.
 	 */

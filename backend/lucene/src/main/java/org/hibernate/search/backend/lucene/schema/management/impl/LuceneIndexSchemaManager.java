@@ -13,6 +13,7 @@ import java.util.function.BinaryOperator;
 import org.hibernate.search.backend.lucene.orchestration.impl.LuceneParallelWorkOrchestrator;
 import org.hibernate.search.backend.lucene.work.impl.IndexManagementWork;
 import org.hibernate.search.backend.lucene.work.impl.LuceneWorkFactory;
+import org.hibernate.search.engine.backend.schema.management.spi.IndexSchemaCollector;
 import org.hibernate.search.engine.backend.schema.management.spi.IndexSchemaManager;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.reporting.spi.ContextualFailureCollector;
@@ -21,11 +22,13 @@ public class LuceneIndexSchemaManager implements IndexSchemaManager {
 
 	private final LuceneWorkFactory luceneWorkFactory;
 	private final SchemaManagementIndexManagerContext indexManagerContext;
+	private final LuceneIndexSchemaExportImpl export;
 
-	public LuceneIndexSchemaManager(LuceneWorkFactory luceneWorkFactory,
+	public LuceneIndexSchemaManager(String indexName, LuceneWorkFactory luceneWorkFactory,
 			SchemaManagementIndexManagerContext indexManagerContext) {
 		this.luceneWorkFactory = luceneWorkFactory;
 		this.indexManagerContext = indexManagerContext;
+		this.export = new LuceneIndexSchemaExportImpl( indexName );
 	}
 
 	@Override
@@ -62,6 +65,11 @@ public class LuceneIndexSchemaManager implements IndexSchemaManager {
 			OperationSubmitter operationSubmitter) {
 		// We only check that the index exists, and we throw an exception if it doesn't.
 		return doSubmit( luceneWorkFactory.validateIndexExists(), operationSubmitter );
+	}
+
+	@Override
+	public void exportExpectedSchema(IndexSchemaCollector collector) {
+		collector.indexSchema( indexManagerContext.backendName(), this.export.indexName(), this.export );
 	}
 
 	public CompletableFuture<Long> computeSizeInBytes(OperationSubmitter operationSubmitter) {

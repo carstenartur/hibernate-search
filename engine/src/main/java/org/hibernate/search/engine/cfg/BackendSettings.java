@@ -8,14 +8,12 @@ package org.hibernate.search.engine.cfg;
 
 import static java.lang.String.join;
 
-import org.hibernate.search.util.common.impl.HibernateSearchConfiguration;
-
 /**
  * Configuration properties common to all Hibernate Search backends regardless of the underlying technology.
  * <p>
  * Constants in this class are to be appended to a prefix to form a property key.
  * The exact prefix will depend on the integration, but should generally look like
- * "{@code hibernate.search.backends.<backend name>.}".
+ * "{@code hibernate.search.backends.<backend-name>.}".
  */
 public final class BackendSettings {
 
@@ -31,19 +29,17 @@ public final class BackendSettings {
 	 * Expects a String, such as "lucene" or "elasticsearch".
 	 * See the documentation of your backend to find the appropriate value.
 	 * <p>
-	 * No default: this property must be set.
+	 * Defaults:
+	 * <ul>
+	 *     <li>If there is only one backend type in the classpath, defaults to that backend.</li>
+	 *     <li>Otherwise, no default: this property must be set.</li>
+	 * </ul>
 	 */
-	@HibernateSearchConfiguration(
-			prefix = EngineSettings.BACKEND + ".",
-			title = "Hibernate Search Engine",
-			anchorPrefix = "hibernate-search-engine-"
-	)
 	public static final String TYPE = "type";
 
 	/**
 	 * The root property whose children are index names, e.g. {@code indexes.myIndex.<some index-scoped property> = bar}.
 	 */
-	@HibernateSearchConfiguration(ignore = true)
 	public static final String INDEXES = "indexes";
 
 	/**

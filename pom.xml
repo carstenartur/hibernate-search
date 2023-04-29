@@ -198,11 +198,18 @@
         <javadoc.org.apache.lucene.core.url>https://lucene.apache.org/core/${javadoc.org.apache.lucene.tag}/core/</javadoc.org.apache.lucene.core.url>
         <javadoc.org.apache.lucene.analyzers-common.url>https://lucene.apache.org/core/${javadoc.org.apache.lucene.tag}/analyzers-common/</javadoc.org.apache.lucene.analyzers-common.url>
         <javadoc.org.apache.lucene.queryparser.url>https://lucene.apache.org/core/${javadoc.org.apache.lucene.tag}/queryparser/</javadoc.org.apache.lucene.queryparser.url>
+        <!-- These version must be kept in sync with the version of the dependency in Lucene.
+            DO NOT USE DEPENDENCY MANAGEMENT FOR THESE DEPENDENCIES!
+            Thanks to not using dependency management for these dependencies, we get a build failure
+            when the versions start diverging, thanks to the maven-enforcer-plugin
+            and to our own explicit dependencies in the relevant artifacts.
+         -->
+        <version.com.carrotsearch.hppc>0.8.1</version.com.carrotsearch.hppc>
 
         <!-- >>> Elasticsearch -->
         <!-- The version of the Elasticsearch client used by Hibernate Search, independently of the version of the remote cluster -->
         <!-- Use the latest open-source version here. Currently, low-level clients are open-source even in 8.5+ -->
-        <version.org.elasticsearch.client>8.6.2</version.org.elasticsearch.client>
+        <version.org.elasticsearch.client>8.7.0</version.org.elasticsearch.client>
         <!-- The main compatible version of Elasticsearch, advertised by default. Used in documentation links. -->
         <!-- When updating the following version you will likely need to update the test profiles as well,
              to make sure the corresponding profile (e.g. elasticsearch-8.4) becomes the default. -->
@@ -212,7 +219,7 @@
         <!-- The versions of Elasticsearch advertised as compatible with Hibernate Search -->
         <!-- Make sure to only mention tested versions here -->
         <!-- Make sure that 7.10 stays explicitly mentioned here, because that's the last open-source version -->
-        <version.org.elasticsearch.compatible.regularly-tested.text>5.6, 6.8, 7.10, 7.17 or 8.6</version.org.elasticsearch.compatible.regularly-tested.text>
+        <version.org.elasticsearch.compatible.regularly-tested.text>5.6, 6.8, 7.10, 7.17 or 8.7</version.org.elasticsearch.compatible.regularly-tested.text>
         <!-- These are the versions same as above, but pointing only to the major part (used in compatibility section of ES backend documentation
           as versions that Hibernate Search is compatible with. -->
         <!-- NOTE: Adding new major versions would require to update the compatibility table in `backend-elasticsearch-compatibility` section of `backend-elasticsearch.asciidoc`. -->
@@ -220,7 +227,7 @@
         <!-- The versions of Elasticsearch that may work, but are not given priority for bugfixes and new features -->
         <version.org.elasticsearch.compatible.not-regularly-tested.text>7.0 or 8.0</version.org.elasticsearch.compatible.not-regularly-tested.text>
         <!-- The latest version of Elasticsearch tested against by default -->
-        <version.org.elasticsearch.latest>8.6.2</version.org.elasticsearch.latest>
+        <version.org.elasticsearch.latest>8.7.0</version.org.elasticsearch.latest>
         <!-- The versions of OpenSearch advertised as compatible with Hibernate Search -->
         <!-- Make sure to only mention tested versions here -->
         <version.org.opensearch.compatible.regularly-tested.text>1.3 or 2.6</version.org.opensearch.compatible.regularly-tested.text>
@@ -277,7 +284,7 @@
         <version.jakarta.xml.bind.orm5>3.0.1</version.jakarta.xml.bind.orm5>
 
         <!-- >>> ORM 6 with Jakarta Persistence -->
-        <version.org.hibernate.orm>6.2.0.CR3</version.org.hibernate.orm>
+        <version.org.hibernate.orm>6.2.2.Final</version.org.hibernate.orm>
         <javadoc.org.hibernate.orm.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.orm.majorVersion}.${parsed-version.org.hibernate.orm.minorVersion}/javadocs/</javadoc.org.hibernate.orm.url>
         <documentation.org.hibernate.orm.url>https://docs.jboss.org/hibernate/orm/${parsed-version.org.hibernate.orm.majorVersion}.${parsed-version.org.hibernate.orm.minorVersion}/userguide/html_single/Hibernate_User_Guide.html</documentation.org.hibernate.orm.url>
         <!-- These version must be kept in sync with the version of the dependency in Hibernate ORM 6.
@@ -339,7 +346,7 @@
         <version.org.mariadb.jdbc>3.1.0</version.org.mariadb.jdbc>
         <version.mysql.mysql-connector-java>8.0.31</version.mysql.mysql-connector-java>
         <version.com.ibm.db2.jcc>11.5.8.0</version.com.ibm.db2.jcc>
-        <version.com.oracle.database.jdbc>21.9.0.0</version.com.oracle.database.jdbc>
+        <version.com.oracle.database.jdbc>23.2.0.0</version.com.oracle.database.jdbc>
         <version.com.microsoft.sqlserver.mssql-jdbc>11.2.2.jre11</version.com.microsoft.sqlserver.mssql-jdbc>
 
         <!-- >>> Performance tests -->
@@ -361,7 +368,7 @@
 
         <version.assembly.plugin>3.4.2</version.assembly.plugin>
         <version.buildhelper.plugin>3.3.0</version.buildhelper.plugin>
-        <version.checkstyle.plugin>3.2.1</version.checkstyle.plugin>
+        <version.checkstyle.plugin>3.2.2</version.checkstyle.plugin>
         <version.bundle.plugin>5.1.8</version.bundle.plugin>
         <version.clean.plugin>3.2.0</version.clean.plugin>
         <!-- Needing 3.6.2 at least because of MCOMPILER-294 -->
@@ -369,13 +376,13 @@
         <version.dependency.plugin>3.5.0</version.dependency.plugin>
         <!-- Check dependencies for security vulnerabilities -->
         <version.dependency-check.plugin>7.2.1</version.dependency-check.plugin>
-        <version.deploy.plugin>3.1.0</version.deploy.plugin>
+        <version.deploy.plugin>3.1.1</version.deploy.plugin>
         <version.org.eclipse.m2e.lifecycle-mapping>1.0.0</version.org.eclipse.m2e.lifecycle-mapping>
-        <version.enforcer.plugin>3.2.1</version.enforcer.plugin>
+        <version.enforcer.plugin>3.3.0</version.enforcer.plugin>
         <version.exec.plugin>3.1.0</version.exec.plugin>
         <version.forbiddenapis.plugin>3.4</version.forbiddenapis.plugin>
         <version.help.plugin>3.4.0</version.help.plugin>
-        <version.install.plugin>3.1.0</version.install.plugin>
+        <version.install.plugin>3.1.1</version.install.plugin>
         <version.io.takari.maven>0.7.7</version.io.takari.maven>
         <version.jandex.plugin>1.2.3</version.jandex.plugin>
         <version.japicmp.plugin>0.17.2</version.japicmp.plugin>
@@ -384,15 +391,15 @@
         <version.jdeps.plugin>0.5.1</version.jdeps.plugin>
         <version.nexus-staging.plugin>1.6.13</version.nexus-staging.plugin>
         <version.processor.plugin>4.5-jdk8</version.processor.plugin>
-        <version.project-info.plugin>3.4.2</version.project-info.plugin>
-        <version.release.plugin>2.5.3</version.release.plugin>
-        <version.resources.plugin>3.3.0</version.resources.plugin>
+        <version.project-info.plugin>3.4.3</version.project-info.plugin>
+        <version.release.plugin>3.0.0</version.release.plugin>
+        <version.resources.plugin>3.3.1</version.resources.plugin>
         <version.shade.plugin>3.4.1</version.shade.plugin>
         <version.site.plugin>3.12.1</version.site.plugin>
         <version.source.plugin>3.2.1</version.source.plugin>
         <!-- Surefire versions are a minefield of bugs: be careful with upgrades -->
         <version.surefire.plugin>3.0.0-M8</version.surefire.plugin>
-        <version.surefire.plugin.java-version.asm>9.4</version.surefire.plugin.java-version.asm>
+        <version.surefire.plugin.java-version.asm>9.5</version.surefire.plugin.java-version.asm>
         <version.jacoco.plugin>0.8.8</version.jacoco.plugin>
         <version.com.buschmais.jqassistant.plugin>1.12.0</version.com.buschmais.jqassistant.plugin>
         <version.docker.maven.plugin>0.40.2</version.docker.maven.plugin>
@@ -400,8 +407,8 @@
         <version.sonar.plugin>3.9.1.2184</version.sonar.plugin>
         <version.scripting.plugin>3.0.0</version.scripting.plugin>
         <version.gpg.plugin>3.0.1</version.gpg.plugin>
-        <version.org.codehaus.groovy-jsr223>3.0.16</version.org.codehaus.groovy-jsr223>
-        <version.com.puppycrawl.tools.checkstyle>10.3.4</version.com.puppycrawl.tools.checkstyle>
+        <version.org.codehaus.groovy-jsr223>3.0.17</version.org.codehaus.groovy-jsr223>
+        <version.com.puppycrawl.tools.checkstyle>10.9.3</version.com.puppycrawl.tools.checkstyle>
         <version.versions.plugin>2.12.0</version.versions.plugin>
 
         <!-- Asciidoctor -->
@@ -918,6 +925,11 @@
             </dependency>
             <dependency>
                 <groupId>org.hibernate.search</groupId>
+                <artifactId>hibernate-search-integrationtest-mapper-pojo-standalone-realbackend</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.search</groupId>
                 <artifactId>hibernate-search-integrationtest-showcase-library</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1054,6 +1066,11 @@
             <dependency>
                 <groupId>org.apache.lucene</groupId>
                 <artifactId>lucene-facet</artifactId>
+                <version>${version.org.apache.lucene}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-highlighter</artifactId>
                 <version>${version.org.apache.lucene}</version>
             </dependency>
 

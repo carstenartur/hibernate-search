@@ -6,12 +6,17 @@
  */
 package org.hibernate.search.mapper.pojo.schema.management.impl;
 
+import java.nio.file.Path;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
+import org.hibernate.search.engine.backend.schema.management.spi.IndexSchemaCollector;
 import org.hibernate.search.engine.backend.schema.management.spi.IndexSchemaManager;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.engine.common.schema.management.SchemaExport;
+import org.hibernate.search.mapper.pojo.schema.management.SearchSchemaCollector;
 import org.hibernate.search.engine.reporting.spi.ContextualFailureCollector;
 import org.hibernate.search.engine.reporting.spi.FailureCollector;
 import org.hibernate.search.mapper.pojo.reporting.spi.PojoEventContexts;
@@ -62,6 +67,20 @@ public class PojoScopeSchemaManagerImpl implements PojoScopeSchemaManager {
 		return doOperationOnTypesTriFunction( IndexSchemaManager::validate, failureCollector, operationSubmitter );
 	}
 
+	@Override
+	public void exportExpectedSchema(SearchSchemaCollector collector) {
+		IndexSchemaCollectorDelegate collectorDelegate = new IndexSchemaCollectorDelegate( collector );
+		for ( PojoSchemaManagementIndexedTypeContext typeContext : targetedTypeContexts ) {
+			IndexSchemaManager delegate = typeContext.schemaManager();
+			delegate.exportExpectedSchema( collectorDelegate );
+		}
+	}
+
+	@Override
+	public void exportExpectedSchema(Path targetDirectory) {
+		exportExpectedSchema( new FileSearchSchemaCollector( targetDirectory ) );
+	}
+
 	private CompletableFuture<?> doOperationOnTypesBiFunction(
 			BiFunction<IndexSchemaManager, OperationSubmitter, CompletableFuture<?>> operation,
 			FailureCollector failureCollector,
@@ -92,6 +111,19 @@ public class PojoScopeSchemaManagerImpl implements PojoScopeSchemaManager {
 		}
 
 		return CompletableFuture.allOf( futures );
+	}
+
+	private static class IndexSchemaCollectorDelegate implements IndexSchemaCollector {
+		private final SearchSchemaCollector delegate;
+
+		private IndexSchemaCollectorDelegate(SearchSchemaCollector delegate) {
+			this.delegate = delegate;
+		}
+
+		@Override
+		public void indexSchema(Optional<String> backendName, String indexName, SchemaExport export) {
+			delegate.indexSchema( backendName, indexName, export );
+		}
 	}
 
 }

@@ -7,6 +7,7 @@
 
 package org.hibernate.search.backend.elasticsearch.logging.impl;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +20,14 @@ import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRespon
 import org.hibernate.search.backend.elasticsearch.index.ElasticsearchIndexManager;
 import org.hibernate.search.backend.elasticsearch.util.spi.URLEncodedString;
 import org.hibernate.search.engine.backend.scope.spi.IndexScopeBuilder;
+import org.hibernate.search.engine.backend.types.Highlightable;
+import org.hibernate.search.engine.backend.types.TermVector;
 import org.hibernate.search.engine.logging.spi.AggregationKeyFormatter;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.aggregation.SearchAggregation;
 import org.hibernate.search.engine.search.common.SortMode;
+import org.hibernate.search.engine.search.highlighter.SearchHighlighter;
+import org.hibernate.search.engine.search.highlighter.spi.SearchHighlighterType;
 import org.hibernate.search.engine.search.predicate.SearchPredicate;
 import org.hibernate.search.engine.search.projection.SearchProjection;
 import org.hibernate.search.engine.search.sort.SearchSort;
@@ -36,6 +41,7 @@ import org.hibernate.search.util.common.logging.impl.MessageConstants;
 import org.hibernate.search.util.common.reporting.EventContext;
 
 import org.jboss.logging.BasicLogger;
+import org.jboss.logging.Logger;
 import org.jboss.logging.Logger.Level;
 import org.jboss.logging.annotations.Cause;
 import org.jboss.logging.annotations.FormatWith;
@@ -730,4 +736,71 @@ public interface Log extends BasicLogger {
 			value = "Unexpected mapped type name extracted from hits: '%1$s'. Expected one of: %2$s."
 					+ " The document was probably indexed with a different configuration: full reindexing is necessary.")
 	SearchException unexpectedMappedTypeNameForByMappedTypeProjection(String typeName, Set<String> expectedTypeNames);
+
+	@Message(id = ID_OFFSET + 157, value = "Unable to export the schema for '%1$s' index: %2$s" )
+	SearchException unableToExportSchema(String indexName, String message, @Cause IOException e);
+
+	@Message(id = ID_OFFSET + 158, value = "Invalid use of 'missing().lowest()' for an ascending distance sort. " +
+			"Elasticsearch always assumes missing values have a distance of '+Infinity', and this behavior cannot be customized. ")
+	SearchException missingLowestOnAscSortNotSupported(@Param EventContext context);
+
+	@Message(id = ID_OFFSET + 159, value = "Invalid use of 'missing().lowest()' for a descending distance sort. " +
+			"Elasticsearch always assumes missing values have a distance of '+Infinity', and this behavior cannot be customized. ")
+	SearchException missingLowestOnDescSortNotSupported(@Param EventContext context);
+
+	@Message(id = ID_OFFSET + 160,
+			value = "Invalid highlighter: '%1$s'. You must build the highlighter from an Elasticsearch search scope.")
+	SearchException cannotMixElasticsearchSearchQueryWithOtherQueryHighlighters(SearchHighlighter highlighter);
+
+	@Message(id = ID_OFFSET + 161,
+			value = "Invalid highlighter: '%1$s'. You must build the highlighter from a scope targeting indexes %3$s,"
+					+ " but the given highlighter was built from a scope targeting indexes %2$s.")
+	SearchException queryHighlighterDefinedOnDifferentIndexes(SearchHighlighter highlighter, Set<String> configurationIndexes, Set<String> scopeIndexes);
+
+	@LogMessage(level = Logger.Level.WARN)
+	@Message(id = ID_OFFSET + 162,
+			value = "No fields were added to be highlighted, but some query level highlighters were provided. " +
+					"These highlighters will be ignored.")
+	void noFieldsToHighlight();
+
+	@Message(id = ID_OFFSET + 163,
+			value = "Cannot find a highlighter with name '%1$s'." +
+					" Available highlighters are: %2$s." +
+					" Was it configured with `highlighter(\"%1$s\", highlighterContributor)`?")
+	SearchException cannotFindHighlighter(String highlighterName, Set<String> highlighters);
+
+	@Message(id = ID_OFFSET + 164, value = "Named highlighters cannot use a blank string as name.")
+	SearchException highlighterNameCannotBeBlank();
+
+	@Message(id = ID_OFFSET + 165,
+			value = "Highlighter with name '%1$s' is already defined. Use a different name to add another highlighter.")
+	SearchException highlighterWithTheSameNameCannotBeAdded(String highlighterName);
+
+	@Message(id = ID_OFFSET + 166,
+			value = "'%1$s' highlighter type cannot be applied to '%2$s' field. " +
+					"'%2$s' must have either 'ANY' or '%1$s' among the configured highlightable values.")
+	SearchException highlighterTypeNotSupported(SearchHighlighterType type, String field);
+
+	@Message(id = ID_OFFSET + 167,
+			value = "Cannot use 'NO' in combination with other highlightable values. Applied values are: '%1$s'")
+	SearchException unsupportedMixOfHighlightableValues(Set<Highlightable> highlightable);
+
+	@Message(id = ID_OFFSET + 168,
+			value = "The '%1$s' term vector storage strategy is not compatible with the fast vector highlighter. " +
+					"Either change the strategy to one of `WITH_POSITIONS_PAYLOADS`/`WITH_POSITIONS_OFFSETS_PAYLOADS` or remove the requirement for the fast vector highlighter support.")
+	SearchException termVectorDontAllowFastVectorHighlighter(TermVector termVector);
+
+	@Message(id = ID_OFFSET + 169,
+			value = "Setting the `highlightable` attribute to an empty array is not supported. " +
+					"Set the value to `NO` if the field does not require the highlight projection.")
+	SearchException noHighlightableProvided();
+
+	@Message(id = ID_OFFSET + 170,
+			value = "Highlight projection cannot be applied within nested context of '%1$s'.")
+	SearchException cannotHighlightInNestedContext(String currentNestingField,
+			@Param EventContext eventContext);
+
+	@Message(id = ID_OFFSET + 171,
+			value = "The highlight projection cannot be applied to a field from an object using `ObjectStructure.NESTED` structure.")
+	SearchException cannotHighlightFieldFromNestedObjectStructure(@Param EventContext eventContext);
 }

@@ -8,26 +8,14 @@ package org.hibernate.search.engine.cfg;
 
 import static java.lang.String.join;
 
-import org.hibernate.search.util.common.impl.HibernateSearchConfiguration;
-
 /**
  * Configuration properties common to all Hibernate Search indexes regardless of the underlying technology.
  * <p>
  * Constants in this class are to be appended to a prefix to form a property key.
  * The exact prefix will be either
- * "{@code hibernate.search.backend.indexes.<index name>.}" (for per-index settings)
+ * "{@code hibernate.search.backend.indexes.<index-name>.}" (for per-index settings)
  * or "{@code hibernate.search.backend.}" (for default index settings).
  */
-@HibernateSearchConfiguration(
-		prefix = {
-				"hibernate.search.backend.",
-				"hibernate.search.backend.index.<index name>.",
-				"hibernate.search.backends.<backend name>.",
-				"hibernate.search.backends.<backend name>.index.<index name>."
-		},
-		title = "Hibernate Search Engine",
-		anchorPrefix = "hibernate-search-engine-"
-)
 public final class IndexSettings {
 
 	private IndexSettings() {

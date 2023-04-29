@@ -6,9 +6,11 @@
  */
 package org.hibernate.search.engine.backend.types.spi;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.hibernate.search.engine.backend.metamodel.IndexValueFieldTypeDescriptor;
 import org.hibernate.search.engine.backend.types.IndexFieldType;
@@ -21,6 +23,7 @@ import org.hibernate.search.engine.search.common.spi.SearchIndexValueFieldContex
 import org.hibernate.search.engine.search.common.spi.SearchIndexValueFieldTypeContext;
 import org.hibernate.search.engine.search.common.spi.SearchQueryElementFactory;
 import org.hibernate.search.engine.search.common.spi.SearchQueryElementTypeKey;
+import org.hibernate.search.engine.search.highlighter.spi.SearchHighlighterType;
 
 public abstract class AbstractIndexValueFieldType<
 				SC extends SearchIndexScope<?>,
@@ -38,6 +41,7 @@ public abstract class AbstractIndexValueFieldType<
 	private final boolean sortable;
 	private final boolean projectable;
 	private final boolean aggregable;
+	private final Set<SearchHighlighterType> allowedHighlighterTypes;
 
 	private final Map<SearchQueryElementTypeKey<?>, SearchQueryElementFactory<?, ? super SC, ? super N>> queryElementFactories;
 
@@ -55,6 +59,7 @@ public abstract class AbstractIndexValueFieldType<
 		this.sortable = builder.sortable;
 		this.projectable = builder.projectable;
 		this.aggregable = builder.aggregable;
+		this.allowedHighlighterTypes = Collections.unmodifiableSet( builder.allowedHighlighterTypes );
 		this.queryElementFactories = builder.queryElementFactories;
 		this.analyzerName = builder.analyzerName;
 		this.searchAnalyzerName = builder.searchAnalyzerName != null ? builder.searchAnalyzerName : builder.analyzerName;
@@ -149,6 +154,11 @@ public abstract class AbstractIndexValueFieldType<
 		return (SearchQueryElementFactory<? extends T, ? super SC, ? super N>) queryElementFactories.get( key );
 	}
 
+	@Override
+	public boolean highlighterTypeSupported(SearchHighlighterType type) {
+		return allowedHighlighterTypes.contains( type );
+	}
+
 	public abstract static class Builder<
 					SC extends SearchIndexScope<?>,
 					N extends SearchIndexValueFieldContext<SC>,
@@ -166,6 +176,7 @@ public abstract class AbstractIndexValueFieldType<
 		private boolean sortable;
 		private boolean projectable;
 		private boolean aggregable;
+		private Set<SearchHighlighterType> allowedHighlighterTypes = Collections.emptySet();
 
 		private final Map<SearchQueryElementTypeKey<?>, SearchQueryElementFactory<?, ? super SC, ? super N>>
 				queryElementFactories = new HashMap<>();
@@ -206,6 +217,10 @@ public abstract class AbstractIndexValueFieldType<
 
 		public final void aggregable(boolean aggregable) {
 			this.aggregable = aggregable;
+		}
+
+		public final void allowedHighlighterTypes(Set<SearchHighlighterType> allowedHighlighterTypes) {
+			this.allowedHighlighterTypes = allowedHighlighterTypes;
 		}
 
 		public final <T> void queryElementFactory(SearchQueryElementTypeKey<T> key,

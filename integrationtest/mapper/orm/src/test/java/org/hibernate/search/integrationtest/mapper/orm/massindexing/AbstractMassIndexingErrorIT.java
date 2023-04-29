@@ -38,6 +38,7 @@ import org.hibernate.search.util.impl.integrationtest.common.stub.backend.index.
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmSetupHelper;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.SimpleSessionFactoryBuilder;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
+import org.hibernate.search.util.impl.test.reflect.RuntimeHelper;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -358,23 +359,16 @@ public abstract class AbstractMassIndexingErrorIT {
 				expectationSetter.run();
 			}
 
-			// TODO HSEARCH-3728 simplify this when even indexing exceptions are propagated
-			Runnable runnable = () -> {
+			assertThatThrownBy( () -> {
 				try {
 					massIndexer.startAndWait();
 				}
 				catch (InterruptedException e) {
 					fail( "Unexpected InterruptedException: " + e.getMessage() );
 				}
-			};
-			if ( thrownExpectation == null ) {
-				runnable.run();
-			}
-			else {
-				assertThatThrownBy( runnable::run )
-						.asInstanceOf( InstanceOfAssertFactories.type( Throwable.class ) )
-						.satisfies( thrownExpectation );
-			}
+			} )
+					.asInstanceOf( InstanceOfAssertFactories.type( Throwable.class ) )
+					.satisfies( thrownExpectation );
 			backendMock.verifyExpectationsMet();
 
 			switch ( threadExpectation ) {
@@ -549,7 +543,10 @@ public abstract class AbstractMassIndexingErrorIT {
 
 		@Id // This must be on the getter, so that Hibernate Search uses getters instead of direct field access
 		public Integer getId() {
-			if ( id == 2 && errorOnBook2GetId.get() ) {
+			if ( id == 2
+					// Only fail for Hibernate Search, not for Hibernate ORM
+					&& RuntimeHelper.firstNonSelfNonJdkCaller().map( RuntimeHelper::isHibernateSearch ).orElse( false )
+					&& errorOnBook2GetId.getAndSet( false ) ) {
 				throw new SimulatedError( "getId error" );
 			}
 			return id;
@@ -561,7 +558,10 @@ public abstract class AbstractMassIndexingErrorIT {
 
 		@GenericField
 		public String getTitle() {
-			if ( id == 2 && errorOnBook2GetTitle.get() ) {
+			if ( id == 2
+					// Only fail for Hibernate Search, not for Hibernate ORM
+					&& RuntimeHelper.firstNonSelfNonJdkCaller().map( RuntimeHelper::isHibernateSearch ).orElse( false )
+					&& errorOnBook2GetTitle.getAndSet( false ) ) {
 				throw new SimulatedError( "getTitle error" );
 			}
 			return title;

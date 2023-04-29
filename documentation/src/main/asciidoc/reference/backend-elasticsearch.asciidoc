@@ -351,64 +351,48 @@ include::{resourcesdir}/configuration/http-client-configurer.properties[]
 Any setting defined by a custom http client configurer will override any other setting defined by Hibernate Search.
 ====
 
-[[backend-elasticsearch-configuration-client-instance]]
-== Providing a client instance
-
-If you already use a low-level Elasticsearch client (an instance of `org.elasticsearch.client.RestClient`)
-in your application,
-you can tell Hibernate Search to use that client instead of creating its own.
-
-Providing a `RestClient` requires two steps:
-
-. Define the `org.elasticsearch.client.RestClient` instance
-as a bean in your <<configuration-bean-frameworks,supported dependency injection framework>>,
-for example by defining a CDI bean producer annotated with `@Named("myRestClient")`.
-. Configure Hibernate Search to use that instance by setting the configuration property
-`hibernate.search.backend.client.instance`
-to a <<configuration-bean-reference-parsing,bean reference>> pointing to the bean,
-for example `bean:myRestClient`.
-
-IMPORTANT: If Hibernate Search uses a provided client, it won't create its own client,
-and thus all other <<backend-elasticsearch-configuration-client,client configuration properties>> will be ignored.
-
 [[backend-elasticsearch-configuration-version]]
 == [[backend-elasticsearch-configuration-dialect]] Version compatibility
 
-Different distributions and versions of Elasticsearch expose slightly different APIs.
-As a result, Hibernate Search needs to be aware of the distribution and version of Elasticsearch it is talking to
+[[backend-elasticsearch-configuration-version-check]]
+=== Version check on startup
+
+Different distributions and versions of Elasticsearch/OpenSearch expose slightly different APIs.
+As a result, Hibernate Search needs to be aware of the distribution and version it is talking to
 in order to generate correct HTTP requests.
 
-By default, Hibernate Search will query the Elasticsearch cluster at boot time to retrieve this information,
+By default, Hibernate Search will query the Elasticsearch/OpenSearch cluster at boot time to retrieve this information,
 and will infer the correct behavior to adopt.
 
-If necessary, you can disable the call to the Elasticsearch cluster on startup,
-and provide the information manually.
-To do that:
+You can force Hibernate Search to expect a specific version of Elasticsearch/OpenSearch by
+setting the property `hibernate.search.backend.version` to a version string
+following the format `x.y.z-qualifier` or `<distribution>:x.y.z-qualifier`, where:
 
-* set the property `hibernate.search.backend.version_check.enabled` to `false`;
-* and set the property `hibernate.search.backend.version` to a version string.
-+
-The expected format for that string is either `x.y.z-qualifier` or `<distribution>:x.y.z-qualifier`,
-where '<distribution>' is either `elastic` or `opensearch` (defaults to `elastic`),
-'x', 'y' and 'z' are integers,
-and `qualifier` is a string of word characters (alphanumeric or `_`).
-+
-The major and minor version numbers (`x` and `y` in the formats above) are mandatory,
-but all other components (distribution, micro, qualifier) are optional.
-+
-For example, `7.0`, `7.10`, `opensearch:1.0` are all valid version strings.
+* `<distribution>` is either `elastic` or `opensearch`. Optional, defaults to `elastic`.
+* `x`, `y` and `z` are integers. `x` is mandatory, `y` and `z` are optional.
+* `qualifier` is a string of word characters (alphanumeric or `_`). Optional.
 
-[TIP]
-====
-The property `hibernate.search.backend.version` can also be set
-when `hibernate.search.backend.version_check.enabled` is `true` (the default).
+For example, `7`, 7.0`, `7.10`, `opensearch:1.0` are all valid version strings.
 
-In that case,
 Hibernate Search will still query the Elasticsearch/OpenSearch cluster
 to detect the actual distribution and version of the cluster,
-and will check that the configured distribution and version match the actual ones.
+but it will check that the configured distribution and version match the actual ones.
 This can be helpful while developing, in particular.
-====
+
+[[backend-elasticsearch-configuration-version-check-disabling]]
+=== Disabling the version check on startup
+
+If necessary, you can disable the call to the Elasticsearch/OpenSearch cluster on startup,
+and provide the information manually.
+
+To do that, set the property `hibernate.search.backend.version_check.enabled` to `false`.
+
+You will also have to set the property `hibernate.search.backend.version` to a version string
+as explained in the <<backend-elasticsearch-configuration-version-check,previous section>>.
+In this case, both major **and minor** version numbers (`x` **and `y`** in the formats above)
+are mandatory,
+but all other components (distribution, micro, qualifier) remain optional.
+For example, `7.0`, `7.10`, `opensearch:1.0` are all valid version strings in this case, but `7` is not precise enough.
 
 [[backend-elasticsearch-configuration-logging]]
 == [[elasticsearch-log-json-pretty-printing]] Request logging
@@ -443,8 +427,8 @@ For Elasticsearch specifically, some fine-tuning is available through the follow
 hibernate.search.backend.schema_management.minimal_required_status = green
 hibernate.search.backend.schema_management.minimal_required_status_wait_timeout = 10000
 # To configure a specific index:
-hibernate.search.backend.indexes.<index name>.schema_management.minimal_required_status = green
-hibernate.search.backend.indexes.<index name>.schema_management.minimal_required_status_wait_timeout = 10000
+hibernate.search.backend.indexes.<index-name>.schema_management.minimal_required_status = green
+hibernate.search.backend.indexes.<index-name>.schema_management.minimal_required_status_wait_timeout = 10000
 ----
 
 * `minimal_required_status` defines the minimal required status of an index before creation is considered complete.
@@ -825,7 +809,7 @@ we can use the following index-level property to change the value.
 # To configure the defaults for all indexes:
 hibernate.search.backend.dynamic_mapping = strict
 # To configure a specific index:
-hibernate.search.backend.indexes.<index name>.dynamic_mapping = strict
+hibernate.search.backend.indexes.<index-name>.dynamic_mapping = strict
 ----
 The default for this property is `strict`.
 
@@ -910,7 +894,7 @@ Exercise extreme caution.
 # To configure the defaults for all indexes:
 hibernate.search.backend.schema_management.mapping_file = custom/index-mapping.json
 # To configure a specific index:
-hibernate.search.backend.indexes.<index name>.schema_management.mapping_file = custom/index-mapping.json
+hibernate.search.backend.indexes.<index-name>.schema_management.mapping_file = custom/index-mapping.json
 ----
 
 .Possible content of `custom/index-mapping.json` file
@@ -935,13 +919,13 @@ missing properties (index fields) in the given mapping.
 
 Conflicts between the given mapping and the mapping generated by Hibernate Search will be handled as follows:
 
-1. Mapping parameters other than `properties` at the root of the mapping will be
-those from the given mapping; those generated by Hibernate Search will be ignored.
-2. `properties` will be merged, using properties defined in both the
+1. The `dynamic_templates`/`_routing`/`dynamic` mapping parameters
+will be those from the given mapping, falling back to the value generated by Hibernate Search (if any).
+2. Any other mapping parameters besides the `properties` at the root of the mapping
+will be those from the given mapping; those generated by Hibernate Search will be ignored.
+3. `properties` will be merged, using properties defined in both the
 given mapping and the mapping generated by Hibernate Search.
-3. If a property is defined on both sides, mapping parameters from the given mapping
-will be used, except for `properties`,
-which will be merged recursively as described in item 2.
+4. If a property is defined on both sides, it will be merged recursively, following steps 1-4.
 
 In the example above, the resulting, merged mapping could look like this:
 
@@ -1028,7 +1012,7 @@ A different analysis configurer can be assigned to each index:
 # To set the default configurer for all indexes:
 hibernate.search.backend.analysis.configurer = com.mycompany.MyAnalysisConfigurer
 # To assign a specific configurer to a specific index:
-hibernate.search.backend.indexes.<index name>.analysis.configurer = com.mycompany.MySpecificAnalysisConfigurer
+hibernate.search.backend.indexes.<index-name>.analysis.configurer = com.mycompany.MySpecificAnalysisConfigurer
 ----
 
 If a specific configurer is assigned to an index,
@@ -1169,7 +1153,7 @@ Should you need to set some link:{elasticsearchDocUrl}/index-modules.html#index-
 # To configure the defaults for all indexes:
 hibernate.search.backend.schema_management.settings_file = custom/index-settings.json
 # To configure a specific index:
-hibernate.search.backend.indexes.<index name>.schema_management.settings_file = custom/index-settings.json
+hibernate.search.backend.indexes.<index-name>.schema_management.settings_file = custom/index-settings.json
 ----
 
 .Possible content of `custom/index-settings.json` file
@@ -1260,9 +1244,9 @@ hibernate.search.backend.indexing.queue_count = 10
 hibernate.search.backend.indexing.queue_size = 1000
 hibernate.search.backend.indexing.max_bulk_size = 100
 # To configure a specific index:
-hibernate.search.backend.indexes.<index name>.indexing.queue_count = 10
-hibernate.search.backend.indexes.<index name>.indexing.queue_size = 1000
-hibernate.search.backend.indexes.<index name>.indexing.max_bulk_size = 100
+hibernate.search.backend.indexes.<index-name>.indexing.queue_count = 10
+hibernate.search.backend.indexes.<index-name>.indexing.queue_size = 1000
+hibernate.search.backend.indexes.<index-name>.indexing.max_bulk_size = 100
 ----
 
 * `indexing.queue_count` defines the number of queues.

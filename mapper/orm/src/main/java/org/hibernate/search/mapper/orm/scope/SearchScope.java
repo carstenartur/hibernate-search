@@ -13,17 +13,18 @@ import org.hibernate.search.engine.backend.scope.IndexScopeExtension;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.aggregation.SearchAggregation;
 import org.hibernate.search.engine.search.aggregation.dsl.SearchAggregationFactory;
+import org.hibernate.search.engine.search.highlighter.dsl.SearchHighlighterFactory;
 import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
 import org.hibernate.search.engine.search.projection.dsl.SearchProjectionFactory;
-import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
 import org.hibernate.search.engine.search.query.dsl.SearchQueryOptionsStep;
+import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
 import org.hibernate.search.engine.search.query.dsl.SearchQueryWhereStep;
 import org.hibernate.search.engine.search.sort.dsl.SearchSortFactory;
+import org.hibernate.search.mapper.orm.common.EntityReference;
 import org.hibernate.search.mapper.orm.entity.SearchIndexedEntity;
+import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
 import org.hibernate.search.mapper.orm.schema.management.SearchSchemaManager;
 import org.hibernate.search.mapper.orm.work.SearchWorkspace;
-import org.hibernate.search.mapper.orm.common.EntityReference;
-import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
 import org.hibernate.search.util.common.SearchException;
 
 /**
@@ -111,6 +112,21 @@ public interface SearchScope<E> {
 	 * @return A {@link SearchSchemaManager}.
 	 */
 	SearchSchemaManager schemaManager();
+
+	/**
+	 * Initiate the building of a highlighter that will be valid for the indexes in this scope.
+	 * <p>
+	 * The highlighter will only be valid for {@link org.hibernate.search.mapper.orm.session.SearchSession#search(SearchScope) search queries}
+	 * created using this scope or another scope instance targeting the same indexes.
+	 * <p>
+	 * Note this method is only necessary if you do not want to use lambda expressions,
+	 * since you can {@link SearchQueryOptionsStep#highlighter(Function) define highlighters with lambdas}
+	 * within the search query DSL,
+	 * removing the need to create separate objects to represent the projections.
+	 *
+	 * @return A highlighter factory.
+	 */
+	SearchHighlighterFactory highlighter();
 
 	/**
 	 * Create a {@link SearchWorkspace} for the indexes mapped to types in this scope, or to any of their sub-types.

@@ -13,11 +13,12 @@ import org.hibernate.search.engine.backend.scope.IndexScopeExtension;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.aggregation.SearchAggregation;
 import org.hibernate.search.engine.search.aggregation.dsl.SearchAggregationFactory;
+import org.hibernate.search.engine.search.highlighter.dsl.SearchHighlighterFactory;
 import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
 import org.hibernate.search.engine.search.projection.dsl.SearchProjectionFactory;
 import org.hibernate.search.engine.search.query.dsl.SearchQueryOptionsStep;
-import org.hibernate.search.engine.search.query.dsl.SearchQueryWhereStep;
 import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
+import org.hibernate.search.engine.search.query.dsl.SearchQueryWhereStep;
 import org.hibernate.search.engine.search.sort.dsl.SearchSortFactory;
 import org.hibernate.search.mapper.pojo.standalone.common.EntityReference;
 import org.hibernate.search.mapper.pojo.standalone.entity.SearchIndexedEntity;
@@ -106,6 +107,21 @@ public interface SearchScope<E> {
 	 * @see SearchAggregationFactory
 	 */
 	SearchAggregationFactory aggregation();
+
+	/**
+	 * Initiate the building of a highlighter that will be valid for the indexes in this scope.
+	 * <p>
+	 * The highlighter will only be valid for {@link SearchSession#search(SearchScope) search queries}
+	 * created using this scope or another scope instance targeting the same indexes.
+	 * <p>
+	 * Note this method is only necessary if you do not want to use lambda expressions,
+	 * since you can {@link SearchQueryOptionsStep#highlighter(Function) define highlighters with lambdas}
+	 * within the search query DSL,
+	 * removing the need to create separate objects to represent the projections.
+	 *
+	 * @return A highlighter factory.
+	 */
+	SearchHighlighterFactory highlighter();
 
 	/**
 	 * Create a {@link SearchSchemaManager} for the indexes mapped to types in this scope, or to any of their sub-types.
