@@ -8,7 +8,6 @@ package org.hibernate.search.mapper.pojo.work.impl;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.pojo.identity.impl.IdentifierMappingImplementor;
@@ -16,6 +15,7 @@ import org.hibernate.search.mapper.pojo.work.spi.DirtinessDescriptor;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingPlan;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingQueueEventPayload;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingQueueEventProcessingPlan;
+import org.hibernate.search.mapper.pojo.work.spi.PojoTypeIndexingPlan;
 import org.hibernate.search.mapper.pojo.work.spi.PojoWorkSessionContext;
 
 public final class PojoIndexingQueueEventProcessingPlanImpl implements PojoIndexingQueueEventProcessingPlan {
@@ -36,7 +36,11 @@ public final class PojoIndexingQueueEventProcessingPlanImpl implements PojoIndex
 		PojoWorkTypeContext<?, ?> typeContext = typeContext( entityName );
 		Object id = typeContext.identifierMapping().fromDocumentIdentifier( serializedId, sessionContext );
 		DirtinessDescriptor dirtiness = payload.dirtiness;
-		delegate.addOrUpdateOrDelete( typeContext.typeIdentifier(), id, payload.routes,
+		PojoTypeIndexingPlan typePlan = delegate.typeIfIncludedOrNull( typeContext.typeIdentifier() );
+		if ( typePlan == null ) {
+			return;
+		}
+		typePlan.addOrUpdateOrDelete( id, payload.routes,
 				// Force the reindexing now if the entity was marked as dirty because of a contained entity;
 				// this is to avoid sending events forever and to force the processing of "updateBecauseOfContained" now.
 				// See org.hibernate.search.mapper.pojo.work.impl.PojoTypeIndexingPlanIndexOrEventQueueDelegate.addOrUpdate
@@ -47,9 +51,8 @@ public final class PojoIndexingQueueEventProcessingPlanImpl implements PojoIndex
 	}
 
 	@Override
-	public <R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory, OperationSubmitter operationSubmitter) {
-		return delegate.executeAndReport( entityReferenceFactory, operationSubmitter );
+	public CompletableFuture<MultiEntityOperationExecutionReport> executeAndReport(OperationSubmitter operationSubmitter) {
+		return delegate.executeAndReport( operationSubmitter );
 	}
 
 	@Override

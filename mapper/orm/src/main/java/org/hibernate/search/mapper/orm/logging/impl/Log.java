@@ -321,4 +321,8 @@ public interface Log extends BasicLogger {
 	@LogMessage(level = WARN)
 	@Message(id = ID_OFFSET + 123, value = "Configuration property '%1$s' is deprecated; use '%2$s' instead.")
 	void automaticIndexingSynchronizationStrategyIsDeprecated(String deprecatedProperty, String newProperty);
+
+	@Message(id = ID_OFFSET + 124, value = "Unable to apply the given filter at the session level with the outbox polling coordination strategy. " +
+			"With this coordination strategy, applying a session-level indexing plan filter is only allowed if it excludes all types.")
+	SearchException cannotApplySessionFilterWhenAsyncProcessingIsUsed();
 }

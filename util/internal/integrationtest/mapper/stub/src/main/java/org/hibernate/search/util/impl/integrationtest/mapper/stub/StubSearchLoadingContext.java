@@ -10,7 +10,7 @@ import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.search.loading.spi.SearchLoadingContext;
 import org.hibernate.search.engine.search.loading.spi.ProjectionHitMapper;
 
-public class StubSearchLoadingContext implements SearchLoadingContext<DocumentReference, DocumentReference> {
+public class StubSearchLoadingContext implements SearchLoadingContext<DocumentReference> {
 
 	StubSearchLoadingContext() {
 	}
@@ -21,7 +21,7 @@ public class StubSearchLoadingContext implements SearchLoadingContext<DocumentRe
 	}
 
 	@Override
-	public ProjectionHitMapper<DocumentReference, DocumentReference> createProjectionHitMapper() {
+	public ProjectionHitMapper<DocumentReference> createProjectionHitMapper() {
 		return new StubProjectionHitMapper();
 	}
 }

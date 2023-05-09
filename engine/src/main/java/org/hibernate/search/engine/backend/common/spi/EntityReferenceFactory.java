@@ -8,7 +8,9 @@ package org.hibernate.search.engine.backend.common.spi;
 
 import java.util.function.Consumer;
 
-public interface EntityReferenceFactory<R> {
+import org.hibernate.search.engine.common.EntityReference;
+
+public interface EntityReferenceFactory {
 
 	/**
 	 * @param typeName The name of the entity type.
@@ -16,7 +18,7 @@ public interface EntityReferenceFactory<R> {
 	 * @return A reference to the entity.
 	 * @throws RuntimeException If something goes wrong (exception while rendering an identifier, ...)
 	 */
-	R createEntityReference(String typeName, Object identifier);
+	EntityReference createEntityReference(String typeName, Object identifier);
 
 	/**
 	 * @param factory The factory for entity references.
@@ -26,9 +28,8 @@ public interface EntityReferenceFactory<R> {
 	 * Any exception thrown while creating the entity reference should be {@link Consumer#accept(Object) put into}
 	 * that sink and should not be propagated.
 	 * @return A reference to the entity, or null if an exception was thrown while creating the entity reference.
-	 * @param <R> The type of entity reference.
 	 */
-	static <R> R safeCreateEntityReference(EntityReferenceFactory<R> factory, String typeName, Object identifier,
+	static EntityReference safeCreateEntityReference(EntityReferenceFactory factory, String typeName, Object identifier,
 			Consumer<Exception> exceptionSink) {
 		try {
 			return factory.createEntityReference( typeName, identifier );
@@ -37,10 +38,6 @@ public interface EntityReferenceFactory<R> {
 			exceptionSink.accept( e );
 			return null;
 		}
-	}
-
-	static EntityReferenceFactory<String> asString() {
-		return StringEntityReferenceFactory.INSTANCE;
 	}
 
 }

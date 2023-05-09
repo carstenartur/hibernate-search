@@ -39,6 +39,7 @@ import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.search.mapper.orm.common.impl.HibernateOrmUtils;
 import org.hibernate.search.mapper.orm.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingPlan;
+import org.hibernate.search.mapper.pojo.work.spi.PojoTypeIndexingPlan;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 /**
@@ -95,9 +96,15 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		if ( typeContext == null ) {
 			return;
 		}
+		PojoTypeIndexingPlan plan = getCurrentIndexingPlanIfTypeIncluded( event.getSession(), typeContext );
+		if ( plan == null ) {
+			// This type is excluded through filters.
+			// Return early, to avoid unnecessary processing.
+			return;
+		}
+
 		Object providedId = typeContext.toIndexingPlanProvidedId( event.getId() );
-		getCurrentIndexingPlan( event.getSession() )
-				.delete( typeContext.typeIdentifier(), providedId, null, entity );
+		plan.delete( providedId, null, entity );
 	}
 
 	@Override
@@ -110,10 +117,15 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		if ( typeContext == null ) {
 			return;
 		}
-		Object providedId = typeContext.toIndexingPlanProvidedId( event.getId() );
-		PojoIndexingPlan plan = getCurrentIndexingPlan( event.getSession() );
+		PojoTypeIndexingPlan plan = getCurrentIndexingPlanIfTypeIncluded( event.getSession(), typeContext );
+		if ( plan == null ) {
+			// This type is excluded through filters.
+			// Return early, to avoid unnecessary processing.
+			return;
+		}
 
-		plan.add( typeContext.typeIdentifier(), providedId, null, entity );
+		Object providedId = typeContext.toIndexingPlanProvidedId( event.getId() );
+		plan.add( providedId, null, entity );
 
 		BitSet dirtyAssociationPaths = typeContext.dirtyContainingAssociationFilter().all();
 
@@ -123,8 +135,7 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		// is lazy and has not yet been loaded (otherwise it will be out of date when reindexing)
 		// but that's the best we can do.
 		if ( dirtyAssociationPaths != null ) {
-			plan.updateAssociationInverseSide( typeContext.typeIdentifier(), dirtyAssociationPaths, null,
-					event.getState() );
+			plan.updateAssociationInverseSide( dirtyAssociationPaths, null, event.getState() );
 		}
 	}
 
@@ -138,6 +149,12 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		if ( typeContext == null ) {
 			// This type is not indexed, nor contained in an indexed type.
 			// Return early, to avoid creating an indexing plan.
+			return;
+		}
+		PojoTypeIndexingPlan plan = getCurrentIndexingPlanIfTypeIncluded( event.getSession(), typeContext );
+		if ( plan == null ) {
+			// This type is excluded through filters.
+			// Return early, to avoid unnecessary processing.
 			return;
 		}
 
@@ -168,15 +185,12 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 			dirtyDirectAssociationPaths = typeContext.dirtyContainingAssociationFilter().all();
 		}
 
-		PojoIndexingPlan plan = getCurrentIndexingPlan( event.getSession() );
 		Object providedId = typeContext.toIndexingPlanProvidedId( event.getId() );
 		if ( considerAllDirty ) {
-			plan.addOrUpdate( typeContext.typeIdentifier(), providedId, null, entity,
-					true, true, null );
+			plan.addOrUpdate( providedId, null, entity, true, true, null );
 		}
 		else if ( dirtyPaths != null ) {
-			plan.addOrUpdate( typeContext.typeIdentifier(), providedId, null, entity,
-					false, false, dirtyPaths );
+			plan.addOrUpdate( providedId, null, entity, false, false, dirtyPaths );
 		}
 
 		// In case ToOne associations are updated on the "contained" side only,
@@ -185,8 +199,7 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		// is lazy and has not yet been loaded (otherwise it will be out of date when reindexing)
 		// but that's the best we can do.
 		if ( dirtyDirectAssociationPaths != null ) {
-			plan.updateAssociationInverseSide( typeContext.typeIdentifier(), dirtyDirectAssociationPaths,
-					event.getOldState(), event.getState() );
+			plan.updateAssociationInverseSide( dirtyDirectAssociationPaths, event.getOldState(), event.getState() );
 		}
 	}
 
@@ -247,7 +260,10 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 			 */
 			return;
 		}
-		getCurrentIndexingPlan( event.getSession() ).process();
+		PojoIndexingPlan plan = getCurrentIndexingPlanIfExisting( event.getSession() );
+		if ( plan != null ) {
+			plan.process();
+		}
 	}
 
 	@Override
@@ -264,12 +280,13 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		}
 	}
 
-	private PojoIndexingPlan getCurrentIndexingPlan(SessionImplementor sessionImplementor) {
-		return contextProvider.currentIndexingPlan( sessionImplementor, true );
+	private PojoTypeIndexingPlan getCurrentIndexingPlanIfTypeIncluded(SessionImplementor sessionImplementor,
+			HibernateOrmListenerTypeContext typeContext) {
+		return contextProvider.currentIndexingPlanIfTypeIncluded( sessionImplementor, typeContext.typeIdentifier() );
 	}
 
 	private PojoIndexingPlan getCurrentIndexingPlanIfExisting(SessionImplementor sessionImplementor) {
-		return contextProvider.currentIndexingPlan( sessionImplementor, false );
+		return contextProvider.currentIndexingPlanIfExisting( sessionImplementor );
 	}
 
 	private HibernateOrmListenerTypeContext getTypeContextOrNull(EntityPersister entityPersister) {
@@ -294,6 +311,12 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		if ( typeContext == null ) {
 			// This type is not indexed, nor contained in an indexed type.
 			// Return early, to avoid creating an indexing plan.
+			return;
+		}
+		PojoTypeIndexingPlan plan = getCurrentIndexingPlanIfTypeIncluded( event.getSession(), typeContext );
+		if ( plan == null ) {
+			// This type is excluded through filters.
+			// Return early, to avoid unnecessary processing.
 			return;
 		}
 
@@ -326,16 +349,12 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 			dirtyPaths = null;
 		}
 
-		PojoIndexingPlan plan = getCurrentIndexingPlan( event.getSession() );
 		Object providedId = typeContext.toIndexingPlanProvidedId( event.getAffectedOwnerIdOrNull() );
 		if ( dirtyPaths != null ) {
-			plan.addOrUpdate( typeContext.typeIdentifier(), providedId, null, ownerEntity,
-					false, false, dirtyPaths
-			);
+			plan.addOrUpdate( providedId, null, ownerEntity, false, false, dirtyPaths );
 		}
 		else {
-			plan.addOrUpdate( typeContext.typeIdentifier(), providedId, null, ownerEntity,
-					true, true, null );
+			plan.addOrUpdate( providedId, null, ownerEntity, true, true, null );
 		}
 	}
 

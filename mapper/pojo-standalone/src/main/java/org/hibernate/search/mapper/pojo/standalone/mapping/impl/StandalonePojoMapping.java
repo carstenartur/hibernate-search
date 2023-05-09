@@ -14,7 +14,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.hibernate.search.engine.backend.Backend;
-import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.index.IndexManager;
 import org.hibernate.search.engine.backend.reporting.spi.BackendMappingHints;
 import org.hibernate.search.engine.common.spi.SearchIntegration;
@@ -28,8 +27,7 @@ import org.hibernate.search.mapper.pojo.massindexing.spi.PojoMassIndexerAgentCre
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRuntimeIntrospector;
 import org.hibernate.search.mapper.pojo.schema.management.spi.PojoScopeSchemaManager;
-import org.hibernate.search.mapper.pojo.standalone.common.EntityReference;
-import org.hibernate.search.mapper.pojo.standalone.common.impl.EntityReferenceImpl;
+import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.mapper.pojo.standalone.entity.SearchIndexedEntity;
 import org.hibernate.search.mapper.pojo.standalone.loading.impl.StandalonePojoLoadingContext;
 import org.hibernate.search.mapper.pojo.standalone.mapping.CloseableSearchMapping;
@@ -43,11 +41,10 @@ import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.mapper.pojo.standalone.session.SearchSessionBuilder;
 import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSearchSession;
 import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSearchSessionMappingContext;
-import org.hibernate.search.mapper.pojo.standalone.session.impl.StandalonePojoSessionIndexedTypeContext;
 import org.hibernate.search.util.common.impl.Closer;
 
 public class StandalonePojoMapping extends AbstractPojoMappingImplementor<StandalonePojoMapping>
-		implements CloseableSearchMapping, StandalonePojoSearchSessionMappingContext, EntityReferenceFactory<EntityReference> {
+		implements CloseableSearchMapping, StandalonePojoSearchSessionMappingContext {
 
 	private final StandalonePojoTypeContextContainer typeContextContainer;
 	private final SchemaManagementListener schemaManagementListener;
@@ -124,20 +121,8 @@ public class StandalonePojoMapping extends AbstractPojoMappingImplementor<Standa
 	}
 
 	@Override
-	public EntityReferenceFactory<EntityReference> entityReferenceFactory() {
-		return this;
-	}
-
-	@Override
 	public PojoRuntimeIntrospector runtimeIntrospector() {
 		return PojoRuntimeIntrospector.simple();
-	}
-
-	@Override
-	public EntityReference createEntityReference(String typeName, Object identifier) {
-		StandalonePojoSessionIndexedTypeContext<?> typeContext = typeContextContainer.indexedByEntityName()
-				.getOrFail( typeName );
-		return new EntityReferenceImpl( typeContext.typeIdentifier(), typeContext.name(), identifier );
 	}
 
 	@Override

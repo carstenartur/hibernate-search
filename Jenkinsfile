@@ -251,7 +251,7 @@ stage('Configure') {
 					new EsLocalBuildEnvironment(version: '8.4.3', condition: TestCondition.ON_DEMAND),
 					new EsLocalBuildEnvironment(version: '8.5.3', condition: TestCondition.ON_DEMAND),
 					new EsLocalBuildEnvironment(version: '8.6.2', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.7.0', condition: TestCondition.BEFORE_MERGE, isDefault: true),
+					new EsLocalBuildEnvironment(version: '8.7.1', condition: TestCondition.BEFORE_MERGE, isDefault: true),
 
 					// --------------------------------------------
 					// OpenSearch
@@ -264,7 +264,8 @@ stage('Configure') {
 					new OpenSearchLocalBuildEnvironment(version: '2.3.0', condition: TestCondition.ON_DEMAND),
 					new OpenSearchLocalBuildEnvironment(version: '2.4.1', condition: TestCondition.ON_DEMAND),
 					new OpenSearchLocalBuildEnvironment(version: '2.5.0', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.6.0', condition: TestCondition.AFTER_MERGE)
+					new OpenSearchLocalBuildEnvironment(version: '2.6.0', condition: TestCondition.ON_DEMAND),
+					new OpenSearchLocalBuildEnvironment(version: '2.7.0', condition: TestCondition.AFTER_MERGE)
 					// See https://opensearch.org/lines/2x.html for a list of all 2.x versions
 			],
 			esAws: [

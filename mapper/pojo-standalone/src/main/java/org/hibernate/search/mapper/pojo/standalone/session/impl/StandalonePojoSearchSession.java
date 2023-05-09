@@ -12,14 +12,12 @@ import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.function.Consumer;
 
-import org.hibernate.search.engine.backend.common.DocumentReference;
-import org.hibernate.search.engine.backend.common.spi.DocumentReferenceConverter;
 import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
+import org.hibernate.search.mapper.pojo.work.spi.ConfiguredSearchIndexingPlanFilter;
 import org.hibernate.search.mapper.pojo.loading.spi.PojoSelectionLoadingContext;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRuntimeIntrospector;
 import org.hibernate.search.mapper.pojo.session.spi.AbstractPojoSearchSession;
-import org.hibernate.search.mapper.pojo.standalone.common.EntityReference;
-import org.hibernate.search.mapper.pojo.standalone.common.impl.EntityReferenceImpl;
+import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.mapper.pojo.standalone.loading.dsl.SelectionLoadingOptionsStep;
 import org.hibernate.search.mapper.pojo.standalone.loading.impl.StandalonePojoLoadingContext;
 import org.hibernate.search.mapper.pojo.standalone.loading.impl.StandalonePojoLoadingSessionContext;
@@ -44,10 +42,10 @@ import org.hibernate.search.mapper.pojo.work.spi.PojoIndexer;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 public class StandalonePojoSearchSession extends AbstractPojoSearchSession
-		implements SearchSession, StandalonePojoMassIndexingSessionContext, StandalonePojoLoadingSessionContext,
-				DocumentReferenceConverter<EntityReference> {
+		implements SearchSession, StandalonePojoMassIndexingSessionContext, StandalonePojoLoadingSessionContext {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
+	private static final ConfiguredSearchIndexingPlanFilter ACCEPT_ALL = typeIdentifier -> true;
 
 	private final StandalonePojoSearchSessionMappingContext mappingContext;
 	private final StandalonePojoSearchSessionTypeContextProvider typeContextProvider;
@@ -56,11 +54,12 @@ public class StandalonePojoSearchSession extends AbstractPojoSearchSession
 
 	private final Consumer<SelectionLoadingOptionsStep> loadingOptionsContributor;
 	private final ConfiguredIndexingPlanSynchronizationStrategyHolder synchronizationStrategyHolder;
+	private final ConfiguredSearchIndexingPlanFilter configuredIndexingPlanFilter;
 
 	private SearchIndexingPlanImpl indexingPlan;
 	private SearchIndexer indexer;
 	private boolean open = true;
-	private ConfiguredIndexingPlanSynchronizationStrategy<EntityReference> indexingPlanSynchronizationStrategy;
+	private ConfiguredIndexingPlanSynchronizationStrategy indexingPlanSynchronizationStrategy;
 
 	private StandalonePojoSearchSession(Builder builder) {
 		super( builder.mappingContext );
@@ -72,6 +71,7 @@ public class StandalonePojoSearchSession extends AbstractPojoSearchSession
 
 		this.indexingPlanSynchronizationStrategy = this.synchronizationStrategyHolder.configureOverriddenSynchronizationStrategy(
 				builder.synchronizationStrategy );
+		this.configuredIndexingPlanFilter = ACCEPT_ALL;
 	}
 
 	private void checkOpenAndThrow() {
@@ -177,17 +177,13 @@ public class StandalonePojoSearchSession extends AbstractPojoSearchSession
 	}
 
 	@Override
-	public EntityReference fromDocumentReference(DocumentReference reference) {
-		StandalonePojoSessionIndexedTypeContext<?> typeContext =
-				typeContextProvider.indexedByEntityName().getOrFail( reference.typeName() );
-		Object id = typeContext.identifierMapping()
-				.fromDocumentIdentifier( reference.id(), this );
-		return new EntityReferenceImpl( typeContext.typeIdentifier(), typeContext.name(), id );
+	public PojoSelectionLoadingContext defaultLoadingContext() {
+		return loadingContextBuilder().build();
 	}
 
 	@Override
-	public PojoSelectionLoadingContext defaultLoadingContext() {
-		return loadingContextBuilder().build();
+	public ConfiguredSearchIndexingPlanFilter configuredIndexingPlanFilter() {
+		return configuredIndexingPlanFilter;
 	}
 
 	@Override
@@ -196,7 +192,7 @@ public class StandalonePojoSearchSession extends AbstractPojoSearchSession
 	}
 
 	private <T> SearchQuerySelectStep<?, EntityReference, T, ?, ?, ?> search(SearchScopeImpl<T> scope) {
-		return scope.search( this, this, loadingContextBuilder() );
+		return scope.search( this, loadingContextBuilder() );
 	}
 
 	private StandalonePojoSelectionLoadingContextBuilder loadingContextBuilder() {

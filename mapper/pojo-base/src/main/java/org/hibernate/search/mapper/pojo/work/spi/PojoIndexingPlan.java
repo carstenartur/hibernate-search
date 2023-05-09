@@ -9,7 +9,6 @@ package org.hibernate.search.mapper.pojo.work.spi;
 import java.util.BitSet;
 import java.util.concurrent.CompletableFuture;
 
-import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoPathFilter;
@@ -25,15 +24,22 @@ import org.hibernate.search.mapper.pojo.route.DocumentRoutesDescriptor;
  * the entities will be processed and index documents will be built
  * and stored in an internal buffer.
  * <p>
- * When {@link #executeAndReport(EntityReferenceFactory)} is called,
+ * When {@link #executeAndReport(OperationSubmitter)} is called,
  * the operations will be actually sent to the index.
  * <p>
- * Note that {@link #executeAndReport(EntityReferenceFactory)} will implicitly trigger processing of documents that weren't processed yet,
- * if any, so calling {@link #process()} is not necessary if you call {@link #executeAndReport(EntityReferenceFactory)} just next.
+ * Note that {@link #executeAndReport(OperationSubmitter)} will implicitly trigger processing of documents that weren't processed yet,
+ * if any, so calling {@link #process()} is not necessary if you call {@link #executeAndReport(OperationSubmitter)} just next.
  * <p>
  * Implementations may not be thread-safe.
  */
 public interface PojoIndexingPlan {
+
+	/**
+	 * @param typeIdentifier The identifier of the entity type.
+	 * @return The indexing plan for the given entity type,
+	 * or {@code null} if that type is going to be ignored by this indexing plan.
+	 */
+	PojoTypeIndexingPlan typeIfIncludedOrNull(PojoRawTypeIdentifier<?> typeIdentifier);
 
 	/**
 	 * Add an entity to the index, assuming that the entity is absent from the index.
@@ -54,7 +60,9 @@ public interface PojoIndexingPlan {
 	 * the routes will be computed using that bridge instead,
 	 * and provided routes will be ignored.
 	 * @param entity The entity to add to the index.
+	 * @deprecated Use {@code typeIfIncludedOrNull(typeIdentifier)} instead, then (if non-null) {@code .add(...)} on the result.
 	 */
+	@Deprecated
 	void add(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes, Object entity);
 
@@ -81,7 +89,9 @@ public interface PojoIndexingPlan {
 	 * You can build such a {@link BitSet} by obtaining the
 	 * {@link org.hibernate.search.mapper.pojo.mapping.building.spi.PojoTypeExtendedMappingCollector#dirtyFilter(PojoPathFilter) dirty filter}
 	 * for the entity type and calling one of the {@code filter} methods.
+	 * @deprecated Use {@code typeIfIncludedOrNull(typeIdentifier)} instead, then (if non-null) {@code .addOrUpdate(...)} on the result.
 	 */
+	@Deprecated
 	void addOrUpdate(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes, Object entity,
 			boolean forceSelfDirty, boolean forceContainingDirty, BitSet dirtyPaths);
@@ -109,7 +119,9 @@ public interface PojoIndexingPlan {
 	 * and provided routes (current and previous) will all be appended to the generated "previous routes".
 	 * @param entity The entity to delete from the index. May be {@code null} if {@code providedId} is non-{@code null}.
 	 * @throws IllegalArgumentException If both {@code providedId} and {@code entity} are {@code null}.
+	 * @deprecated Use {@code typeIfIncludedOrNull(typeIdentifier)} instead, then (if non-null) {@code .delete(...)} on the result.
 	 */
+	@Deprecated
 	void delete(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes, Object entity);
 
@@ -135,7 +147,9 @@ public interface PojoIndexingPlan {
 	 * You can build such a {@link BitSet} by obtaining the
 	 * {@link org.hibernate.search.mapper.pojo.mapping.building.spi.PojoTypeExtendedMappingCollector#dirtyFilter(PojoPathFilter) dirty filter}
 	 * for the entity type and calling one of the {@code filter} methods.
+	 * @deprecated Use {@code typeIfIncludedOrNull(typeIdentifier)} instead, then (if non-null) {@code .addOrUpdateOrDelete(...)} on the result.
 	 */
+	@Deprecated
 	void addOrUpdateOrDelete(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes,
 			boolean forceSelfDirty, boolean forceContainingDirty, BitSet dirtyPaths);
@@ -160,7 +174,9 @@ public interface PojoIndexingPlan {
 	 * May be {@code null}, in which case this state will not yield any reindexing.
 	 * @param newState The new state of the entity whose associations are dirty.
 	 * May be {@code null}, in which case this state will not yield any reindexing.
+	 * @deprecated Use {@code typeIfIncludedOrNull(typeIdentifier)} instead, then (if non-null) {@code .updateAssociationInverseSide(...)} on the result.
 	 */
+	@Deprecated
 	void updateAssociationInverseSide(PojoRawTypeIdentifier<?> typeIdentifier,
 			BitSet dirtyAssociationPaths, Object[] oldState, Object[] newState);
 
@@ -172,7 +188,7 @@ public interface PojoIndexingPlan {
 	 * In particular, ensure that all data is extracted from the POJOs
 	 * and converted to the backend-specific format.
 	 * <p>
-	 * Calling this method is optional: the {@link #executeAndReport(EntityReferenceFactory)} method
+	 * Calling this method is optional: the {@link #executeAndReport(OperationSubmitter)} method
 	 * will perform the processing if necessary.
 	 */
 	void process();
@@ -182,22 +198,9 @@ public interface PojoIndexingPlan {
 	 * without waiting for a Hibernate ORM flush event or transaction commit,
 	 * and clear the plan so that it can be re-used.
 	 *
-	 * @param <R> The type of entity references in the returned execution report.
-	 * @param entityReferenceFactory A factory for entity references in the returned execution report.
 	 * @return A {@link CompletableFuture} that will be completed with an execution report when all the works are complete.
 	 */
-	<R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory, OperationSubmitter operationSubmitter);
-
-	/**
-	 * @see #executeAndReport(EntityReferenceFactory, OperationSubmitter)
-	 * @deprecated Use {@link #executeAndReport(EntityReferenceFactory, OperationSubmitter)} instead.
-	 */
-	@Deprecated
-	default <R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory) {
-		return executeAndReport( entityReferenceFactory, OperationSubmitter.blocking() );
-	}
+	CompletableFuture<MultiEntityOperationExecutionReport> executeAndReport(OperationSubmitter operationSubmitter);
 
 	/**
 	 * Discard all plans of indexing.

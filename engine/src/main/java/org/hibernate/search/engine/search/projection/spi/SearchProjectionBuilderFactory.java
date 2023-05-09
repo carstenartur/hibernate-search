@@ -35,6 +35,8 @@ public interface SearchProjectionBuilderFactory {
 
 	<T> SearchProjection<T> constant(T value);
 
+	<T> SearchProjection<T> entityComposite(SearchProjection<T> delegate);
+
 	/**
 	 * @param exceptionSupplier A supplier of the exception to throw.
 	 * @return A projection that throws an exception as soon as it's applied to at least one document.
@@ -49,13 +51,5 @@ public interface SearchProjectionBuilderFactory {
 	 * @param <T> The type of projected values.
 	 */
 	<T> SearchProjection<T> byTypeName(Map<String, ? extends SearchProjection<? extends T>> inners);
-
-	/**
-	 * @param inner A projection to delegate to.
-	 * @return A projection that executes its inner projection in the root context,
-	 * ignoring any surrounding object projection.
-	 * @param <T> The type of projected values.
-	 */
-	<T> SearchProjection<T> rootContext(SearchProjection<T> inner);
 
 }

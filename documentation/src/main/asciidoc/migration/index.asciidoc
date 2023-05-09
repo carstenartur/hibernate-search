@@ -317,6 +317,10 @@ This affects the following configuration properties:
 ** `hibernate.search.backend.query.caching.configurer`
 ** `hibernate.search.mapping.configurer`
 
+Additionally, some configuration properties have been deprecated:
+
+* `hibernate.search.automatic_indexing.synchronization.strategy` is now deprecated in favor of `hibernate.search.indexing.plan.synchronization.strategy`.
+
 [[api]]
 == API changes
 
@@ -332,6 +336,7 @@ is now `org.hibernate.search.engine.search.predicate.definition.PredicateDefinit
 
 Parts of the API have been deprecated, and may be removed in the next major version:
 
+* `org.hibernate.search.mapper.orm.common.EntityReference`: use `org.hibernate.search.engine.common.EntityReference` instead.
 * `SearchPredicateFactory#bool(Consumer)`, which enables the syntax `f.bool(b -> { b.must(...); b.must(...); }`:
 use the syntax `f.bool().with(b -> { b.must(...); b.must(...); })` instead,
 or (if possible) take advantage of the new `.where(BiConsumer)` method in the Search Query DSL:
@@ -352,16 +357,13 @@ which enable the syntax `f.composite((p1, p2, p3) -> ..., <some projection>, <so
 use the (more flexible) syntax `f.composite().from(<some projection>, <some projection>, <some projection>).as((p1, p2, p3) -> ...)` instead.
 * `SearchSession#automaticIndexingSynchronizationStrategy(..)` and related `AutomaticIndexingSynchronizationStrategy`/`AutomaticIndexingSynchronizationConfigurationContext`/`AutomaticIndexingSynchronizationStrategyNames`:
 use `SearchSession#indexingPlanSynchronizationStrategy(..)` and `IndexingPlanSynchronizationStrategy`/`IndexingPlanSynchronizationStrategyConfigurationContext`/`IndexingPlanSynchronizationStrategyNames` instead.
-Note new API is still incubating and might change.
-Also, configuration property `hibernate.search.automatic_indexing.synchronization.strategy` is now deprecated in favor of `hibernate.search.indexing.plan.synchronization.strategy`
+Note the new API is still incubating and might change.
 
 [[spi]]
 == SPI changes
 
-The https://hibernate.org/community/compatibility-policy/#code-categorization[SPI]
-is mostly backward-compatible with Hibernate Search {hibernateSearchPreviousStableVersionShort}.
-
-Below are the most notable SPI changes:
+Below are the most notable https://hibernate.org/community/compatibility-policy/#code-categorization[SPI] changes
+compared to {hibernateSearchPreviousStableVersionShort}:
 
 * `PojoGenericTypeModel` no longer exists; its methods moved to `PojoTypeModel`.
 * `org.hibernate.search.mapper.pojo.mapping.spi.AbstractPojoMappingInitiator#annotatedTypeDiscoveryEnabled` is deprecated.
@@ -372,6 +374,18 @@ Use/implement `org.hibernate.search.util.common.reflect.spi.ValueHandleFactory` 
 Use `PojoAdditionalMetadataCollectorTypeNode#markAsEntity(String, org.hibernate.search.mapper.pojo.model.path.spi.PojoPathDefinitionProvider)` instead.
 * `AutomaticIndexingStrategyStartContext` is deprecated.
 It was introduced by mistake and does not have any use.
+* Mappers are no longer expected to provide a custom class to represent entity references,
+e.g. in search projections or in indexing failure reports.
+They should use `org.hibernate.search.engine.common.EntityReference` instead,
+which is the type that will be instantiated by default.
+Mappers that for some reason still need to rely on custom entity references classes
+will need to have their custom entity references class implement `org.hibernate.search.engine.common.EntityReference`,
+and will need to call `org.hibernate.search.mapper.pojo.mapping.spi.AbstractPojoMappingImplementor.AbstractPojoMappingImplementor(org.hibernate.search.mapper.pojo.mapping.spi.PojoMappingDelegate, org.hibernate.search.mapper.pojo.mapping.spi.PojoEntityReferenceFactory)`
+when their mapping gets instantiated.
+* Many `execute*(...)`/`send*(...)` methods related to indexing plans now take an `OperationSubmitter` as an argument
+(see the javadoc of `OperationSubmitter`)
+and no longer take an `EntityReferenceFactory` as an argument
+(which is provided through `AbstractPojoMappingImplementor#entityReferenceFactory` instead).
 
 [[behavior]]
 == Behavior changes

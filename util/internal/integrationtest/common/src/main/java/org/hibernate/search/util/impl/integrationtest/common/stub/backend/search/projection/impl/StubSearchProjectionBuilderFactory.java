@@ -64,6 +64,11 @@ public class StubSearchProjectionBuilderFactory implements SearchProjectionBuild
 	}
 
 	@Override
+	public <T> SearchProjection<T> entityComposite(SearchProjection<T> delegate) {
+		return new StubEntityCompositeProjection<>( StubSearchProjection.from( delegate ) );
+	}
+
+	@Override
 	public <T> SearchProjection<T> throwing(Supplier<SearchException> exceptionSupplier) {
 		return new StubThrowingProjection<>( exceptionSupplier );
 	}
@@ -77,9 +82,4 @@ public class StubSearchProjectionBuilderFactory implements SearchProjectionBuild
 		return new StubByMappedTypeProjection<>( stubInners );
 	}
 
-	@Override
-	public <T> SearchProjection<T> rootContext(SearchProjection<T> inner) {
-		// Simulating the execution in a root context is considered the responsibility of the tester.
-		return StubSearchProjection.from( inner );
-	}
 }

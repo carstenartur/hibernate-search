@@ -64,6 +64,7 @@ import org.hibernate.search.engine.backend.types.Aggregable;
 import org.hibernate.search.engine.backend.types.Projectable;
 import org.hibernate.search.engine.backend.types.Sortable;
 import org.hibernate.search.engine.backend.index.IndexManager;
+import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.engine.common.spi.SearchIntegration;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.common.ValueConvert;
@@ -118,7 +119,7 @@ public class LuceneExtensionIT {
 		StubMappingScope scope = mainIndex.createScope();
 
 		// Put intermediary contexts into variables to check they have the right type
-		LuceneSearchQuerySelectStep<DocumentReference, DocumentReference, StubLoadingOptionsStep> context1 =
+		LuceneSearchQuerySelectStep<EntityReference, DocumentReference, StubLoadingOptionsStep> context1 =
 				scope.query().extension( LuceneExtension.get() );
 		LuceneSearchQueryWhereStep<DocumentReference, StubLoadingOptionsStep> context2 = context1.select(
 				f -> f.composite()
@@ -142,7 +143,7 @@ public class LuceneExtensionIT {
 				.hasTotalHitCount( 5 );
 
 		// Also check (at compile time) the context type for other asXXX() methods, since we need to override each method explicitly
-		LuceneSearchQueryWhereStep<DocumentReference, StubLoadingOptionsStep> selectEntityReferenceContext =
+		LuceneSearchQueryWhereStep<EntityReference, StubLoadingOptionsStep> selectEntityReferenceContext =
 				scope.query().extension( LuceneExtension.get() ).selectEntityReference();
 		LuceneSearchQueryWhereStep<DocumentReference, StubLoadingOptionsStep> selectEntityContext =
 				scope.query().extension( LuceneExtension.get() ).selectEntity();
@@ -173,7 +174,7 @@ public class LuceneExtensionIT {
 
 		// Unsupported extension
 		assertThatThrownBy(
-				() -> query.extension( (SearchQuery<DocumentReference> original, SearchLoadingContext<?, ?> loadingContext) -> Optional.empty() )
+				() -> query.extension( (SearchQuery<DocumentReference> original, SearchLoadingContext<?> loadingContext) -> Optional.empty() )
 		)
 				.isInstanceOf( SearchException.class );
 	}
@@ -872,6 +873,38 @@ public class LuceneExtensionIT {
 			TopDocs topDocs = searcher.search( new MatchAllDocsQuery(), 1000 );
 			assertThat( topDocs.scoreDocs ).hasSize( 30 );
 		}
+	}
+
+	@Test
+	public void documentProjectionInsideNested() {
+		assertThatThrownBy( () -> mainIndex.createScope().query()
+				.select( f -> f.object( "nestedObject" ).from(
+								f.extension( LuceneExtension.get() ).document()
+						).asList().multi()
+				)
+				.where( f -> f.matchAll() )
+				.toQuery()
+		).isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"'projection:document' cannot be nested in an object projection",
+						"A document projection represents a root document and adding it as a part of the nested object projection might produce misleading results."
+				);
+	}
+
+	@Test
+	public void explanationProjectionInsideNested() {
+		assertThatThrownBy( () -> mainIndex.createScope().query()
+				.select( f -> f.object( "nestedObject" ).from(
+								f.extension( LuceneExtension.get() ).explanation()
+						).asList().multi()
+				)
+				.where( f -> f.matchAll() )
+				.toQuery()
+		).isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"'projection:explanation' cannot be nested in an object projection",
+						"An explanation projection describes the score computation for the hit and adding it as a part of the nested object projection might produce misleading results."
+				);
 	}
 
 	private void initData() {

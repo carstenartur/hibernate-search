@@ -9,7 +9,6 @@ package org.hibernate.search.mapper.pojo.work.spi;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
@@ -21,20 +20,18 @@ import org.hibernate.search.util.common.annotation.Incubating;
 import org.hibernate.search.util.common.impl.Contracts;
 
 @Incubating
-public class ConfiguredIndexingPlanSynchronizationStrategy<E> {
+public class ConfiguredIndexingPlanSynchronizationStrategy {
 
 	private final DocumentCommitStrategy documentCommitStrategy;
 	private final DocumentRefreshStrategy documentRefreshStrategy;
 	private final Consumer<? super CompletableFuture<? extends SearchIndexingPlanExecutionReport>> indexingFutureHandler;
 	private final OperationSubmitter operationSubmitter;
-	private final EntityReferenceFactory<E> entityReferenceFactory;
 
-	protected ConfiguredIndexingPlanSynchronizationStrategy(Builder<E> configurationContext) {
+	protected ConfiguredIndexingPlanSynchronizationStrategy(Builder configurationContext) {
 		this.documentCommitStrategy = configurationContext.documentCommitStrategy;
 		this.documentRefreshStrategy = configurationContext.documentRefreshStrategy;
 		this.indexingFutureHandler = configurationContext.indexingFutureHandler;
 		this.operationSubmitter = configurationContext.operationSubmitter;
-		this.entityReferenceFactory = configurationContext.entityReferenceFactory;
 	}
 
 	public DocumentCommitStrategy documentCommitStrategy() {
@@ -47,12 +44,12 @@ public class ConfiguredIndexingPlanSynchronizationStrategy<E> {
 
 	public void executeAndSynchronize(PojoIndexingPlan indexingPlan) {
 		CompletableFuture<SearchIndexingPlanExecutionReport> reportFuture =
-				indexingPlan.executeAndReport( entityReferenceFactory, operationSubmitter )
+				indexingPlan.executeAndReport( operationSubmitter )
 						.thenApply( DelegatingSearchIndexingPlanExecutionReport::new );
 		indexingFutureHandler.accept( reportFuture );
 	}
 
-	public static final class Builder<E>
+	public static final class Builder
 			implements IndexingPlanSynchronizationStrategyConfigurationContext {
 
 		private final FailureHandler failureHandler;
@@ -62,11 +59,8 @@ public class ConfiguredIndexingPlanSynchronizationStrategy<E> {
 		private Consumer<? super CompletableFuture<? extends SearchIndexingPlanExecutionReport>> indexingFutureHandler = future -> { };
 		private OperationSubmitter operationSubmitter = OperationSubmitter.blocking();
 
-		private final EntityReferenceFactory<E> entityReferenceFactory;
-
-		public Builder(FailureHandler failureHandler, EntityReferenceFactory<E> entityReferenceFactory) {
+		public Builder(FailureHandler failureHandler) {
 			this.failureHandler = failureHandler;
-			this.entityReferenceFactory = entityReferenceFactory;
 		}
 
 		@Override
@@ -97,8 +91,8 @@ public class ConfiguredIndexingPlanSynchronizationStrategy<E> {
 			this.operationSubmitter = operationSubmitter;
 		}
 
-		public ConfiguredIndexingPlanSynchronizationStrategy<E> build() {
-			return new ConfiguredIndexingPlanSynchronizationStrategy<>( this );
+		public ConfiguredIndexingPlanSynchronizationStrategy build() {
+			return new ConfiguredIndexingPlanSynchronizationStrategy( this );
 		}
 	}
 

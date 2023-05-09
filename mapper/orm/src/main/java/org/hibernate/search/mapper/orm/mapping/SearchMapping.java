@@ -16,8 +16,10 @@ import org.hibernate.search.engine.backend.Backend;
 import org.hibernate.search.engine.backend.index.IndexManager;
 import org.hibernate.search.mapper.orm.entity.SearchIndexedEntity;
 import org.hibernate.search.mapper.orm.scope.SearchScope;
+import org.hibernate.search.mapper.pojo.work.SearchIndexingPlanFilter;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.util.common.SearchException;
+import org.hibernate.search.util.common.annotation.Incubating;
 
 /**
  * The Hibernate Search mapping between the Hibernate ORM model and the backend(s).
@@ -119,6 +121,18 @@ public interface SearchMapping {
 	 * @return The backend having {@code backendName} as name.
 	 */
 	Backend backend(String backendName);
+
+	/**
+	 * Set a filter defining which types must be included/excluded when indexed within indexing plans (either automatically or manually).
+	 * <p>
+	 * This does not affect indexing that does not rely on indexing plans, like the mass indexer.
+	 * <p>
+	 * By default, all indexed and contained types are included.
+	 *
+	 * @param filter The filter that includes/excludes types when indexed.
+	 */
+	@Incubating
+	void indexingPlanFilter(SearchIndexingPlanFilter filter);
 
 	/**
 	 * Extend the current search mapping with the given extension,

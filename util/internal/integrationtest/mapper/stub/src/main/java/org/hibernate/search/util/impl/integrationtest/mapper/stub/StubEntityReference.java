@@ -8,46 +8,52 @@ package org.hibernate.search.util.impl.integrationtest.mapper.stub;
 
 import java.util.Objects;
 
-import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
+import org.hibernate.search.engine.common.EntityReference;
 
-public class StubEntityReference {
+public final class StubEntityReference implements EntityReference {
 
-	public static EntityReferenceFactory<StubEntityReference> FACTORY = StubEntityReference::new;
+	private final Class<?> type;
 
-	private final String typeName;
+	private final String name;
 
 	private final Object id;
 
-	public StubEntityReference(String typeName, Object id) {
-		this.typeName = typeName;
+	public StubEntityReference(Class<?> type, String name, Object id) {
+		this.type = type;
+		this.name = name;
 		this.id = id;
 	}
 
-	public String getTypeName() {
-		return typeName;
+	@Override
+	public Class<?> type() {
+		return type;
 	}
 
-	public Object getId() {
+	public String name() {
+		return name;
+	}
+
+	public Object id() {
 		return id;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if ( obj == null || obj.getClass() != getClass() ) {
+		if ( !( obj instanceof EntityReference ) ) {
 			return false;
 		}
-		StubEntityReference other = (StubEntityReference) obj;
-		return typeName.equals( other.typeName ) && Objects.equals( id, other.id );
+		EntityReference other = (EntityReference) obj;
+		return name.equals( other.name() ) && Objects.equals( id, other.id() );
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash( typeName, id );
+		return Objects.hash( name, id );
 	}
 
 	@Override
 	public String toString() {
-		return typeName + "#" + id;
+		return name + "#" + id + " (" + type + ")";
 	}
 
 }

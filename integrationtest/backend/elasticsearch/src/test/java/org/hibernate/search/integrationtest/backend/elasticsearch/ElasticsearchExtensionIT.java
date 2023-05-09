@@ -42,6 +42,7 @@ import org.hibernate.search.engine.backend.index.IndexManager;
 import org.hibernate.search.engine.backend.types.Aggregable;
 import org.hibernate.search.engine.backend.types.Projectable;
 import org.hibernate.search.engine.backend.types.Sortable;
+import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.engine.common.spi.SearchIntegration;
 import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
@@ -107,7 +108,7 @@ public class ElasticsearchExtensionIT {
 		StubMappingScope scope = mainIndex.createScope();
 
 		// Put intermediary contexts into variables to check they have the right type
-		ElasticsearchSearchQuerySelectStep<DocumentReference, DocumentReference, StubLoadingOptionsStep> context1 =
+		ElasticsearchSearchQuerySelectStep<EntityReference, DocumentReference, StubLoadingOptionsStep> context1 =
 				scope.query().extension( ElasticsearchExtension.get() );
 		ElasticsearchSearchQueryWhereStep<DocumentReference, StubLoadingOptionsStep> context2 = context1.select(
 				f -> f.composite()
@@ -131,7 +132,7 @@ public class ElasticsearchExtensionIT {
 				.hasTotalHitCount( 6 );
 
 		// Also check (at compile time) the context type for other asXXX() methods, since we need to override each method explicitly
-		ElasticsearchSearchQueryWhereStep<DocumentReference, StubLoadingOptionsStep> selectEntityReferenceContext =
+		ElasticsearchSearchQueryWhereStep<EntityReference, StubLoadingOptionsStep> selectEntityReferenceContext =
 				scope.query().extension( ElasticsearchExtension.get() ).selectEntityReference();
 		ElasticsearchSearchQueryWhereStep<DocumentReference, StubLoadingOptionsStep> selectEntityContext =
 				scope.query().extension( ElasticsearchExtension.get() ).selectEntity();
@@ -162,7 +163,7 @@ public class ElasticsearchExtensionIT {
 
 		// Unsupported extension
 		assertThatThrownBy(
-				() -> query.extension( (SearchQuery<DocumentReference> original, SearchLoadingContext<?, ?> loadingContext) -> Optional.empty() )
+				() -> query.extension( (SearchQuery<DocumentReference> original, SearchLoadingContext<?> loadingContext) -> Optional.empty() )
 		)
 				.isInstanceOf( SearchException.class );
 	}
@@ -1099,6 +1100,54 @@ public class ElasticsearchExtensionIT {
 						"Invalid requested type for this index manager: '" + String.class.getName() + "'",
 						"Elasticsearch index managers can only be unwrapped to '"
 								+ ElasticsearchIndexManager.class.getName() + "'"
+				);
+	}
+
+	@Test
+	public void jsonHitProjectionInsideNested() {
+		assertThatThrownBy( () -> mainIndex.createScope().query()
+				.select( f -> f.object( "nestedObject" ).from(
+								f.extension( ElasticsearchExtension.get() ).jsonHit()
+						).asList().multi()
+				)
+				.where( f -> f.matchAll() )
+				.toQuery()
+		).isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"'projection:json-hit' cannot be nested in an object projection",
+						"A JSON hit projection represents a root hit object and adding it as a part of the nested object projection might produce misleading results."
+				);
+	}
+
+	@Test
+	public void sourceProjectionInsideNested() {
+		assertThatThrownBy( () -> mainIndex.createScope().query()
+				.select( f -> f.object( "nestedObject" ).from(
+								f.extension( ElasticsearchExtension.get() ).source()
+						).asList().multi()
+				)
+				.where( f -> f.matchAll() )
+				.toQuery()
+		).isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"'projection:source' cannot be nested in an object projection",
+						"A source projection represents a root source object and adding it as a part of the nested object projection might produce misleading results."
+				);
+	}
+
+	@Test
+	public void explanationProjectionInsideNested() {
+		assertThatThrownBy( () -> mainIndex.createScope().query()
+				.select( f -> f.object( "nestedObject" ).from(
+								f.extension( ElasticsearchExtension.get() ).explanation()
+						).asList().multi()
+				)
+				.where( f -> f.matchAll() )
+				.toQuery()
+		).isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"'projection:explanation' cannot be nested in an object projection",
+						"An explanation projection describes the score computation for the hit and adding it as a part of the nested object projection might produce misleading results."
 				);
 	}
 

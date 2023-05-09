@@ -19,13 +19,10 @@ import org.hibernate.action.spi.AfterTransactionCompletionProcess;
 import org.hibernate.action.spi.BeforeTransactionCompletionProcess;
 import org.hibernate.engine.spi.ActionQueue;
 import org.hibernate.engine.spi.SessionImplementor;
-import org.hibernate.search.engine.backend.common.DocumentReference;
-import org.hibernate.search.engine.backend.common.spi.DocumentReferenceConverter;
+import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
 import org.hibernate.search.mapper.orm.automaticindexing.session.impl.DelegatingAutomaticIndexingSynchronizationStrategy;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingEventSendingSessionContext;
-import org.hibernate.search.mapper.orm.common.EntityReference;
-import org.hibernate.search.mapper.orm.common.impl.EntityReferenceImpl;
 import org.hibernate.search.mapper.orm.loading.impl.HibernateOrmSelectionLoadingContext;
 import org.hibernate.search.mapper.orm.logging.impl.Log;
 import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
@@ -41,6 +38,8 @@ import org.hibernate.search.mapper.orm.work.SearchIndexingPlan;
 import org.hibernate.search.mapper.orm.work.SearchWorkspace;
 import org.hibernate.search.mapper.orm.work.impl.SearchIndexingPlanImpl;
 import org.hibernate.search.mapper.orm.work.impl.SearchIndexingPlanSessionContext;
+import org.hibernate.search.mapper.pojo.work.SearchIndexingPlanFilter;
+import org.hibernate.search.mapper.pojo.work.spi.ConfiguredSearchIndexingPlanFilter;
 import org.hibernate.search.mapper.pojo.loading.spi.PojoSelectionLoadingContext;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRuntimeIntrospector;
 import org.hibernate.search.mapper.pojo.session.spi.AbstractPojoSearchSession;
@@ -54,9 +53,10 @@ import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 /**
  * The actual implementation of {@link SearchSession}.
  */
+@SuppressWarnings("deprecation")
 public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 		implements SearchSession, HibernateOrmSessionContext, HibernateOrmScopeSessionContext,
-		SearchIndexingPlanSessionContext, DocumentReferenceConverter<EntityReference>,
+		SearchIndexingPlanSessionContext,
 		AutomaticIndexingEventSendingSessionContext {
 
 	/**
@@ -101,7 +101,8 @@ public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 	private final SessionImplementor sessionImplementor;
 	private final HibernateOrmRuntimeIntrospector runtimeIntrospector;
 	private final ConfiguredAutomaticIndexingStrategy automaticIndexingStrategy;
-	private ConfiguredIndexingPlanSynchronizationStrategy<EntityReference> indexingPlanSynchronizationStrategy;
+	private ConfiguredSearchIndexingPlanFilter configuredIndexingPlanFilter;
+	private ConfiguredIndexingPlanSynchronizationStrategy indexingPlanSynchronizationStrategy;
 
 	private SearchIndexingPlanImpl indexingPlan;
 
@@ -112,7 +113,14 @@ public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 		this.automaticIndexingStrategy = builder.automaticIndexingStrategy;
 		this.sessionImplementor = builder.sessionImplementor;
 		this.runtimeIntrospector = builder.buildRuntimeIntrospector();
+		// make sure that even if a session filter is not configured we will fall back to an application one if needed.
+		this.configuredIndexingPlanFilter = mappingContext.applicationIndexingPlanFilter();
 		this.indexingPlanSynchronizationStrategy = automaticIndexingStrategy.defaultIndexingPlanSynchronizationStrategy();
+	}
+
+	@Override
+	public HibernateOrmSearchSessionMappingContext mappingContext() {
+		return mappingContext;
 	}
 
 	@Override
@@ -126,18 +134,18 @@ public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 	}
 
 	@Override
-	public <T> SearchQuerySelectStep<?, EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
+	public <T> SearchQuerySelectStep<?, org.hibernate.search.mapper.orm.common.EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
 			Collection<? extends Class<? extends T>> types) {
 		return search( scope( types ) );
 	}
 
 	@Override
-	public <T> SearchQuerySelectStep<?, EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
+	public <T> SearchQuerySelectStep<?, org.hibernate.search.mapper.orm.common.EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
 			SearchScope<T> scope) {
 		return search( (SearchScopeImpl<T>) scope );
 	}
 
-	public <T> SearchQuerySelectStep<?, EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
+	public <T> SearchQuerySelectStep<?, org.hibernate.search.mapper.orm.common.EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
 			SearchScopeImpl<T> scope) {
 		return scope.search( this, loadingContextBuilder() );
 	}
@@ -205,22 +213,29 @@ public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 	}
 
 	@Override
+	public void indexingPlanFilter(SearchIndexingPlanFilter filter) {
+		ConfiguredSearchIndexingPlanFilter configuredFilter = mappingContext.configuredSearchIndexingPlanFilter(
+				filter );
+
+		if ( automaticIndexingStrategy.usesAsyncProcessing() && !configuredFilter.supportsAsyncProcessing() ) {
+			throw log.cannotApplySessionFilterWhenAsyncProcessingIsUsed();
+		}
+		configuredIndexingPlanFilter = configuredFilter;
+	}
+
+	@Override
+	public ConfiguredSearchIndexingPlanFilter configuredIndexingPlanFilter() {
+		return configuredIndexingPlanFilter;
+	}
+
+	@Override
 	public SessionImplementor session() {
 		return sessionImplementor;
 	}
 
 	@Override
-	public DocumentReferenceConverter<EntityReference> documentReferenceConverter() {
-		return this;
-	}
-
-	@Override
-	public EntityReference fromDocumentReference(DocumentReference reference) {
-		HibernateOrmSessionTypeContext<?> typeContext =
-				typeContextProvider.byJpaEntityName().getOrFail( reference.typeName() );
-		Object id = typeContext.identifierMapping()
-				.fromDocumentIdentifier( reference.id(), this );
-		return new EntityReferenceImpl( typeContext.typeIdentifier(), typeContext.jpaEntityName(), id );
+	public EntityReferenceFactory entityReferenceFactory() {
+		return mappingContext.entityReferenceFactory();
 	}
 
 	@Override
@@ -259,7 +274,7 @@ public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 			return null;
 		}
 
-		ConfiguredIndexingPlanSynchronizationStrategy<EntityReference> currentSynchronizationStrategy =
+		ConfiguredIndexingPlanSynchronizationStrategy currentSynchronizationStrategy =
 				indexingPlanSynchronizationStrategy;
 		plan = automaticIndexingStrategy.createIndexingPlan( this, currentSynchronizationStrategy );
 		holder.pojoIndexingPlan( transactionIdentifier, plan );
@@ -285,7 +300,7 @@ public class HibernateOrmSearchSession extends AbstractPojoSearchSession
 	}
 
 	@Override
-	public ConfiguredIndexingPlanSynchronizationStrategy<EntityReference> configuredAutomaticIndexingSynchronizationStrategy() {
+	public ConfiguredIndexingPlanSynchronizationStrategy configuredAutomaticIndexingSynchronizationStrategy() {
 		return indexingPlanSynchronizationStrategy;
 	}
 

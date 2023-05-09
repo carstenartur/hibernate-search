@@ -75,7 +75,6 @@ public class LuceneFieldHighlightProjection implements LuceneSearchProjection<Li
 		if ( !typeContext.highlighterTypeSupported( highlighter.type() ) ) {
 			throw log.highlighterTypeNotSupported( highlighter.type(), absoluteFieldPath );
 		}
-		highlighter.checkApplicability( typeContext );
 		highlighter.request( context, absoluteFieldPath );
 
 		return new FieldHighlightExtractor<>( context.absoluteCurrentNestedFieldPath(), highlighter,
@@ -109,7 +108,7 @@ public class LuceneFieldHighlightProjection implements LuceneSearchProjection<Li
 		}
 
 		@Override
-		public List<String> transform(LoadingResult<?, ?> loadingResult, A extractedData,
+		public List<String> transform(LoadingResult<?> loadingResult, A extractedData,
 				ProjectionTransformContext context) {
 			return accumulator.finish( extractedData );
 		}

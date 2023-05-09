@@ -74,6 +74,12 @@ public class ElasticsearchSearchProjectionBuilderFactory implements SearchProjec
 	}
 
 	@Override
+	public <T> SearchProjection<T> entityComposite(SearchProjection<T> delegate) {
+		return new ElasticsearchEntityCompositeProjection<>(
+				scope, ElasticsearchSearchProjection.from( scope, delegate ) );
+	}
+
+	@Override
 	public <T> SearchProjection<T> throwing(Supplier<SearchException> exceptionSupplier) {
 		return new ElasticsearchThrowingProjection<>( scope, exceptionSupplier );
 	}
@@ -86,11 +92,6 @@ public class ElasticsearchSearchProjectionBuilderFactory implements SearchProjec
 		}
 		return new ElasticsearchByMappedTypeProjection<>( scope, mappedTypeNameExtractionHelper,
 				elasticsearchInners );
-	}
-
-	@Override
-	public <T> SearchProjection<T> rootContext(SearchProjection<T> inner) {
-		return new ElasticsearchRootContextProjection<>( scope, ElasticsearchSearchProjection.from( scope, inner ) );
 	}
 
 	public SearchProjection<JsonObject> source() {

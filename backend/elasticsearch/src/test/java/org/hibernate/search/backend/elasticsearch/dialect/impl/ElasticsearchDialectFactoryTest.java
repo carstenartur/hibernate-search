@@ -291,7 +291,7 @@ public class ElasticsearchDialectFactoryTest {
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
 				success(
-						ElasticsearchDistributionName.ELASTIC, "8", "8.7.0",
+						ElasticsearchDistributionName.ELASTIC, "8", "8.7.1",
 						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
 				),
 				success(
@@ -351,7 +351,7 @@ public class ElasticsearchDialectFactoryTest {
 						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
 				),
 				success(
-						ElasticsearchDistributionName.ELASTIC, "8.7", "8.7.0",
+						ElasticsearchDistributionName.ELASTIC, "8.7", "8.7.1",
 						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
 				),
 				success(
@@ -458,12 +458,16 @@ public class ElasticsearchDialectFactoryTest {
 						ElasticsearchDistributionName.OPENSEARCH, "2.6.0", "2.6.0",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
-				successWithWarning(
-						ElasticsearchDistributionName.OPENSEARCH, "2.7", "2.7.0",
+				success(
+						ElasticsearchDistributionName.OPENSEARCH, "2.7.0", "2.7.0",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
 				successWithWarning(
-						ElasticsearchDistributionName.OPENSEARCH, "2.7.0", "2.7.0",
+						ElasticsearchDistributionName.OPENSEARCH, "2.8", "2.8.0",
+						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
+				),
+				successWithWarning(
+						ElasticsearchDistributionName.OPENSEARCH, "2.8.0", "2.8.0",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
 				successWithWarning(

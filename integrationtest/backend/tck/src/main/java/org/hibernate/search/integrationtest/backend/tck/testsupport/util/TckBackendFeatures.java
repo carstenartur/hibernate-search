@@ -139,11 +139,11 @@ public abstract class TckBackendFeatures {
 		return true;
 	}
 
-	public boolean supportsHighlighterUnifiedTypeMaxAnalyzedOffsetOnFieldsWithTermVector() {
+	public boolean supportsHighlighterFastVectorNoMatchSizeOnMultivaluedFields() {
 		return true;
 	}
 
-	public boolean supportsHighlighterFastVectorNoMatchSizeOnMultivaluedFields() {
+	public boolean supportsHighlighterPlainOrderByScoreMultivaluedField() {
 		return true;
 	}
 }

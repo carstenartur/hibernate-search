@@ -9,20 +9,21 @@ package org.hibernate.search.mapper.orm.session;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-
 import javax.persistence.Entity;
 import javax.persistence.EntityManager;
 
 import org.hibernate.Session;
 import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
-import org.hibernate.search.mapper.orm.common.EntityReference;
+import org.hibernate.search.mapper.orm.mapping.SearchMapping;
+import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
 import org.hibernate.search.mapper.orm.schema.management.SearchSchemaManager;
 import org.hibernate.search.mapper.orm.scope.SearchScope;
 import org.hibernate.search.mapper.orm.search.loading.dsl.SearchLoadingOptionsStep;
 import org.hibernate.search.mapper.orm.work.SearchIndexingPlan;
 import org.hibernate.search.mapper.orm.work.SearchWorkspace;
-import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
 import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategy;
+import org.hibernate.search.mapper.pojo.work.SearchIndexingPlanFilter;
+import org.hibernate.search.util.common.annotation.Incubating;
 
 /**
  * A Hibernate Search session, bound to a Hibernate ORM {@link Session}/{@link EntityManager}.
@@ -42,7 +43,8 @@ public interface SearchSession {
 	 * @return The initial step of a DSL where the search query can be defined.
 	 * @see SearchQuerySelectStep
 	 */
-	default <T> SearchQuerySelectStep<?, EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(Class<T> type) {
+	@SuppressWarnings("deprecation")
+	default <T> SearchQuerySelectStep<?, org.hibernate.search.mapper.orm.common.EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(Class<T> type) {
 		return search( Collections.singleton( type ) );
 	}
 
@@ -56,7 +58,8 @@ public interface SearchSession {
 	 * @return The initial step of a DSL where the search query can be defined.
 	 * @see SearchQuerySelectStep
 	 */
-	<T> SearchQuerySelectStep<?, EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
+	@SuppressWarnings("deprecation")
+	<T> SearchQuerySelectStep<?, org.hibernate.search.mapper.orm.common.EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(
 			Collection<? extends Class<? extends T>> types);
 
 	/**
@@ -69,7 +72,8 @@ public interface SearchSession {
 	 * @return The initial step of a DSL where the search query can be defined.
 	 * @see SearchQuerySelectStep
 	 */
-	<T> SearchQuerySelectStep<?, EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(SearchScope<T> scope);
+	@SuppressWarnings("deprecation")
+	<T> SearchQuerySelectStep<?, org.hibernate.search.mapper.orm.common.EntityReference, T, SearchLoadingOptionsStep, ?, ?> search(SearchScope<T> scope);
 
 	/**
 	 * Create a {@link SearchSchemaManager} for all indexes.
@@ -245,4 +249,18 @@ public interface SearchSession {
 	 */
 	void indexingPlanSynchronizationStrategy(IndexingPlanSynchronizationStrategy synchronizationStrategy);
 
+	/**
+	 * Set a filter configuration and define which types must be included/excluded when indexed within indexing plans
+	 * of the current session (either automatically or manually).
+	 * <p>
+	 * This does not affect indexing that does not rely on indexing plans, like the mass indexer.
+	 * <p>
+	 * If a type is not explicitly included/excluded directly or through an included/excluded supertype,
+	 * the decision will be made by
+	 * {@link SearchMapping#indexingPlanFilter(SearchIndexingPlanFilter) an application filter}, which defaults to including all types.
+	 *
+	 * @param filter The filter that includes/excludes types when indexed.
+	 */
+	@Incubating
+	void indexingPlanFilter(SearchIndexingPlanFilter filter);
 }

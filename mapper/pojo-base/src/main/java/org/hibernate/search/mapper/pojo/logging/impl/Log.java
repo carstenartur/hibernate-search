@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.hibernate.search.engine.backend.types.dsl.IndexFieldTypeOptionsStep;
+import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.mapper.pojo.automaticindexing.building.impl.DerivedDependencyWalkingInfo;
 import org.hibernate.search.mapper.pojo.common.annotation.impl.SearchProcessingWithContextException;
 import org.hibernate.search.mapper.pojo.extractor.ContainerExtractor;
@@ -581,12 +582,12 @@ public interface Log extends BasicLogger {
 
 	@Message(id = ID_OFFSET + 83,
 			value = "Exception while building document for entity '%1$s': %2$s")
-	SearchException errorBuildingDocument(Object entityReference,
+	SearchException errorBuildingDocument(EntityReference entityReference,
 			String message, @Cause Exception e);
 
 	@Message(id = ID_OFFSET + 84,
 			value = "Exception while resolving other entities to reindex as a result of changes on entity '%1$s': %2$s")
-	SearchException errorResolvingEntitiesToReindex(Object entityReference,
+	SearchException errorResolvingEntitiesToReindex(EntityReference entityReference,
 			String message, @Cause Exception e);
 
 	@LogMessage(level = Logger.Level.WARN)
@@ -787,4 +788,34 @@ public interface Log extends BasicLogger {
 
 	@Message(id = ID_OFFSET + 127, value = "Unable to export the schema: %1$s" )
 	SearchException unableToExportSchema(String cause, @Cause Exception e, @Param EventContext context);
+
+	@Message(id = ID_OFFSET + 128,
+			value = "Indexing plan for '%1$s' cannot be created as this type is excluded by the indexing plan filter.")
+	SearchException attemptToCreateIndexingPlanForExcludedType(PojoRawTypeIdentifier<?> typeIdentifier);
+
+	@Message(id = ID_OFFSET + 129,
+			value = "'%1$s' cannot be included and excluded at the same time within one filter. " +
+					"Already included types: '%2$s'. " +
+					"Already excluded types: '%3$s'.")
+	SearchException indexingPlanFilterCannotIncludeExcludeSameType(PojoRawTypeIdentifier<?> typeIdentifier,
+			Set<PojoRawTypeIdentifier<?>> includes, Set<PojoRawTypeIdentifier<?>> excludes);
+
+	@Message(id = ID_OFFSET + 130,
+			value = "No matching entity type for class '%1$s'."
+					+ " This class is neither an entity type mapped in Hibernate Search nor a superclass of such entity type."
+					+ " Note interfaces are not considered superclasses and are not permitted here."
+					+ " Valid classes are: %2$s")
+	SearchException unknownClassForNonInterfaceSuperType(@FormatWith(ClassFormatter.class) Class<?> invalidClass,
+			@FormatWith(CommaSeparatedClassesFormatter.class) Collection<Class<?>> validClasses);
+
+	@Message(id = ID_OFFSET + 131,
+			value = "No matching entity type for the name '%1$s'."
+					+ " This name represents neither an entity type mapped in Hibernate Search nor a superclass of such entity type."
+					+ " Valid entity type names are: %2$s")
+	SearchException unknownEntityNameForAnyEntityByName(String invalidName, Collection<String> validNames);
+
+	@Message(id = ID_OFFSET + 132,
+			value = "No matching supertype type for type identifier '%1$s'."
+					+ " Valid identifiers for indexed entity types are: %2$s")
+	SearchException unknownSupertypeTypeIdentifier(PojoRawTypeIdentifier<?> typeIdentifier, Set<PojoRawTypeIdentifier<?>> availableTypeIdentifiers);
 }

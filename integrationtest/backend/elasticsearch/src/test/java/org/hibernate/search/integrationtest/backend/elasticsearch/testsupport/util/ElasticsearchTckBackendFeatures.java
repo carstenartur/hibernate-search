@@ -272,7 +272,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 		// https://github.com/elastic/elasticsearch/issues/91246
 		// Hopefully this will get fixed in a future version.
 		return isActualVersion(
-				esVersion -> !esVersion.isBetween( "7.17.7", "7.17" ) && !esVersion.isBetween( "8.5.0", "8.7.0" ),
+				esVersion -> !esVersion.isBetween( "7.17.7", "7.17" ) && !esVersion.isBetween( "8.5.0", "8.7.1" ),
 				osVersion -> true
 		);
 	}
@@ -298,5 +298,16 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 	public boolean supportsHighlighterFastVectorNoMatchSizeOnMultivaluedFields() {
 		// https://github.com/elastic/elasticsearch/issues/94550
 		return false;
+	}
+
+	@Override
+	public boolean supportsHighlighterPlainOrderByScoreMultivaluedField() {
+		// A plain highlighter implementation in ES had a bug
+		// https://github.com/elastic/elasticsearch/issues/87210
+		// that is now fixed with https://github.com/elastic/elasticsearch/pull/87414
+		return isActualVersion(
+				esVersion -> !esVersion.isBetween( "7.15", "8.3" ),
+				osVersion -> true
+		);
 	}
 }

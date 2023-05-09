@@ -11,6 +11,7 @@ import org.hibernate.search.mapper.pojo.automaticindexing.spi.PojoImplicitReinde
 import org.hibernate.search.mapper.pojo.bridge.runtime.spi.BridgeSessionContext;
 import org.hibernate.search.mapper.pojo.loading.spi.PojoSelectionLoadingContext;
 import org.hibernate.search.mapper.pojo.processing.spi.PojoIndexingProcessorSessionContext;
+import org.hibernate.search.util.common.annotation.Incubating;
 
 /**
  * Session-scoped information and operations for use in POJO work execution.
@@ -23,5 +24,8 @@ public interface PojoWorkSessionContext
 	PojoWorkMappingContext mappingContext();
 
 	PojoSelectionLoadingContext defaultLoadingContext();
+
+	@Incubating
+	ConfiguredSearchIndexingPlanFilter configuredIndexingPlanFilter();
 
 }

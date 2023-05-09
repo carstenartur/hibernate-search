@@ -10,41 +10,39 @@ import java.lang.invoke.MethodHandles;
 import java.util.Map;
 
 import org.hibernate.search.engine.backend.common.DocumentReference;
-import org.hibernate.search.engine.backend.common.spi.DocumentReferenceConverter;
+import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.engine.common.timing.Deadline;
 import org.hibernate.search.engine.search.loading.spi.LoadingResult;
 import org.hibernate.search.engine.search.loading.spi.ProjectionHitMapper;
 import org.hibernate.search.mapper.pojo.bridge.runtime.spi.BridgeSessionContext;
+import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReferenceFactoryDelegate;
 import org.hibernate.search.mapper.pojo.loading.impl.PojoLoadingPlan;
 import org.hibernate.search.mapper.pojo.logging.impl.Log;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
-public final class PojoProjectionHitMapper<R, E> implements ProjectionHitMapper<R, E> {
+public final class PojoProjectionHitMapper<E> implements ProjectionHitMapper<E> {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
 	private final Map<String, PojoSearchLoadingIndexedTypeContext<? extends E>> targetTypesByEntityName;
-	private final DocumentReferenceConverter<R> documentReferenceConverter;
+	private final PojoEntityReferenceFactoryDelegate entityReferenceFactoryDelegate;
 	private final BridgeSessionContext sessionContext;
 	private final PojoLoadingPlan<E> loadingPlan;
 
 	public PojoProjectionHitMapper(Map<String, PojoSearchLoadingIndexedTypeContext<? extends E>> targetTypesByEntityName,
-			DocumentReferenceConverter<R> documentReferenceConverter,
+			PojoEntityReferenceFactoryDelegate entityReferenceFactoryDelegate,
 			BridgeSessionContext sessionContext,
 			PojoLoadingPlan<E> loadingPlan) {
 		this.targetTypesByEntityName = targetTypesByEntityName;
-		this.documentReferenceConverter = documentReferenceConverter;
+		this.entityReferenceFactoryDelegate = entityReferenceFactoryDelegate;
 		this.sessionContext = sessionContext;
 		this.loadingPlan = loadingPlan;
 	}
 
 	@Override
 	public Object planLoading(DocumentReference reference) {
-		PojoSearchLoadingIndexedTypeContext<? extends E> type = targetTypesByEntityName.get( reference.typeName() );
-		if ( type == null ) {
-			throw log.unexpectedEntityNameForEntityLoading( reference.typeName(), targetTypesByEntityName.keySet() );
-		}
-		Object identifier = type.identifierMapping().fromDocumentIdentifier( reference.id(), sessionContext );
+		PojoSearchLoadingIndexedTypeContext<? extends E> type = toType( reference );
+		Object identifier = toEntityIdentifier( type, reference );
 		int ordinal = loadingPlan.planLoading( type, identifier );
 		if ( targetTypesByEntityName.size() == 1 ) {
 			// Optimization: take advantage of Integer unboxing cache when possible.
@@ -58,29 +56,39 @@ public final class PojoProjectionHitMapper<R, E> implements ProjectionHitMapper<
 	}
 
 	@Override
-	public LoadingResult<R, E> loadBlocking(Deadline deadline) {
+	public LoadingResult<E> loadBlocking(Deadline deadline) {
 		loadingPlan.loadBlocking( deadline );
 		if ( targetTypesByEntityName.size() == 1 ) {
 			// Optimization, see planLoading().
-			return new SingleTypeLoadingResult<>( documentReferenceConverter,
-					targetTypesByEntityName.values().iterator().next(), loadingPlan );
+			return new SingleTypeLoadingResult( targetTypesByEntityName.values().iterator().next() );
 		}
 		else {
-			return new MultiTypeLoadingResult<>( documentReferenceConverter, loadingPlan );
+			return new MultiTypeLoadingResult();
 		}
 	}
 
-	private static class SingleTypeLoadingResult<R, E> implements LoadingResult<R, E> {
-		private final DocumentReferenceConverter<R> documentReferenceConverter;
-		private final PojoSearchLoadingIndexedTypeContext<? extends E> type;
-		private final PojoLoadingPlan<E> loadingPlan;
+	private PojoSearchLoadingIndexedTypeContext<? extends E> toType(DocumentReference reference) {
+		PojoSearchLoadingIndexedTypeContext<? extends E> type = targetTypesByEntityName.get( reference.typeName() );
+		if ( type == null ) {
+			throw log.unexpectedEntityNameForEntityLoading( reference.typeName(), targetTypesByEntityName.keySet() );
+		}
+		return type;
+	}
 
-		private SingleTypeLoadingResult(DocumentReferenceConverter<R> documentReferenceConverter,
-				PojoSearchLoadingIndexedTypeContext<? extends E> type,
-				PojoLoadingPlan<E> loadingPlan) {
-			this.documentReferenceConverter = documentReferenceConverter;
+	private Object toEntityIdentifier(PojoSearchLoadingIndexedTypeContext<?> type, DocumentReference reference) {
+		return type.identifierMapping().fromDocumentIdentifier( reference.id(), sessionContext );
+	}
+
+	private EntityReference toEntityReference(PojoSearchLoadingIndexedTypeContext<?> type, DocumentReference reference) {
+		return entityReferenceFactoryDelegate.create( type.typeIdentifier(), type.entityName(),
+				toEntityIdentifier( type, reference ) );
+	}
+
+	private class SingleTypeLoadingResult implements LoadingResult<E> {
+		private final PojoSearchLoadingIndexedTypeContext<? extends E> type;
+
+		private SingleTypeLoadingResult(PojoSearchLoadingIndexedTypeContext<? extends E> type) {
 			this.type = type;
-			this.loadingPlan = loadingPlan;
 		}
 
 		@Override
@@ -89,19 +97,13 @@ public final class PojoProjectionHitMapper<R, E> implements ProjectionHitMapper<
 		}
 
 		@Override
-		public R convertReference(DocumentReference reference) {
-			return documentReferenceConverter.fromDocumentReference( reference );
+		public EntityReference convertReference(DocumentReference reference) {
+			return PojoProjectionHitMapper.this.toEntityReference( type, reference );
 		}
 	}
 
-	private static class MultiTypeLoadingResult<R, E> implements LoadingResult<R, E> {
-		private final DocumentReferenceConverter<R> documentReferenceConverter;
-		private final PojoLoadingPlan<E> loadingPlan;
-
-		private MultiTypeLoadingResult(DocumentReferenceConverter<R> documentReferenceConverter,
-				PojoLoadingPlan<E> loadingPlan) {
-			this.documentReferenceConverter = documentReferenceConverter;
-			this.loadingPlan = loadingPlan;
+	private class MultiTypeLoadingResult implements LoadingResult<E> {
+		private MultiTypeLoadingResult() {
 		}
 
 		@Override
@@ -112,8 +114,8 @@ public final class PojoProjectionHitMapper<R, E> implements ProjectionHitMapper<
 		}
 
 		@Override
-		public R convertReference(DocumentReference reference) {
-			return documentReferenceConverter.fromDocumentReference( reference );
+		public EntityReference convertReference(DocumentReference reference) {
+			return PojoProjectionHitMapper.this.toEntityReference( toType( reference ), reference );
 		}
 	}
 

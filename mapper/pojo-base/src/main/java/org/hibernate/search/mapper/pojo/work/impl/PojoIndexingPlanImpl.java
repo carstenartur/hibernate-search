@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.mapper.pojo.automaticindexing.impl.PojoReindexingAssociationInverseSideCollector;
@@ -50,7 +49,6 @@ public class PojoIndexingPlanImpl
 	protected final Map<PojoRawTypeIdentifier<?>, PojoContainedTypeIndexingPlan<?, ?>> containedTypeDelegates = new LinkedHashMap<>();
 
 	private boolean isProcessing = false;
-	private boolean mayRequireLoading = false;
 	private PojoLoadingPlan<Object> loadingPlan = null;
 
 	public PojoIndexingPlanImpl(PojoWorkTypeContextProvider typeContextProvider,
@@ -63,50 +61,78 @@ public class PojoIndexingPlanImpl
 	}
 
 	@Override
+	@Deprecated
 	public void add(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes, Object entity) {
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegate( typeIdentifier );
-		if ( ! mayRequireLoading && entity == null ) {
-			mayRequireLoading = true;
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeIfIncludedOrNull( typeIdentifier );
+		if ( delegate == null ) {
+			return;
 		}
 		delegate.add( providedId, providedRoutes, entity );
 	}
 
 	@Override
+	@Deprecated
 	public void addOrUpdate(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes, Object entity,
 			boolean forceSelfDirty, boolean forceContainingDirty, BitSet dirtyPaths) {
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegate( typeIdentifier );
-		if ( ! mayRequireLoading && entity == null ) {
-			mayRequireLoading = true;
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeIfIncludedOrNull( typeIdentifier );
+		if ( delegate == null ) {
+			return;
 		}
-		delegate.addOrUpdate( providedId, providedRoutes, entity, dirtyPaths, forceSelfDirty, forceContainingDirty );
+		delegate.addOrUpdate( providedId, providedRoutes, entity, forceSelfDirty, forceContainingDirty, dirtyPaths );
 	}
 
 	@Override
+	@Deprecated
 	public void delete(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes,
 			Object entity) {
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegate( typeIdentifier );
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeIfIncludedOrNull( typeIdentifier );
+		if ( delegate == null ) {
+			return;
+		}
 		delegate.delete( providedId, providedRoutes, entity );
 	}
 
 	@Override
+	@Deprecated
 	public void addOrUpdateOrDelete(PojoRawTypeIdentifier<?> typeIdentifier, Object providedId,
 			DocumentRoutesDescriptor providedRoutes, boolean forceSelfDirty, boolean forceContainingDirty,
 			BitSet dirtyPaths) {
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegate( typeIdentifier );
-		if ( ! mayRequireLoading ) {
-			mayRequireLoading = true;
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeIfIncludedOrNull( typeIdentifier );
+		if ( delegate == null ) {
+			return;
 		}
-		delegate.addOrUpdateOrDelete( providedId, providedRoutes, dirtyPaths, forceSelfDirty, forceContainingDirty );
+		delegate.addOrUpdateOrDelete( providedId, providedRoutes, forceSelfDirty, forceContainingDirty, dirtyPaths );
 	}
 
 	@Override
+	@Deprecated
 	public void updateAssociationInverseSide(PojoRawTypeIdentifier<?> typeIdentifier,
 			BitSet dirtyAssociationPaths, Object[] oldState, Object[] newState) {
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegate( typeIdentifier );
-		delegate.resolveDirtyAssociationInverseSide( this, dirtyAssociationPaths, oldState, newState );
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeIfIncludedOrNull( typeIdentifier );
+		if ( delegate == null ) {
+			return;
+		}
+		delegate.updateAssociationInverseSide( dirtyAssociationPaths, oldState, newState );
+	}
+
+	@Override
+	public AbstractPojoTypeIndexingPlan<?, ?, ?> typeIfIncludedOrNull(PojoRawTypeIdentifier<?> typeIdentifier) {
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeOrNull( typeIdentifier );
+		if ( delegate == null && sessionContext.configuredIndexingPlanFilter().isIncluded( typeIdentifier ) ) {
+			delegate = createDelegate( typeIdentifier );
+		}
+		return delegate;
+	}
+
+	private AbstractPojoTypeIndexingPlan<?, ?, ?> typeOrNull(PojoRawTypeIdentifier<?> typeIdentifier) {
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = indexedTypeDelegates.get( typeIdentifier );
+		if ( delegate == null ) {
+			delegate = containedTypeDelegates.get( typeIdentifier );
+		}
+		return delegate;
 	}
 
 	@Override
@@ -117,26 +143,24 @@ public class PojoIndexingPlanImpl
 
 		isProcessing = true;
 		try {
-			if ( mayRequireLoading ) {
-				for ( PojoContainedTypeIndexingPlan<?, ?> delegate : containedTypeDelegates.values() ) {
-					delegate.planLoading( this );
-				}
-				for ( PojoIndexedTypeIndexingPlan<?, ?> delegate : indexedTypeDelegates.values() ) {
-					delegate.planLoading( this );
-				}
+			for ( PojoContainedTypeIndexingPlan<?, ?> delegate : containedTypeDelegates.values() ) {
+				delegate.planLoading();
+			}
+			for ( PojoIndexedTypeIndexingPlan<?, ?> delegate : indexedTypeDelegates.values() ) {
+				delegate.planLoading();
 			}
 			if ( loadingPlan != null ) {
 				loadingPlan.loadBlocking( null );
 			}
 			boolean shouldResolveDirtyForDeleteOnly = strategy.shouldResolveDirtyForDeleteOnly();
 			for ( PojoContainedTypeIndexingPlan<?, ?> delegate : containedTypeDelegates.values() ) {
-				delegate.resolveDirty( this, this, shouldResolveDirtyForDeleteOnly );
+				delegate.resolveDirty( shouldResolveDirtyForDeleteOnly );
 			}
 			// We need to iterate on a "frozen snapshot" of the indexedTypeDelegates values because of HSEARCH-3857
 			List<PojoIndexedTypeIndexingPlan<?, ?>> frozenIndexedTypeDelegates =
 					new ArrayList<>( indexedTypeDelegates.values() );
 			for ( PojoIndexedTypeIndexingPlan<?, ?> delegate : frozenIndexedTypeDelegates ) {
-				delegate.resolveDirty( this, this, shouldResolveDirtyForDeleteOnly );
+				delegate.resolveDirty( shouldResolveDirtyForDeleteOnly );
 			}
 			for ( PojoContainedTypeIndexingPlan<?, ?> delegate : containedTypeDelegates.values() ) {
 				delegate.process( this );
@@ -147,21 +171,18 @@ public class PojoIndexingPlanImpl
 		}
 		finally {
 			isProcessing = false;
-			mayRequireLoading = false;
 			loadingPlan = null;
 			clearStates();
 		}
 	}
 
 	@Override
-	public <R> CompletableFuture<MultiEntityOperationExecutionReport<R>> executeAndReport(
-			EntityReferenceFactory<R> entityReferenceFactory, OperationSubmitter operationSubmitter) {
+	public CompletableFuture<MultiEntityOperationExecutionReport> executeAndReport(OperationSubmitter operationSubmitter) {
 		try {
 			process();
 			return strategy.doExecuteAndReport(
 					indexedTypeDelegates.values(),
 					this,
-					entityReferenceFactory,
 					operationSubmitter
 			);
 		}
@@ -202,7 +223,10 @@ public class PojoIndexingPlanImpl
 		// also disable reindexing of other entities on updates,
 		// so they won't ever call this method.
 
-		PojoIndexedTypeIndexingPlan<?, ?> delegate = getOrCreateIndexedDelegateForContainedUpdate( typeIdentifier );
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeIfIncludedOrNull( typeIdentifier );
+		if ( delegate == null ) {
+			return;
+		}
 		delegate.updateBecauseOfContained( containingEntity );
 	}
 
@@ -215,7 +239,10 @@ public class PojoIndexingPlanImpl
 		// never uses provided identifiers and always defines an identifier mapping,
 		// so this should always work.
 
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegate( typeIdentifier );
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeIfIncludedOrNull( typeIdentifier );
+		if ( delegate == null ) {
+			return;
+		}
 		delegate.updateBecauseOfContainedAssociation( containingEntity, dirtyAssociationPathOrdinal );
 	}
 
@@ -231,7 +258,7 @@ public class PojoIndexingPlanImpl
 			// Not a type that can be marked as deleted in this indexing plan.
 			return false;
 		}
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegateOrNull( typeIdentifier );
+		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = typeOrNull( typeIdentifier );
 		if ( delegate == null ) {
 			// No event whatsoever for that type, so definitely no delete event.
 			return false;
@@ -239,23 +266,10 @@ public class PojoIndexingPlanImpl
 		return delegate.isDeleted( unproxiedObject );
 	}
 
-	private AbstractPojoTypeIndexingPlan<?, ?, ?> getDelegate(PojoRawTypeIdentifier<?> typeIdentifier) {
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = getDelegateOrNull( typeIdentifier );
-		if ( delegate == null ) {
-			delegate = createDelegate( typeIdentifier );
-		}
-		return delegate;
-	}
-
-	private AbstractPojoTypeIndexingPlan<?, ?, ?> getDelegateOrNull(PojoRawTypeIdentifier<?> typeIdentifier) {
-		AbstractPojoTypeIndexingPlan<?, ?, ?> delegate = indexedTypeDelegates.get( typeIdentifier );
-		if ( delegate == null ) {
-			delegate = containedTypeDelegates.get( typeIdentifier );
-		}
-		return delegate;
-	}
-
 	private AbstractPojoTypeIndexingPlan<?, ?, ?> createDelegate(PojoRawTypeIdentifier<?> typeIdentifier) {
+		if ( !sessionContext.configuredIndexingPlanFilter().isIncluded( typeIdentifier ) ) {
+			throw log.attemptToCreateIndexingPlanForExcludedType( typeIdentifier );
+		}
 		PojoWorkTypeContext<?, ?> typeContext = typeContextProvider.forExactType( typeIdentifier );
 		Optional<? extends PojoWorkIndexedTypeContext<?, ?>> indexedTypeContextOptional =
 				typeContext.asIndexed();
@@ -276,19 +290,6 @@ public class PojoIndexingPlanImpl
 		}
 	}
 
-	private PojoIndexedTypeIndexingPlan<?, ?> getOrCreateIndexedDelegateForContainedUpdate(
-			PojoRawTypeIdentifier<?> typeIdentifier) {
-		PojoIndexedTypeIndexingPlan<?, ?> delegate = indexedTypeDelegates.get( typeIdentifier );
-		if ( delegate != null ) {
-			return delegate;
-		}
-
-		PojoWorkIndexedTypeContext<?, ?> typeContext = typeContextProvider.indexedForExactType( typeIdentifier );
-		delegate = createDelegate( typeContext );
-		indexedTypeDelegates.put( typeIdentifier, delegate );
-		return delegate;
-	}
-
 	@Override
 	public PojoLoadingPlan<Object> loadingPlan() {
 		if ( loadingPlan == null ) {
@@ -302,6 +303,6 @@ public class PojoIndexingPlanImpl
 	}
 
 	private PojoContainedTypeIndexingPlan<?, ?> createDelegate(PojoWorkContainedTypeContext<?, ?> typeContext) {
-		return strategy.createDelegate( typeContext, sessionContext );
+		return strategy.createDelegate( typeContext, sessionContext, this );
 	}
 }

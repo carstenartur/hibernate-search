@@ -16,11 +16,11 @@ import org.hibernate.Session;
 import org.hibernate.search.engine.backend.common.spi.EntityReferenceFactory;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.engine.reporting.EntityIndexingFailureContext;
 import org.hibernate.search.engine.reporting.FailureHandler;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingMappingContext;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingQueueEventProcessingPlan;
-import org.hibernate.search.mapper.orm.common.EntityReference;
 import org.hibernate.search.mapper.orm.coordination.outboxpolling.avro.impl.EventPayloadSerializationUtils;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingQueueEventPayload;
 import org.hibernate.search.util.common.impl.Futures;
@@ -29,7 +29,7 @@ final class OutboxEventProcessingPlan {
 
 	private final AutomaticIndexingQueueEventProcessingPlan processingPlan;
 	private final FailureHandler failureHandler;
-	private final EntityReferenceFactory<EntityReference> entityReferenceFactory;
+	private final EntityReferenceFactory entityReferenceFactory;
 	private final List<OutboxEvent> failedEvents = new ArrayList<>();
 
 	private List<OutboxEvent> events = new ArrayList<>();
@@ -95,7 +95,7 @@ final class OutboxEventProcessingPlan {
 		}
 	}
 
-	private void reportBackendResult(MultiEntityOperationExecutionReport<EntityReference> report) {
+	private void reportBackendResult(MultiEntityOperationExecutionReport report) {
 		Optional<Throwable> throwable = report.throwable();
 		if ( !throwable.isPresent() ) {
 			return;
@@ -112,7 +112,7 @@ final class OutboxEventProcessingPlan {
 					extractReferenceOrSuppress( entityReference, throwable.get() )
 			);
 
-			builder.entityReference( entityReference );
+			builder.failingEntityReference( entityReference );
 			failedEvents.addAll( eventsMap.get( outboxEventReference ) );
 		}
 		failureHandler.handle( builder.build() );
@@ -135,7 +135,7 @@ final class OutboxEventProcessingPlan {
 		builder.failingOperation( "Processing an outbox event." );
 
 		for ( OutboxEvent event : events ) {
-			builder.entityReference( entityReference( event.getEntityName(), event.getEntityId(), throwable ) );
+			builder.failingEntityReference( entityReference( event.getEntityName(), event.getEntityId(), throwable ) );
 		}
 		failureHandler.handle( builder.build() );
 	}

@@ -227,7 +227,7 @@ public class SearchQueryBaseIT {
 	private static class SupportedQueryExtension<H> implements SearchQueryExtension<QueryWrapper<H>, H> {
 		@Override
 		public Optional<QueryWrapper<H>> extendOptional(SearchQuery<H> original,
-				SearchLoadingContext<?, ?> loadingContext) {
+				SearchLoadingContext<?> loadingContext) {
 			assertThat( original ).isNotNull();
 			assertThat( loadingContext ).isNotNull().isInstanceOf( StubSearchLoadingContext.class );
 			return Optional.of( new QueryWrapper<>( original ) );
@@ -237,7 +237,7 @@ public class SearchQueryBaseIT {
 	private static class UnSupportedQueryExtension<H> implements SearchQueryExtension<QueryWrapper<H>, H> {
 		@Override
 		public Optional<QueryWrapper<H>> extendOptional(SearchQuery<H> original,
-				SearchLoadingContext<?, ?> loadingContext) {
+				SearchLoadingContext<?> loadingContext) {
 			assertThat( original ).isNotNull();
 			assertThat( loadingContext ).isNotNull().isInstanceOf( StubSearchLoadingContext.class );
 			return Optional.empty();
@@ -245,25 +245,25 @@ public class SearchQueryBaseIT {
 	}
 
 	private static class SupportedQueryDslExtension<R, E, LOS> implements
-			SearchQueryDslExtension<MyExtendedDslContext<R>, R, E, LOS> {
+			SearchQueryDslExtension<MyExtendedDslContext<E>, R, E, LOS> {
 		@Override
-		public Optional<MyExtendedDslContext<R>> extendOptional(SearchQuerySelectStep<?, R, E, LOS, ?, ?> original,
+		public Optional<MyExtendedDslContext<E>> extendOptional(SearchQuerySelectStep<?, R, E, LOS, ?, ?> original,
 				SearchQueryIndexScope<?> scope, BackendSessionContext sessionContext,
-				SearchLoadingContextBuilder<R, E, LOS> loadingContextBuilder) {
+				SearchLoadingContextBuilder<E, LOS> loadingContextBuilder) {
 			assertThat( original ).isNotNull();
 			assertThat( scope ).isNotNull();
 			assertThat( sessionContext ).isNotNull();
 			assertThat( loadingContextBuilder ).isNotNull();
-			return Optional.of( new MyExtendedDslContext<R>( original.selectEntityReference() ) );
+			return Optional.of( new MyExtendedDslContext<E>( original.selectEntity() ) );
 		}
 	}
 
 	private static class UnSupportedQueryDslExtension<R, E, LOS> implements
-			SearchQueryDslExtension<MyExtendedDslContext<R>, R, E, LOS> {
+			SearchQueryDslExtension<MyExtendedDslContext<E>, R, E, LOS> {
 		@Override
-		public Optional<MyExtendedDslContext<R>> extendOptional(SearchQuerySelectStep<?, R, E, LOS, ?, ?> original,
+		public Optional<MyExtendedDslContext<E>> extendOptional(SearchQuerySelectStep<?, R, E, LOS, ?, ?> original,
 				SearchQueryIndexScope<?> scope, BackendSessionContext sessionContext,
-				SearchLoadingContextBuilder<R, E, LOS> loadingContextBuilder) {
+				SearchLoadingContextBuilder<E, LOS> loadingContextBuilder) {
 			assertThat( original ).isNotNull();
 			assertThat( scope ).isNotNull();
 			assertThat( sessionContext ).isNotNull();
