@@ -70,15 +70,14 @@ public abstract class AbstractPojoHCAnnRawTypeModel<T, I extends AbstractPojoHCA
 	@Override
 	@SuppressWarnings("unchecked")
 	protected List<PojoConstructorModel<T>> createDeclaredConstructors() {
-		return Arrays.stream( toClass().getDeclaredConstructors() )
+		return Arrays.stream( javaClass().getDeclaredConstructors() )
 				.<PojoConstructorModel<T>>map( constructor -> new PojoHCAnnConstructorModel<>(
 						introspector, this, (Constructor<T>) constructor ) )
 				.collect( Collectors.toList() );
 	}
 
-	@SuppressWarnings("unchecked")
-	private Class<T> toClass() {
-		return (Class<T>) introspector.toClass( xClass );
+	Class<T> javaClass() {
+		return typeIdentifier.javaClass();
 	}
 
 	@Override
