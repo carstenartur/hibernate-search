@@ -7,15 +7,15 @@
 
 package org.hibernate.search.test.embedded.path.validation;
 
-import org.hibernate.search.util.common.SearchException;
-import org.hibernate.search.test.util.FullTextSessionBuilder;
-
-import org.junit.Rule;
-import org.junit.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import org.hibernate.search.test.util.FullTextSessionBuilder;
+import org.hibernate.search.util.common.SearchException;
+
+import org.junit.Rule;
+import org.junit.Test;
 
 /**
  * @author zkurey
@@ -56,7 +56,7 @@ public class TestInvalidPaths {
 					.hasMessageContainingAll(
 							"type '" + DeepPathWithLeadingPrefixCase.class.getName() + "'",
 							"Non-matching includePaths filters: [b.c.dne]",
-							"Encountered field paths: [notJustAb, b.c, b.c.indexed, b.c.notIndexed]"
+							"Encountered field paths: [b, b.c, b.c.indexed, prefixedc.indexed]"
 					);
 		}
 	}
@@ -149,7 +149,8 @@ public class TestInvalidPaths {
 		catch (SearchException se) {
 			assertTrue(
 					"Expected search exception to contain information about invalid leaf path c.indexed, instead got error: "
-							+ se.getMessage(), se.getMessage().contains( "c.indexed" ) );
+							+ se.getMessage(),
+					se.getMessage().contains( "c.indexed" ) );
 		}
 	}
 
@@ -164,7 +165,8 @@ public class TestInvalidPaths {
 		catch (SearchException se) {
 			assertTrue(
 					"Expected search exception to contain information about invalid leaf path embedded.field, instead got error: "
-							+ se.getMessage(), se.getMessage().contains( "embedded.field" ) );
+							+ se.getMessage(),
+					se.getMessage().contains( "embedded.field" ) );
 		}
 	}
 

@@ -9,7 +9,7 @@ package org.hibernate.search.mapper.pojo.automaticindexing.impl;
 import org.hibernate.search.mapper.pojo.extractor.ValueProcessor;
 import org.hibernate.search.mapper.pojo.extractor.impl.ContainerExtractorHolder;
 import org.hibernate.search.util.common.impl.Closer;
-import org.hibernate.search.util.common.impl.ToStringTreeBuilder;
+import org.hibernate.search.util.common.spi.ToStringTreeAppender;
 
 /**
  * A {@link PojoImplicitReindexingResolverNode} dealing with a specific container type,
@@ -28,7 +28,9 @@ public class PojoImplicitReindexingResolverContainerElementNode<C, V>
 
 	private final ContainerExtractorHolder<C, V> extractorHolder;
 	private final PojoImplicitReindexingResolverNode<? super V> nested;
-	private final ValueProcessor<PojoReindexingCollector, ? super C, PojoImplicitReindexingResolverRootContext> extractingDelegate;
+	private final ValueProcessor<PojoReindexingCollector,
+			? super C,
+			PojoImplicitReindexingResolverRootContext> extractingDelegate;
 
 	public PojoImplicitReindexingResolverContainerElementNode(ContainerExtractorHolder<C, V> extractorHolder,
 			PojoImplicitReindexingResolverNode<? super V> nested) {
@@ -50,10 +52,10 @@ public class PojoImplicitReindexingResolverContainerElementNode<C, V>
 	}
 
 	@Override
-	public void appendTo(ToStringTreeBuilder builder) {
-		builder.attribute( "operation", "process container element" );
-		builder.attribute( "extractor", extractorHolder );
-		builder.attribute( "nested", nested );
+	public void appendTo(ToStringTreeAppender appender) {
+		appender.attribute( "operation", "process container element" );
+		appender.attribute( "extractor", extractorHolder );
+		appender.attribute( "nested", nested );
 	}
 
 	@Override

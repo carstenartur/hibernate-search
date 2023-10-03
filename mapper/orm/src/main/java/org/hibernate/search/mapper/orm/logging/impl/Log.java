@@ -70,7 +70,8 @@ public interface Log extends BasicLogger {
 	void version(String versionString);
 
 	@LogMessage(level = WARN)
-	@Message(id = ID_OFFSET_LEGACY_ENGINE + 36, value = "Unable to guess the transaction status: not starting a JTA transaction.")
+	@Message(id = ID_OFFSET_LEGACY_ENGINE + 36,
+			value = "Unable to guess the transaction status: not starting a JTA transaction.")
 	void cannotGuessTransactionStatus(@Cause Exception e);
 
 	@LogMessage(level = WARN)
@@ -131,8 +132,8 @@ public interface Log extends BasicLogger {
 	SearchException hibernateSessionIsClosed(@Cause IllegalStateException cause);
 
 	@Message(id = ID_OFFSET + 18,
-			value = "Invalid automatic indexing synchronization strategy name: '%1$s'. Valid names are: %2$s.")
-	SearchException invalidAutomaticIndexingSynchronizationStrategyName(String invalidRepresentation,
+			value = "Invalid entity loading cache lookup strategy name: '%1$s'. Valid names are: %2$s.")
+	SearchException invalidEntityLoadingCacheLookupStrategyName(String invalidRepresentation,
 			List<String> validRepresentations);
 
 	@LogMessage(level = DEBUG)
@@ -153,13 +154,14 @@ public interface Log extends BasicLogger {
 	@Message(id = ID_OFFSET + 21, value = "Unable to access Hibernate ORM session factory: %1$s")
 	SearchException hibernateSessionFactoryAccessError(String causeMessage, @Cause IllegalStateException cause);
 
-	@Message(id = ID_OFFSET + 22, value = "Indexing failure: %1$s.\nThe following entities may not have been updated correctly in the index: %2$s.")
+	@Message(id = ID_OFFSET + 22,
+			value = "Indexing failure: %1$s.\nThe following entities may not have been updated correctly in the index: %2$s.")
 	SearchException indexingFailure(String causeMessage, List<?> failingEntities, @Cause Throwable cause);
 
-	@Message(id = ID_OFFSET + 23, value = "Unable to process entities for automatic indexing before transaction completion: %1$s")
+	@Message(id = ID_OFFSET + 23, value = "Unable to process entities for indexing before transaction completion: %1$s")
 	SearchException synchronizationBeforeTransactionFailure(String causeMessage, @Cause Throwable cause);
 
-	@Message(id = ID_OFFSET + 24, value = "Unable to index documents for automatic indexing after transaction completion: %1$s")
+	@Message(id = ID_OFFSET + 24, value = "Unable to index documents for indexing after transaction completion: %1$s")
 	SearchException synchronizationAfterTransactionFailure(String causeMessage, @Cause Throwable cause);
 
 	@Message(id = ID_OFFSET + 25, value = "Unable to handle transaction: %1$s")
@@ -231,13 +233,13 @@ public interface Log extends BasicLogger {
 	@Message(id = ID_OFFSET + 41, value = "No such bean in bean container '%1$s'.")
 	BeanNotFoundException beanNotFoundInBeanContainer(BeanContainer beanContainer);
 
-	@Message(id = ID_OFFSET + 42, value = "Cannot customize the synchronization strategy: "
-			+ " the selected automatic indexing strategy always processes events asynchronously, through a queue.")
+	@Message(id = ID_OFFSET + 42, value = "Cannot customize the indexing plan synchronization strategy: "
+			+ " the selected coordination strategy always processes events asynchronously, through a queue.")
 	SearchException cannotConfigureSynchronizationStrategyWithIndexingEventQueue();
 
 	@LogMessage(level = WARN)
 	@Message(id = ID_OFFSET + 53, value = "Configuration property '%1$s' is deprecated; use '%2$s' instead.")
-	void automaticIndexingStrategyIsDeprecated(String resolveOrRaw, String resolveOrRaw1);
+	void deprecatedPropertyUsedInsteadOfNew(String resolveOrRaw, String resolveOrRaw1);
 
 	@Message(id = ID_OFFSET + 54, value = "Cannot determine the set of all possible tenant identifiers."
 			+ " You must provide this information by setting configuration property '%1$s'"
@@ -248,21 +250,18 @@ public interface Log extends BasicLogger {
 			+ " was not listed in the configuration provided on startup."
 			+ " To target this tenant, you must provide the tenant identifier through configuration property '%3$s',"
 			+ " which should be set to a comma-separated string containing all possible tenant identifiers."
-			+ " Currently configured tenant identifiers: %2$s." )
+			+ " Currently configured tenant identifiers: %2$s.")
 	SearchException invalidTenantId(String tenantId, Set<String> allTenantIds, String tenantIdsConfigurationPropertyKey);
 
-	// NOTE: This is used in -orm6 modules
-	@SuppressWarnings("unused")
 	@LogMessage(level = Logger.Level.INFO)
 	@Message(id = ID_OFFSET + 56, value = "Ignoring unrecognized query hint [%s]")
 	void ignoringUnrecognizedQueryHint(String hintName);
 
-	// NOTE: This is used in -orm6 modules
-	@SuppressWarnings("unused")
-	@Message(id = ID_OFFSET + 57, value = "Cannot set the fetch size of Hibernate Search ScrollableResults after having created them."
-			+ " If you want to define the size of batches for entity loading, set loading options when defining the query instead,"
-			+ " for example with .loading(o -> o.fetchSize(50))."
-			+ " See the reference documentation for more information.")
+	@Message(id = ID_OFFSET + 57,
+			value = "Cannot set the fetch size of Hibernate Search ScrollableResults after having created them."
+					+ " If you want to define the size of batches for entity loading, set loading options when defining the query instead,"
+					+ " for example with .loading(o -> o.fetchSize(50))."
+					+ " See the reference documentation for more information.")
 	SearchException cannotSetFetchSize();
 
 	@Message(id = ID_OFFSET + 58, value = "No matching entity type for type identifier '%1$s'."
@@ -311,7 +310,8 @@ public interface Log extends BasicLogger {
 					+ " The exception is being ignored to preserve backwards compatibility with earlier versions of Hibernate Search."
 					+ " Failure: %3$s"
 					+ " %2$s") // Context
-	void failedToResolveStateRepresentation(String path, @FormatWith(EventContextFormatter.class) EventContext context, String causeMessage,
+	void failedToResolveStateRepresentation(String path, @FormatWith(EventContextFormatter.class) EventContext context,
+			String causeMessage,
 			@Cause Exception cause);
 
 	@Message(id = ID_OFFSET + 122,
@@ -322,7 +322,20 @@ public interface Log extends BasicLogger {
 	@Message(id = ID_OFFSET + 123, value = "Configuration property '%1$s' is deprecated; use '%2$s' instead.")
 	void automaticIndexingSynchronizationStrategyIsDeprecated(String deprecatedProperty, String newProperty);
 
-	@Message(id = ID_OFFSET + 124, value = "Unable to apply the given filter at the session level with the outbox polling coordination strategy. " +
-			"With this coordination strategy, applying a session-level indexing plan filter is only allowed if it excludes all types.")
+	@Message(id = ID_OFFSET + 124,
+			value = "Unable to apply the given filter at the session level with the outbox polling coordination strategy. " +
+					"With this coordination strategy, applying a session-level indexing plan filter is only allowed if it excludes all types.")
 	SearchException cannotApplySessionFilterWhenAsyncProcessingIsUsed();
+
+	@LogMessage(level = WARN)
+	@Message(id = ID_OFFSET + 125, value = "Configuration property '%1$s' is deprecated. "
+			+ "This setting will be removed in a future version. "
+			+ "There will be no alternative provided to replace it. "
+			+ "After the removal of this property in a future version, "
+			+ "a dirty check will always be performed when considering whether to trigger reindexing.")
+	void automaticIndexingEnableDirtyCheckIsDeprecated(String deprecatedProperty);
+
+	@Message(id = ID_OFFSET + 126,
+			value = "Both '%1$s' and '%2$s' are configured. Use only '%2$s' to enable indexing listeners. ")
+	SearchException bothNewAndOldConfigurationPropertiesForIndexingListenersAreUsed(String key1, String key2);
 }

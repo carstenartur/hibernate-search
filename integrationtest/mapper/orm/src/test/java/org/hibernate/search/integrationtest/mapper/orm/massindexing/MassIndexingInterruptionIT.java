@@ -13,9 +13,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
@@ -62,7 +63,7 @@ public class MassIndexingInterruptionIT {
 		backendMock.expectAnySchema( Book.INDEX );
 
 		sessionFactory = ormSetupHelper.start()
-				.withPropertyRadical( HibernateOrmMapperSettings.Radicals.AUTOMATIC_INDEXING_ENABLED, false )
+				.withPropertyRadical( HibernateOrmMapperSettings.Radicals.INDEXING_LISTENERS_ENABLED, false )
 				.withPropertyRadical( EngineSpiSettings.Radicals.THREAD_PROVIDER, threadSpy.getThreadProvider() )
 				.setup( Book.class );
 
@@ -109,7 +110,8 @@ public class MassIndexingInterruptionIT {
 				.hasSize( 1 )
 				.allSatisfy( t -> assertThat( t )
 						.asInstanceOf( InstanceOfAssertFactories.THROWABLE )
-						.hasMessageContaining( "Mass indexing received interrupt signal. The index is left in an unknown state!" ) );
+						.hasMessageContaining(
+								"Mass indexing received interrupt signal. The index is left in an unknown state!" ) );
 		// Most JDK methods unset the interrupt flag when they throw an InterruptedException:
 		// the MassIndexer should do the same.
 		assertThat( interruptFlagAfterInterruption ).isFalse();

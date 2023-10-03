@@ -47,24 +47,31 @@ import com.google.gson.JsonObject;
 public class Elasticsearch7WorkFactory implements ElasticsearchWorkFactory {
 
 	protected final GsonProvider gsonProvider;
+	private final Boolean ignoreShardFailures;
 
-	public Elasticsearch7WorkFactory(GsonProvider gsonProvider) {
+	public Elasticsearch7WorkFactory(GsonProvider gsonProvider, Boolean ignoreShardFailures) {
 		this.gsonProvider = gsonProvider;
+		this.ignoreShardFailures = ignoreShardFailures;
 	}
 
 	@Override
 	public IndexWork.Builder index(String entityTypeName, Object entityIdentifier,
 			URLEncodedString elasticsearchIndexName,
 			String documentIdentifier, String routingKey, JsonObject document) {
-		return IndexWork.Builder.forElasticsearch7AndAbove( entityTypeName, entityIdentifier,
+		return IndexWork.Builder.create( entityTypeName, entityIdentifier,
 				elasticsearchIndexName, documentIdentifier, routingKey, document );
 	}
 
 	@Override
 	public DeleteWork.Builder delete(String entityTypeName, Object entityIdentifier,
 			URLEncodedString elasticsearchIndexName, String documentIdentifier, String routingKey) {
-		return DeleteWork.Builder.forElasticsearch7AndAbove( entityTypeName, entityIdentifier,
+		return DeleteWork.Builder.create( entityTypeName, entityIdentifier,
 				elasticsearchIndexName, documentIdentifier, routingKey );
+	}
+
+	@Override
+	public boolean isDeleteByQuerySupported() {
+		return true;
 	}
 
 	@Override
@@ -73,13 +80,28 @@ public class Elasticsearch7WorkFactory implements ElasticsearchWorkFactory {
 	}
 
 	@Override
+	public boolean isFlushSupported() {
+		return true;
+	}
+
+	@Override
 	public FlushWork.Builder flush() {
 		return new FlushWork.Builder();
 	}
 
 	@Override
+	public boolean isRefreshSupported() {
+		return true;
+	}
+
+	@Override
 	public RefreshWork.Builder refresh() {
 		return new RefreshWork.Builder();
+	}
+
+	@Override
+	public boolean isMergeSegmentsSupported() {
+		return true;
 	}
 
 	@Override
@@ -94,7 +116,11 @@ public class Elasticsearch7WorkFactory implements ElasticsearchWorkFactory {
 
 	@Override
 	public <T> SearchWork.Builder<T> search(JsonObject payload, ElasticsearchSearchResultExtractor<T> searchResultExtractor) {
-		return SearchWork.Builder.forElasticsearch7AndAbove( payload, searchResultExtractor );
+		SearchWork.Builder<T> builder = SearchWork.Builder.create( payload, searchResultExtractor );
+		if ( ignoreShardFailures ) {
+			builder.ignoreShardFailures();
+		}
+		return builder;
 	}
 
 	@Override
@@ -104,7 +130,7 @@ public class Elasticsearch7WorkFactory implements ElasticsearchWorkFactory {
 
 	@Override
 	public ExplainWork.Builder explain(URLEncodedString indexName, URLEncodedString id, JsonObject payload) {
-		return ExplainWork.Builder.forElasticsearch7AndAbove( indexName, id, payload );
+		return ExplainWork.Builder.create( indexName, id, payload );
 	}
 
 	@Override
@@ -120,7 +146,7 @@ public class Elasticsearch7WorkFactory implements ElasticsearchWorkFactory {
 
 	@Override
 	public CreateIndexWork.Builder createIndex(URLEncodedString indexName) {
-		return CreateIndexWork.Builder.forElasticsearch7AndAbove( gsonProvider, indexName );
+		return CreateIndexWork.Builder.create( gsonProvider, indexName );
 	}
 
 	@Override
@@ -140,7 +166,7 @@ public class Elasticsearch7WorkFactory implements ElasticsearchWorkFactory {
 
 	@Override
 	public GetIndexMetadataWork.Builder getIndexMetadata() {
-		return GetIndexMetadataWork.Builder.forElasticsearch7AndAbove();
+		return GetIndexMetadataWork.Builder.create();
 	}
 
 	@Override
@@ -150,11 +176,16 @@ public class Elasticsearch7WorkFactory implements ElasticsearchWorkFactory {
 
 	@Override
 	public PutIndexMappingWork.Builder putIndexTypeMapping(URLEncodedString indexName, RootTypeMapping mapping) {
-		return PutIndexMappingWork.Builder.forElasticsearch7AndAbove( gsonProvider, indexName, mapping );
+		return PutIndexMappingWork.Builder.create( gsonProvider, indexName, mapping );
 	}
 
 	@Override
-	public WaitForIndexStatusWork.Builder waitForIndexStatusWork(URLEncodedString indexName, IndexStatus requiredStatus,
+	public boolean isWaitForIndexStatusSupported() {
+		return true;
+	}
+
+	@Override
+	public WaitForIndexStatusWork.Builder waitForIndexStatus(URLEncodedString indexName, IndexStatus requiredStatus,
 			int requiredStatusTimeoutInMs) {
 		return new WaitForIndexStatusWork.Builder( indexName, requiredStatus, requiredStatusTimeoutInMs );
 	}

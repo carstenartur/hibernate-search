@@ -9,10 +9,11 @@ package org.hibernate.search.test.configuration.indexingStrategy;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Map;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Table;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import org.hibernate.Session;
 import org.hibernate.search.annotations.Indexed;
@@ -31,7 +32,7 @@ public class ManualIndexingStrategyTest extends SearchTestBase {
 	public void testMultipleEntitiesPerIndex() throws Exception {
 		indexTestEntity();
 		assertEquals(
-				"Due to manual indexing being enabled no automatic indexing should have occurred",
+				"Due to manual indexing being enabled no listener-triggered indexing should have occurred",
 				0,
 				getNumberOfDocumentsInIndex( "TestEntity" )
 		);
@@ -43,8 +44,8 @@ public class ManualIndexingStrategyTest extends SearchTestBase {
 	}
 
 	@Override
-	public void configure(Map<String,Object> cfg) {
-		cfg.put( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_ENABLED, false );
+	public void configure(Map<String, Object> cfg) {
+		cfg.put( HibernateOrmMapperSettings.INDEXING_LISTENERS_ENABLED, false );
 	}
 
 	private void indexTestEntity() {

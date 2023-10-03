@@ -19,24 +19,23 @@ import org.hibernate.search.engine.backend.spi.BackendBuildContext;
 import org.hibernate.search.engine.backend.spi.BackendFactory;
 import org.hibernate.search.engine.backend.spi.BackendImplementor;
 import org.hibernate.search.engine.cfg.BackendSettings;
+import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.cfg.impl.ConfigurationPropertySourceExtractor;
 import org.hibernate.search.engine.cfg.impl.EngineConfigurationUtils;
 import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
-import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.cfg.spi.OptionalConfigurationProperty;
-import org.hibernate.search.engine.mapper.mapping.building.spi.BackendsInfo;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
 import org.hibernate.search.engine.environment.bean.BeanReference;
 import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.logging.impl.Log;
 import org.hibernate.search.engine.mapper.mapping.building.impl.IndexManagerBuildingState;
+import org.hibernate.search.engine.mapper.mapping.building.spi.BackendsInfo;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.engine.tenancy.spi.TenancyMode;
 import org.hibernate.search.util.common.AssertionFailure;
 import org.hibernate.search.util.common.impl.SuppressingCloser;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 import org.hibernate.search.util.common.reporting.EventContext;
-
 
 class IndexManagerBuildingStateHolder {
 
@@ -79,10 +78,12 @@ class IndexManagerBuildingStateHolder {
 		}
 	}
 
-	IndexManagerBuildingState getIndexManagerBuildingState(BackendMapperContext backendMapperContext, Optional<String> backendName, String indexName,
+	IndexManagerBuildingState getIndexManagerBuildingState(BackendMapperContext backendMapperContext,
+			Optional<String> backendNameOptional, String indexName,
 			String mappedTypeName) {
-		return getBackend( backendName.orElse( null ) )
-				.createIndexManagerBuildingState( backendMapperContext, indexName, mappedTypeName );
+		String backendName = backendNameOptional.orElse( null );
+		return getBackend( backendName )
+				.createIndexManagerBuildingState( backendMapperContext, backendName, indexName, mappedTypeName );
 	}
 
 	private BackendInitialBuildState getBackend(String backendName) {
@@ -122,13 +123,16 @@ class IndexManagerBuildingStateHolder {
 			EventContext eventContext) {
 		ConfigurationPropertySourceExtractor backendPropertySourceExtractor =
 				EngineConfigurationUtils.extractorForBackend( backendNameOptional );
-		ConfigurationPropertySource backendPropertySource = backendPropertySourceExtractor.extract( propertySource );
+		ConfigurationPropertySource backendPropertySource =
+				backendPropertySourceExtractor.extract( beanResolver, propertySource );
 		try ( BeanHolder<? extends BackendFactory> backendFactoryHolder =
 				BACKEND_TYPE.<BeanHolder<? extends BackendFactory>>getAndMap( backendPropertySource, beanResolver::resolve )
 						.orElseGet( () -> createDefaultBackendFactory( backendPropertySource ) ) ) {
-			BackendBuildContext backendBuildContext = new BackendBuildContextImpl( rootBuildContext, tenancyMode, backendNameOptional );
+			BackendBuildContext backendBuildContext =
+					new BackendBuildContextImpl( rootBuildContext, tenancyMode, backendNameOptional );
 
-			BackendImplementor backend = backendFactoryHolder.get().create( eventContext, backendBuildContext, backendPropertySource );
+			BackendImplementor backend =
+					backendFactoryHolder.get().create( eventContext, backendBuildContext, backendPropertySource );
 			return new BackendInitialBuildState( eventContext, backendPropertySourceExtractor, backendBuildContext,
 					backend );
 		}
@@ -165,15 +169,16 @@ class IndexManagerBuildingStateHolder {
 		}
 
 		IndexManagerInitialBuildState createIndexManagerBuildingState(
-				BackendMapperContext backendMapperContext, String indexName, String mappedTypeName) {
+				BackendMapperContext backendMapperContext, String backendName, String indexName, String mappedTypeName) {
 			IndexManagerInitialBuildState state = indexManagerBuildStateByName.get( indexName );
 			if ( state != null ) {
 				throw log.twoTypesTargetSameIndex( indexName, state.mappedTypeName, mappedTypeName );
 			}
 
 			ConfigurationPropertySourceExtractor indexPropertySourceExtractor =
-					EngineConfigurationUtils.extractorForIndex( propertySourceExtractor, indexName );
-			ConfigurationPropertySource indexPropertySource = indexPropertySourceExtractor.extract( propertySource );
+					EngineConfigurationUtils.extractorForIndex( propertySourceExtractor, backendName, indexName );
+			ConfigurationPropertySource indexPropertySource =
+					indexPropertySourceExtractor.extract( beanResolver, propertySource );
 
 			IndexManagerBuilder builder = backend.createIndexManagerBuilder(
 					indexName, mappedTypeName, backendBuildContext, backendMapperContext, indexPropertySource

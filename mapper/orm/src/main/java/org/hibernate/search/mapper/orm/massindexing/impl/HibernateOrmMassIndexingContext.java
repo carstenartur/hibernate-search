@@ -18,12 +18,13 @@ import org.hibernate.FlushMode;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
-import org.hibernate.search.mapper.orm.loading.impl.HibernateOrmEntityLoadingStrategy;
 import org.hibernate.search.mapper.orm.loading.impl.HibernateOrmMassEntityLoader;
 import org.hibernate.search.mapper.orm.loading.impl.HibernateOrmMassIdentifierLoader;
 import org.hibernate.search.mapper.orm.loading.impl.HibernateOrmMassLoadingOptions;
-import org.hibernate.search.mapper.orm.loading.impl.HibernateOrmQueryLoader;
-import org.hibernate.search.mapper.orm.loading.impl.LoadingTypeContext;
+import org.hibernate.search.mapper.orm.loading.spi.ConditionalExpression;
+import org.hibernate.search.mapper.orm.loading.spi.HibernateOrmEntityLoadingStrategy;
+import org.hibernate.search.mapper.orm.loading.spi.HibernateOrmQueryLoader;
+import org.hibernate.search.mapper.orm.loading.spi.LoadingTypeContext;
 import org.hibernate.search.mapper.orm.session.impl.HibernateOrmSessionTypeContextProvider;
 import org.hibernate.search.mapper.pojo.loading.spi.PojoMassEntityLoader;
 import org.hibernate.search.mapper.pojo.loading.spi.PojoMassEntitySink;
@@ -135,7 +136,8 @@ public final class HibernateOrmMassIndexingContext
 		private final HibernateOrmSessionTypeContextProvider typeContextProvider;
 
 		public HibernateOrmMassIndexingLoadingStrategy(HibernateOrmEntityLoadingStrategy<E, I> delegate,
-				Optional<ConditionalExpression> conditionalExpression, HibernateOrmSessionTypeContextProvider typeContextProvider) {
+				Optional<ConditionalExpression> conditionalExpression,
+				HibernateOrmSessionTypeContextProvider typeContextProvider) {
 			this.delegate = delegate;
 			this.conditionalExpression = conditionalExpression;
 			this.typeContextProvider = typeContextProvider;
@@ -170,8 +172,7 @@ public final class HibernateOrmMassIndexingContext
 					.map( typeContextProvider::forExactType )
 					.collect( Collectors.toList() );
 
-			HibernateOrmQueryLoader<E, I> typeQueryLoader = delegate.createQueryLoader(
-					typeContexts, conditionalExpression );
+			HibernateOrmQueryLoader<E, I> typeQueryLoader = createQueryLoader( typeContexts );
 			SharedSessionContractImplementor session = (SharedSessionContractImplementor) sessionFactory
 					.withStatelessOptions()
 					.tenantIdentifier( context.tenantIdentifier() )
@@ -194,8 +195,7 @@ public final class HibernateOrmMassIndexingContext
 					.map( typeContextProvider::forExactType )
 					.collect( Collectors.toList() );
 
-			HibernateOrmQueryLoader<E, ?> typeQueryLoader = delegate.createQueryLoader(
-					typeContexts, conditionalExpression );
+			HibernateOrmQueryLoader<E, ?> typeQueryLoader = createQueryLoader( typeContexts );
 			SessionImplementor session = (SessionImplementor) sessionFactory
 					.withOptions()
 					.tenantIdentifier( context.tenantIdentifier() )
@@ -213,6 +213,12 @@ public final class HibernateOrmMassIndexingContext
 				new SuppressingCloser( e ).push( SessionImplementor::close, session );
 				throw e;
 			}
+		}
+
+		private HibernateOrmQueryLoader<E, I> createQueryLoader(List<LoadingTypeContext<? extends E>> typeContexts) {
+			return delegate.createQueryLoader( typeContexts, conditionalExpression.isPresent()
+					? List.of( conditionalExpression.get() )
+					: List.of() );
 		}
 
 	}

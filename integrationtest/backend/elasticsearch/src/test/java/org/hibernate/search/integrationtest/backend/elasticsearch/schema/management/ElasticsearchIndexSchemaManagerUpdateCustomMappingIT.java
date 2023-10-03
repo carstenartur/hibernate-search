@@ -8,14 +8,14 @@ package org.hibernate.search.integrationtest.backend.elasticsearch.schema.manage
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hibernate.search.util.impl.test.JsonHelper.assertJsonEquals;
-import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendFeatures;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.common.impl.Futures;
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchTestHostConnectionConfiguration;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingSchemaManagementStrategy;
@@ -41,128 +41,128 @@ public class ElasticsearchIndexSchemaManagerUpdateCustomMappingIT {
 
 	@Before
 	public void checkAssumption() {
-		assumeFalse(
-				"This test only is only relevant if we are allowed to open/close Elasticsearch indexes." +
-						" These operations are not available on AWS in particular.",
-				ElasticsearchTestHostConnectionConfiguration.get().isAws()
+		assumeTrue(
+				"This test only is only relevant if we are allowed to open/close Elasticsearch indexes.",
+				ElasticsearchTckBackendFeatures.supportsIndexClosingAndOpening()
 		);
 	}
+
 	@Test
 	public void noOverlapping() {
 		elasticsearchClient.index( index.name() ).deleteAndCreate();
 		elasticsearchClient.index( index.name() ).type().putMapping(
 				" { " +
-				"    'dynamic':'strict', " +
-				"    '_source':{ " +
-				"       'enabled':false " +
-				"    }, " +
-				"    'properties':{ " +
-				"       '_entity_type':{ " +
-				"          'type':'keyword', " +
-				"          'index':false " +
-				"       }, " +
-				"       'bothField':{ " +
-				"          'type':'keyword', " +
-				"          'doc_values':false " +
-				"       }, " +
-				"       'bothObject':{ " +
-				"          'properties':{ " +
-				"             'bothNested':{ " +
-				"                'type':'keyword', " +
-				"                'doc_values':false " +
-				"             }, " +
-				"             'bothNestedObject':{ " +
-				"                'properties':{ " +
-				"                   'bothNestedNested':{ " +
-				"                      'type':'keyword', " +
-				"                      'doc_values':false " +
-				"                   }, " +
-				"                   'searchNestedNested':{ " +
-				"                      'type':'keyword', " +
-				"                      'doc_values':false " +
-				"                   } " +
-				"                } " +
-				"             }, " +
-				"             'searchNested':{ " +
-				"                'type':'keyword', " +
-				"                'doc_values':false " +
-				"             }, " +
-				"             'searchNestedObject':{ " +
-				"                'type':'object' " +
-				"             } " +
-				"          } " +
-				"       }, " +
-				"       'searchField':{ " +
-				"          'type':'keyword', " +
-				"          'doc_values':false " +
-				"       }, " +
-				"       'searchObject':{ " +
-				"          'type':'object' " +
-				"       } " +
-				"    } " +
-				" } "
+						"    'dynamic':'strict', " +
+						"    '_source':{ " +
+						"       'enabled':false " +
+						"    }, " +
+						"    'properties':{ " +
+						"       '_entity_type':{ " +
+						"          'type':'keyword', " +
+						"          'index':false " +
+						"       }, " +
+						"       'bothField':{ " +
+						"          'type':'keyword', " +
+						"          'doc_values':false " +
+						"       }, " +
+						"       'bothObject':{ " +
+						"          'properties':{ " +
+						"             'bothNested':{ " +
+						"                'type':'keyword', " +
+						"                'doc_values':false " +
+						"             }, " +
+						"             'bothNestedObject':{ " +
+						"                'properties':{ " +
+						"                   'bothNestedNested':{ " +
+						"                      'type':'keyword', " +
+						"                      'doc_values':false " +
+						"                   }, " +
+						"                   'searchNestedNested':{ " +
+						"                      'type':'keyword', " +
+						"                      'doc_values':false " +
+						"                   } " +
+						"                } " +
+						"             }, " +
+						"             'searchNested':{ " +
+						"                'type':'keyword', " +
+						"                'doc_values':false " +
+						"             }, " +
+						"             'searchNestedObject':{ " +
+						"                'type':'object' " +
+						"             } " +
+						"          } " +
+						"       }, " +
+						"       'searchField':{ " +
+						"          'type':'keyword', " +
+						"          'doc_values':false " +
+						"       }, " +
+						"       'searchObject':{ " +
+						"          'type':'object' " +
+						"       } " +
+						"    } " +
+						" } "
 		);
 
 		setupAndUpdateIndex( "no-overlapping.json" );
 		assertJsonEquals(
 				" { " +
-				"    'dynamic':'strict', " +
-				"    '_source':{ " +
-				"       'enabled':false " +
-				"    }, " +
-				"    'properties':{ " +
-				"       '_entity_type':{ " +
-				"          'type':'keyword', " +
-				"          'index':false " +
-				"       }, " +
-				"       'bothField':{ " +
-				"          'type':'keyword', " +
-				"          'doc_values':false " +
-				"       }, " +
-				"       'bothObject':{ " +
-				"          'properties':{ " +
-				"             'bothNested':{ " +
-				"                'type':'keyword', " +
-				"                'doc_values':false " +
-				"             }, " +
-				"             'bothNestedObject':{ " +
-				"                'properties':{ " +
-				"                   'bothNestedNested':{ " +
-				"                      'type':'keyword', " +
-				"                      'doc_values':false " +
-				"                   }, " +
-				"                   'searchNestedNested':{ " +
-				"                      'type':'keyword', " +
-				"                      'doc_values':false " +
-				"                   } " +
-				"                } " +
-				"             }, " +
-				"             'searchNested':{ " +
-				"                'type':'keyword', " +
-				"                'doc_values':false " +
-				"             }, " +
-				"             'searchNestedObject':{ " +
-				"                'type':'object' " +
-				"             } " +
-				"          } " +
-				"       }, " +
-				"       'searchField':{ " +
-				"          'type':'keyword', " +
-				"          'doc_values':false " +
-				"       }, " +
-				"       'searchObject':{ " +
-				"          'type':'object' " +
-				"       }, " +
-				"       'userField':{ " +
-				"          'type':'keyword', " +
-				"          'norms':true " +
-				"       }, " +
-				"       'userObject':{ " +
-				"          'type':'object', " +
-				"          'dynamic':'true' " +
-				"       } " +
-				"    } " +
-				" } ",
+						"    'dynamic':'strict', " +
+						"    '_source':{ " +
+						"       'enabled':false " +
+						"    }, " +
+						"    'properties':{ " +
+						"       '_entity_type':{ " +
+						"          'type':'keyword', " +
+						"          'index':false " +
+						"       }, " +
+						"       'bothField':{ " +
+						"          'type':'keyword', " +
+						"          'doc_values':false " +
+						"       }, " +
+						"       'bothObject':{ " +
+						"          'properties':{ " +
+						"             'bothNested':{ " +
+						"                'type':'keyword', " +
+						"                'doc_values':false " +
+						"             }, " +
+						"             'bothNestedObject':{ " +
+						"                'properties':{ " +
+						"                   'bothNestedNested':{ " +
+						"                      'type':'keyword', " +
+						"                      'doc_values':false " +
+						"                   }, " +
+						"                   'searchNestedNested':{ " +
+						"                      'type':'keyword', " +
+						"                      'doc_values':false " +
+						"                   } " +
+						"                } " +
+						"             }, " +
+						"             'searchNested':{ " +
+						"                'type':'keyword', " +
+						"                'doc_values':false " +
+						"             }, " +
+						"             'searchNestedObject':{ " +
+						"                'type':'object' " +
+						"             } " +
+						"          } " +
+						"       }, " +
+						"       'searchField':{ " +
+						"          'type':'keyword', " +
+						"          'doc_values':false " +
+						"       }, " +
+						"       'searchObject':{ " +
+						"          'type':'object' " +
+						"       }, " +
+						"       'userField':{ " +
+						"          'type':'keyword', " +
+						"          'norms':true " +
+						"       }, " +
+						"       'userObject':{ " +
+						"          'type':'object', " +
+						"          'dynamic':'true' " +
+						"       } " +
+						"    } " +
+						" } ",
 				elasticsearchClient.index( index.name() ).type().getMapping() );
 	}
 
@@ -171,10 +171,10 @@ public class ElasticsearchIndexSchemaManagerUpdateCustomMappingIT {
 		elasticsearchClient.index( index.name() ).deleteAndCreate();
 		elasticsearchClient.index( index.name() ).type().putMapping(
 				" { " +
-				"    '_source':{ " +
-				"       'enabled': false " +
-				"    } " +
-				" } "
+						"    '_source':{ " +
+						"       'enabled': false " +
+						"    } " +
+						" } "
 		);
 
 		assertThatThrownBy( () -> setupAndUpdateIndex( "source-enabled.json" ) )

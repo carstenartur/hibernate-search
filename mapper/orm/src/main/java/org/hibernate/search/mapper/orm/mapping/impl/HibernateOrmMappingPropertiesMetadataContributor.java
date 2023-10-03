@@ -10,12 +10,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.StringTokenizer;
 
+import org.hibernate.boot.Metadata;
+import org.hibernate.dialect.Dialect;
+import org.hibernate.engine.jdbc.Size;
 import org.hibernate.mapping.Column;
 import org.hibernate.mapping.Component;
 import org.hibernate.mapping.OneToMany;
 import org.hibernate.mapping.OneToOne;
 import org.hibernate.mapping.Property;
-import org.hibernate.mapping.Selectable;
 import org.hibernate.mapping.SimpleValue;
 import org.hibernate.mapping.ToOne;
 import org.hibernate.mapping.Value;
@@ -48,8 +50,9 @@ public final class HibernateOrmMappingPropertiesMetadataContributor implements P
 	@Override
 	public void contributeAdditionalMetadata(PojoAdditionalMetadataCollectorTypeNode collector) {
 		for ( Property property : properties ) {
-			collector.property( property.getName(), collectorPropertyNode ->
-					collectMetadataFromHibernateOrmMappingProperty( collectorPropertyNode, property ) );
+			collector.property( property.getName(),
+					collectorPropertyNode -> collectMetadataFromHibernateOrmMappingProperty( collectorPropertyNode,
+							property ) );
 		}
 	}
 
@@ -94,13 +97,18 @@ public final class HibernateOrmMappingPropertiesMetadataContributor implements P
 	}
 
 	private void collectScale(PojoAdditionalMetadataCollectorPropertyNode collector, Value value) {
-		Iterator<Selectable> ci = value.getColumnIterator();
-		while ( ci.hasNext() ) {
-			Selectable selectable = ci.next();
-			if ( selectable instanceof Column ) {
-				int scale = ( (Column) selectable ).getScale();
-				collector.value( getExtractorPath( value ) ).decimalScale( scale );
+		Iterator<Column> columnIterator = value.getColumns().iterator();
+		Dialect dialect = basicTypeMetadataProvider.getDialect();
+		Metadata metadata = basicTypeMetadataProvider.getMetadata();
+
+		while ( columnIterator.hasNext() ) {
+			Column column = columnIterator.next();
+			Size size = column.getColumnSize( dialect, metadata );
+			Integer scale = size.getScale();
+			if ( scale == null ) {
+				continue;
 			}
+			collector.value( getExtractorPath( value ) ).decimalScale( scale );
 		}
 	}
 

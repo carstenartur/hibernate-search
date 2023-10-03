@@ -14,17 +14,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 
 import org.hibernate.search.engine.backend.Backend;
 import org.hibernate.search.engine.backend.index.IndexManager;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.mapper.orm.Search;
-import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.entity.SearchIndexedEntity;
+import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.scope.SearchScope;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
@@ -235,7 +236,8 @@ public class SearchMappingIT {
 				.hasMessageContainingAll(
 						"No index manager with name 'invalid'",
 						"Check that at least one entity is configured to target that index",
-						"The following indexes can be retrieved by name: [" + Person.INDEX_NAME + ", " + Pet.JPA_ENTITY_NAME + "]"
+						"The following indexes can be retrieved by name: [" + Person.INDEX_NAME + ", " + Pet.JPA_ENTITY_NAME
+								+ "]"
 				);
 	}
 
@@ -295,6 +297,7 @@ public class SearchMappingIT {
 		public Integer getId() {
 			return id;
 		}
+
 		public String getName() {
 			return name;
 		}
@@ -318,9 +321,11 @@ public class SearchMappingIT {
 		public Integer getId() {
 			return id;
 		}
+
 		public String getNickname() {
 			return nickname;
 		}
+
 		public List<Toy> getToys() {
 			return toys;
 		}
@@ -343,9 +348,11 @@ public class SearchMappingIT {
 		public Integer getId() {
 			return id;
 		}
+
 		public String getName() {
 			return name;
 		}
+
 		public Pet getOwner() {
 			return owner;
 		}

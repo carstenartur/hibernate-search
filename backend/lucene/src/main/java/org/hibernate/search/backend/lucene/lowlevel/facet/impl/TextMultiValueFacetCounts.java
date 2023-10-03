@@ -15,6 +15,7 @@ import org.hibernate.search.backend.lucene.lowlevel.docvalues.impl.TextMultiValu
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.procedures.IntProcedure;
+
 import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
@@ -56,6 +57,12 @@ public class TextMultiValueFacetCounts extends Facets {
 		ordCount = dv == null ? 0 : (int) dv.getValueCount();
 		counts = new int[ordCount];
 		count( reader, valuesSource, hits.getMatchingDocs() );
+	}
+
+	@Override
+	public FacetResult getAllChildren(String dim, String... path) {
+		throw new UnsupportedOperationException(
+				"Getting all children is not supported by " + this.getClass().getSimpleName() );
 	}
 
 	@Override
@@ -211,7 +218,8 @@ public class TextMultiValueFacetCounts extends Facets {
 	/**
 	 * Does all the "real work" of tallying up the counts.
 	 */
-	private void count(IndexReader reader, TextMultiValuesSource valuesSource, List<MatchingDocs> matchingDocs) throws IOException {
+	private void count(IndexReader reader, TextMultiValuesSource valuesSource, List<MatchingDocs> matchingDocs)
+			throws IOException {
 		OrdinalMap ordinalMap;
 
 		// TODO: is this right?  really, we need a way to

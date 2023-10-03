@@ -18,10 +18,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.SortField;
-
 import org.hibernate.Hibernate;
 import org.hibernate.ScrollableResults;
 import org.hibernate.Session;
@@ -30,14 +26,19 @@ import org.hibernate.graph.RootGraph;
 import org.hibernate.search.FullTextQuery;
 import org.hibernate.search.FullTextSession;
 import org.hibernate.search.Search;
-import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.query.dsl.QueryBuilder;
 import org.hibernate.search.test.SearchTestBase;
 import org.hibernate.search.testsupport.TestConstants;
 import org.hibernate.search.testsupport.TestForIssue;
 import org.hibernate.search.testsupport.junit.ElasticsearchSupportInProgress;
+import org.hibernate.search.util.common.SearchException;
+
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.SortField;
 
 /**
  * Tests several aspects of projection queries.
@@ -153,17 +154,17 @@ public class ProjectionQueryTest extends SearchTestBase {
 
 		projections.beforeFirst();
 		projections.next();
-		Object[] projection = projections.get();
+		Object[] projection = (Object[]) projections.get();
 		checkProjectionFirst( projection, s );
 		assertTrue( projections.isFirst() );
 
 		projections.last();
-		projection = projections.get();
+		projection = (Object[]) projections.get();
 		checkProjectionLast( projection, s );
 		assertTrue( projections.isLast() );
 
 		projections.next();
-		projection = projections.get();
+		projection = (Object[]) projections.get();
 		assertNull( projection );
 
 		projections.close();
@@ -171,11 +172,11 @@ public class ProjectionQueryTest extends SearchTestBase {
 		projections = hibQuery.scroll();
 
 		projections.first();
-		projection = projections.get();
+		projection = (Object[]) projections.get();
 		checkProjectionFirst( projection, s );
 
 		projections.scroll( 2 );
-		projection = projections.get();
+		projection = (Object[]) projections.get();
 		checkProjection2( projection, s );
 
 		//cleanup

@@ -45,9 +45,8 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void nothingToDo_1() {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field( "myField", f -> f.asLocalDate() )
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "myField", f -> f.asLocalDate() )
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() )
@@ -55,16 +54,18 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 				.type().putMapping(
 						simpleMappingForInitialization(
 								"'myField': {"
-										+ "'type': 'date',"
-										+ "'index': true,"
-										+ "'doc_values': false,"
-										+ "'format': '" + elasticSearchClient.getDialect().getConcatenatedLocalDateDefaultMappingFormats() + "',"
-										+ "'ignore_malformed': true" // Ignored during migration
-								+ "},"
-								+ "'NOTmyField': {" // Ignored during migration
-										+ "'type': 'date',"
-										+ "'index': true"
-								+ "}"
+										+ "  'type': 'date',"
+										+ "  'index': true,"
+										+ "  'doc_values': false,"
+										+ "  'format': '"
+										+ elasticSearchClient.getDialect().getLocalDateDefaultMappingFormat()
+										+ "',"
+										+ "  'ignore_malformed': true" // Ignored during migration
+										+ "},"
+										+ "'NOTmyField': {" // Ignored during migration
+										+ "  'type': 'date',"
+										+ "  'index': true"
+										+ "}"
 						)
 				);
 
@@ -73,14 +74,15 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'myField': {"
-								+ "'type': 'date',"
-								+ "'doc_values': false,"
-								+ "'format': '" + elasticSearchClient.getDialect().getConcatenatedLocalDateDefaultMappingFormats() + "',"
-								+ "'ignore_malformed': true" // Assert it was not removed
-						+ "},"
-						+ "'NOTmyField': {" // Assert it was not removed
-								+ "'type': 'date'"
-						+ "}"
+								+ "  'type': 'date',"
+								+ "  'doc_values': false,"
+								+ "  'format': '"
+								+ elasticSearchClient.getDialect().getLocalDateDefaultMappingFormat() + "',"
+								+ "  'ignore_malformed': true" // Assert it was not removed
+								+ "},"
+								+ "'NOTmyField': {" // Assert it was not removed
+								+ "  'type': 'date'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -88,9 +90,8 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void nothingToDo_2() {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field( "myField", f -> f.asBoolean() )
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "myField", f -> f.asBoolean() )
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() )
@@ -98,14 +99,14 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 				.type().putMapping(
 						simpleMappingForInitialization(
 								"'myField': {"
-										+ "'type': 'boolean',"
-										+ "'doc_values': false,"
-										+ "'index': true"
-								+ "},"
-								+ "'NOTmyField': {" // Ignored during migration
-										+ "'type': 'boolean',"
-										+ "'index': true"
-								+ "}"
+										+ "  'type': 'boolean',"
+										+ "  'doc_values': false,"
+										+ "  'index': true"
+										+ "},"
+										+ "'NOTmyField': {" // Ignored during migration
+										+ "  'type': 'boolean',"
+										+ "  'index': true"
+										+ "}"
 						)
 				);
 
@@ -114,12 +115,12 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'myField': {"
-								+ "'type': 'boolean',"
-								+ "'doc_values': false"
-						+ "},"
-						+ "'NOTmyField': {" // Assert it was not removed
-								+ "'type': 'boolean'"
-						+ "}"
+								+ "  'type': 'boolean',"
+								+ "  'doc_values': false"
+								+ "},"
+								+ "'NOTmyField': {" // Assert it was not removed
+								+ "  'type': 'boolean'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -147,40 +148,40 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 		elasticSearchClient.index( index.name() ).deleteAndCreate(
 				"index.analysis", generateAnalysisSettings()
-				);
+		);
 		elasticSearchClient.index( index.name() ).type().putMapping(
-						simpleMappingForInitialization(
-								"'defaultAnalyzer': {"
-										+ "'type': 'text'"
+				simpleMappingForInitialization(
+						"'defaultAnalyzer': {"
+								+ "  'type': 'text'"
 								+ "},"
 								+ "'nonDefaultAnalyzer': {"
-										+ "'type': 'text',"
-										+ "'analyzer': 'customAnalyzer'"
+								+ "  'type': 'text',"
+								+ "  'analyzer': 'customAnalyzer'"
 								+ "},"
 								+ "'normalizer': {"
-										+ "'type': 'keyword',"
-										+ "'doc_values': false,"
-										+ "'normalizer': 'customNormalizer'"
+								+ "  'type': 'keyword',"
+								+ "  'doc_values': false,"
+								+ "  'normalizer': 'customNormalizer'"
 								+ "}"
-						)
-				);
+				)
+		);
 
 		setupAndUpdateIndex( index );
 
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'defaultAnalyzer': {"
-								+ "'type': 'text'"
-						+ "},"
-						+ "'nonDefaultAnalyzer': {"
-								+ "'type': 'text',"
-								+ "'analyzer': 'customAnalyzer'"
-						+ "},"
-						+ "'normalizer': {"
-								+ "'type': 'keyword',"
-								+ "'doc_values': false,"
-								+ "'normalizer': 'customNormalizer'"
-						+ "}"
+								+ "  'type': 'text'"
+								+ "},"
+								+ "'nonDefaultAnalyzer': {"
+								+ "  'type': 'text',"
+								+ "  'analyzer': 'customAnalyzer'"
+								+ "},"
+								+ "'normalizer': {"
+								+ "  'type': 'keyword',"
+								+ "  'doc_values': false,"
+								+ "  'normalizer': 'customNormalizer'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -188,9 +189,8 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void mapping_missing() throws Exception {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field( "myField", f -> f.asBoolean() )
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "myField", f -> f.asBoolean() )
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() ).deleteAndCreate();
@@ -200,9 +200,9 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'myField': {"
-									+ "'type': 'boolean',"
-									+ "'doc_values': false"
-							+ "}"
+								+ "   'type': 'boolean',"
+								+ "   'doc_values': false"
+								+ " }"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -210,9 +210,8 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void rootMapping_attribute_missing() throws Exception {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field( "myField", f -> f.asBoolean() )
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "myField", f -> f.asBoolean() )
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() )
@@ -220,19 +219,19 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 				.type().putMapping(
 						"{"
 								// "dynamic" missing
-								+ "'properties': {"
-										+ defaultMetadataMappingAndCommaForInitialization()
-										+ "'myField': {"
-												+ "'type': 'boolean',"
-												+ "'doc_values': false,"
-												+ "'index': true"
-										+ "},"
-										+ "'NOTmyField': {"
-												+ "'type': 'boolean',"
-												+ "'index': true"
-										+ "}"
+								+ "  'properties': {"
+								+ defaultMetadataMappingAndCommaForInitialization()
+								+ "    'myField': {"
+								+ "      'type': 'boolean',"
+								+ "      'doc_values': false,"
+								+ "      'index': true"
+								+ "    },"
+								+ "    'NOTmyField': {"
+								+ "      'type': 'boolean',"
+								+ "      'index': true"
+								+ "    }"
+								+ "  }"
 								+ "}"
-						+ "}"
 				);
 
 		setupAndUpdateIndex( index );
@@ -240,12 +239,12 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'myField': {"
-								+ "'type': 'boolean',"
-								+ "'doc_values': false"
-						+ "},"
-						+ "'NOTmyField': {" // Assert it was not removed
-								+ "'type': 'boolean'"
-						+ "}"
+								+ "  'type': 'boolean',"
+								+ "  'doc_values': false"
+								+ "},"
+								+ "'NOTmyField': {" // Assert it was not removed
+								+ "  'type': 'boolean'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -253,9 +252,8 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void property_missing() throws Exception {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field( "myField", f -> f.asLocalDate() )
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "myField", f -> f.asLocalDate() )
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() )
@@ -263,9 +261,9 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 				.type().putMapping(
 						simpleMappingForInitialization(
 								"'NOTmyField': {"
-										+ "'type': 'date',"
-										+ "'index': true"
-								+ "}"
+										+ "  'type': 'date',"
+										+ "  'index': true"
+										+ "}"
 						)
 				);
 
@@ -274,13 +272,14 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'myField': {"
-								+ "'type': 'date',"
-								+ "'doc_values': false,"
-								+ "'format': '" + elasticSearchClient.getDialect().getConcatenatedLocalDateDefaultMappingFormats() + "'"
-						+ "},"
-						+ "'NOTmyField': {" // Assert it was not removed
-								+ "'type': 'date'"
-						+ "}"
+								+ "  'type': 'date',"
+								+ "  'doc_values': false,"
+								+ "  'format': '"
+								+ elasticSearchClient.getDialect().getLocalDateDefaultMappingFormat() + "'"
+								+ "},"
+								+ "'NOTmyField': {" // Assert it was not removed
+								+ "  'type': 'date'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -288,20 +287,20 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void property_attribute_invalid() {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field( "myField", f -> f.asLocalDate() )
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "myField", f -> f.asLocalDate() )
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() )
 				.deleteAndCreate()
 				.type().putMapping(
 						simpleMappingForInitialization(
-							"'myField': {"
-									+ "'type': 'date',"
-									+ "'index': false," // Invalid
-									+ "'format': '" + elasticSearchClient.getDialect().getConcatenatedLocalDateDefaultMappingFormats() + "'"
-							+ "}"
+								"'myField': {"
+										+ "  'type': 'date',"
+										+ "  'index': false," // Invalid
+										+ "  'format': '"
+										+ elasticSearchClient.getDialect().getLocalDateDefaultMappingFormat() + "'"
+										+ "}"
 						)
 				);
 
@@ -317,23 +316,22 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void property_attribute_invalid_conflictingAnalyzer() {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field(
-						"analyzer",
-						f -> f.asString().analyzer( "customAnalyzer" )
-				)
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field(
+				"analyzer",
+				f -> f.asString().analyzer( "customAnalyzer" )
+		)
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() ).deleteAndCreate(
 				"index.analysis", generateAnalysisSettings()
-				);
+		);
 		elasticSearchClient.index( index.name() ).type().putMapping(
 				simpleMappingForInitialization(
-					"'analyzer': {"
-							+ "'type': 'text',"
-							+ "'analyzer': 'standard'" // Invalid
-					+ "}"
+						"'analyzer': {"
+								+ "  'type': 'text',"
+								+ "  'analyzer': 'standard'" // Invalid
+								+ "}"
 				)
 		);
 
@@ -349,23 +347,22 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	@Test
 	public void property_attribute_invalid_conflictingNormalizer() {
-		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-				root.field(
-						"normalizer",
-						f -> f.asString().normalizer( "customNormalizer" )
-				)
-						.toReference()
+		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field(
+				"normalizer",
+				f -> f.asString().normalizer( "customNormalizer" )
+		)
+				.toReference()
 		);
 
 		elasticSearchClient.index( index.name() ).deleteAndCreate(
 				"index.analysis", generateAnalysisSettings()
-				);
+		);
 		elasticSearchClient.index( index.name() ).type().putMapping(
 				simpleMappingForInitialization(
 						"'normalizer': {"
-								+ "'type': 'keyword',"
-								+ "'normalizer': 'customNormalizer2'" // Invalid
-						+ "}"
+								+ "  'type': 'keyword',"
+								+ "  'normalizer': 'customNormalizer2'" // Invalid
+								+ "}"
 				)
 		);
 
@@ -380,7 +377,7 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 	}
 
 	private void setupAndUpdateIndexIndexExpectingFailure(
-			StubMappedIndex index, String ... messageContent) {
+			StubMappedIndex index, String... messageContent) {
 		assertThatThrownBy( () -> setupAndUpdateIndex( index ) )
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll( messageContent );
@@ -404,19 +401,19 @@ public class ElasticsearchIndexSchemaManagerUpdateMappingBaseIT {
 
 	private String generateAnalysisSettings() {
 		return "{"
-					+ "'analyzer': {"
-						+ "'customAnalyzer': {"
-								+ "'type': 'keyword'"
-						+ "}"
-					+ "},"
-					+ "'normalizer': {"
-						+ "'customNormalizer': {"
-								+ "'filter': ['asciifolding']"
-						+ "},"
-						+ "'customNormalizer2': {"
-								+ "'filter': ['asciifolding']"
-						+ "}"
-					+ "}"
+				+ " 'analyzer': {"
+				+ "  'customAnalyzer': {"
+				+ "    'type': 'keyword'"
+				+ "  }"
+				+ " },"
+				+ " 'normalizer': {"
+				+ "  'customNormalizer': {"
+				+ "    'filter': ['asciifolding']"
+				+ "  },"
+				+ "  'customNormalizer2': {"
+				+ "    'filter': ['asciifolding']"
+				+ "  }"
+				+ " }"
 				+ "}";
 	}
 

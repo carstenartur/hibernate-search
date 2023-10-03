@@ -11,7 +11,8 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 
 import java.math.BigDecimal;
 import java.util.List;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -37,6 +38,7 @@ public class ContainerExtractorIT {
 				mapping -> {
 					TypeMappingStep bookMapping = mapping.type( Book.class );
 					bookMapping.indexed();
+				// @formatter:off
 					//tag::programmatic-extractor[]
 					bookMapping.property( "priceByFormat" )
 							.genericField( "availableFormats" )
@@ -48,6 +50,7 @@ public class ContainerExtractorIT {
 									.valueBridge( new MyCollectionSizeBridge() )
 									.noExtractors();
 					//end::programmatic-noExtractors[]
+					// @formatter:on
 				} );
 	}
 

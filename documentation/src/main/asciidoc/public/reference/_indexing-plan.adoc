@@ -1,0 +1,294 @@
+[[indexing-plan]]
+= Indexing plans
+
+[[indexing-plan-basics]]
+== Basics
+
+For <<listener-triggered-indexing,listener-triggered indexing>> as well
+as <<indexing-explicit,some forms of explicit indexing>>,
+Hibernate Search relies on an "indexing plan" to aggregate "entity change" events
+and infer the resulting indexing operations to execute.
+
+NOTE: Indexing plans are not used for the <<indexing-massindexer,`MassIndexer`>>
+or the <<mapper-orm-indexing-jakarta-batch,Jakarta Batch mass indexing job>>:
+those assume all entities they process need to be indexed
+and don't need the more subtle mechanisms of indexing plans.
+
+Here is how indexing plans work at a high level:
+
+1. While the application performs entity changes,
+entity change events (entity created, updated, deleted) are added to the plan.
++
+For <<listener-triggered-indexing,listener-triggered indexing>> (<<mapper-orm,Hibernate ORM integration>> only)
+this happens implicitly as changes are performed,
+but it can also be done <<indexing-explicit,explicitly>>.
+2. Eventually, the application decides changes are complete,
+and the plan processes change events added so far,
+either inferring which entities need to be reindexed and building the corresponding documents (<<coordination-none,no coordination>>)
+or building events to be sent to the outbox (<<coordination-outbox-polling,`outbox-polling` coordination>>).
++
+For the <<mapper-orm,Hibernate ORM integration>> this happens when the Hibernate ORM `Session` gets flushed
+(explicitly or as part of a transaction commit),
+while for the <<mapper-pojo-standalone,Standalone POJO Mapper>> this happens when the `SearchSession` is closed.
+3. Finally the plan gets executed, triggering indexing, potentially asynchronously.
++
+For the <<mapper-orm,Hibernate ORM integration>> this happens on transaction commit,
+while for the <<mapper-pojo-standalone,Standalone POJO Mapper>> this happens when the `SearchSession` is closed.
+
+Below is a summary of key characteristics of indexing plans
+and how they vary depending on the configured <<coordination,coordination strategy>>.
+
+[cols="h,2*^",options="header"]
+.Comparison of indexing plans depending on the coordination strategy
+|===
+|Coordination strategy
+|<<coordination-none,No coordination>> (default)
+|<<coordination-outbox-polling,Outbox polling>> (<<mapper-orm,Hibernate ORM integration>> only)
+
+|Guarantee of indexes updates
+|<<coordination-none-indexing-guarantee,Non-transactional, after the database transaction / `SearchSession.close()` returns>>
+|<<coordination-outbox-polling-indexing-guarantee,Transactional, on database transaction commit>>
+
+|Visibility of index updates
+|<<coordination-none-indexing-visibility,Configurable: immediate (poor performance) or eventual>>
+|<<coordination-outbox-polling-indexing-visibility,Eventual>>
+
+|Overhead for application threads
+|<<coordination-none-indexing-on-flush,Low to medium>>
+|<<coordination-outbox-polling-indexing-background,Very low>>
+
+|Overhead for the database (<<mapper-orm,Hibernate ORM integration>> only)
+|<<coordination-none-indexing-lazy-loading,Low>>
+|<<coordination-outbox-polling-indexing-full-loading,Low to medium>>
+|===
+
+[[indexing-plan-synchronization]]
+== [[indexing-automatic-synchronization]] [[mapper-orm-indexing-automatic-synchronization]] Synchronization with the indexes
+
+[[indexing-plan-synchronization-basics]]
+=== [[mapper-orm-indexing-automatic-synchronization-basics]] Basics
+
+include::../components/_writing-reading-intro-note.adoc[]
+
+[WARNING]
+====
+When using the <<coordination-outbox-polling,`outbox-polling` coordination strategy>>,
+the actual indexing plan performing the index changes
+is created asynchronously in a background thread.
+Because of that, with that coordination strategy it does not make sense
+to set a non-default indexing plan synchronization strategy,
+and doing so will lead to an exception on startup.
+====
+
+When a transaction is committed (<<mapper-orm,Hibernate ORM integration>>)
+or the `SearchSession` is closed (<<mapper-pojo-standalone,Standalone POJO Mapper>>),
+<<coordination-none,with default coordination settings>>,
+the execution of the indexing plan (<<listener-triggered-indexing,implicit (listener-triggered)>> or <<indexing-explicit,explicit>>)
+can block the application thread
+until indexing reaches a certain level of completion.
+
+There are two main reasons for blocking the thread:
+
+1. *Indexed data safety*:
+if, once the database transaction completes,
+index data must be safely stored to disk,
+an <<concepts-commit-refresh,index commit>> is necessary.
+Without it, index changes may only be safe after a few seconds,
+when a periodic index commit happens in the background.
+2. *Real-time search queries*:
+if, once the database transaction completes (for the <<mapper-orm,Hibernate ORM integration>>)
+or the ``SearchSession``'s `close()` method returns (for the <<mapper-pojo-standalone,Standalone POJO Mapper>>),
+any search query must immediately take the index changes into account,
+an <<concepts-commit-refresh,index refresh>> is necessary.
+Without it, index changes may only be visible after a few seconds,
+when a periodic index refresh happens in the background.
+
+These two requirements are controlled by the _synchronization strategy_.
+The default strategy is defined by the configuration property
+`hibernate.search.indexing.plan.synchronization.strategy`.
+Below is a reference of all available strategies and their guarantees.
+
+|====
+.2+h|Strategy .2+h|Throughput 3+h| Guarantees when the application thread resumes
+h|Changes applied (with or without <<concepts-commit-refresh,commit>>)
+h|Changes safe from crash/power loss (<<concepts-commit-refresh,commit>>)
+h|Changes visible on search (<<concepts-commit-refresh,refresh>>)
+|`async`|Best|No guarantee|No guarantee|No guarantee
+|`write-sync` (**default**)|Medium|Guaranteed|Guaranteed|No guarantee
+|`read-sync`|Medium to <<indexing-plan-synchronization-refresh-throughput,worst>>|Guaranteed|No guarantee|Guaranteed
+|`sync`|<<indexing-plan-synchronization-refresh-throughput,Worst>>|Guaranteed|Guaranteed|Guaranteed
+|====
+
+[[indexing-plan-synchronization-refresh-throughput]]
+[WARNING]
+====
+[[mapper-orm-indexing-automatic-synchronization-refresh-throughput]] Depending on the backend and its configuration,
+the `sync` and `read-sync` strategies may lead to poor indexing throughput,
+because the backend may not be designed for frequent, on-demand index refreshes.
+
+This is why this strategy is only recommended if you know your backend is designed for it, or for integration tests.
+In particular, the `sync` strategy will work fine with the default configuration of the Lucene backend,
+but will perform poorly with the Elasticsearch backend.
+====
+
+[[indexing-plan-synchronization-failures]]
+[NOTE]
+====
+[[mapper-orm-indexing-automatic-synchronization-failures]]
+Indexing failures may be reported differently depending on the chosen strategy:
+
+* Failure to extract data from entities:
+** Regardless of the strategy, throws an exception in the application thread.
+* Failure to apply index changes (i.e. I/O operations on the index):
+** For strategies that apply changes immediately: throws an exception in the application thread.
+** For strategies that do *not* apply changes immediately:
+forwards the failure to the <<configuration-background-failure-handling,failure handler>>,
+which by default will simply log the failure.
+* Failure to commit index changes:
+** For strategies that guarantee an index commit: throws an exception in the application thread.
+** For strategies that do *not* guarantee an index commit:
+forwards the failure to the <<configuration-background-failure-handling,failure handler>>,
+which by default will simply log the failure.
+====
+
+[[indexing-plan-synchronization-override-per-session]]
+=== [[mapper-orm-indexing-automatic-synchronization-override-per-session]] [[_per_session_override]] Per-session override
+
+While the configuration property mentioned above defines a default,
+it is possible to override this default on a particular session
+by calling `SearchSession#indexingPlanSynchronizationStrategy(...)` and passing a different strategy.
+
+The built-in strategies can be retrieved by calling:
+
+* `IndexingPlanSynchronizationStrategy.async()`
+* `IndexingPlanSynchronizationStrategy.writeSync()`
+* `IndexingPlanSynchronizationStrategy.readSync()`
+* or `IndexingPlanSynchronizationStrategy.sync()`
+
+.Overriding the indexing plan synchronization strategy
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/search/documentation/mapper/orm/indexing/HibernateOrmIndexingPlanSynchronizationStrategyIT.java[tags=indexing-plan-synchronization-strategy-override]
+----
+<1> <<entrypoints-search-session,Retrieve the `SearchSession`>>, which by default uses the synchronization strategy configured in properties.
+<2> Override the synchronization strategy.
+<3> Change an entity.
+<4> Commit the changes, triggering reindexing.
+<5> The overridden strategy guarantees that the modified book will be present in these results,
+even though the query was executed _just after_ the transaction commit
+(here we're using the <<mapper-orm,Hibernate ORM integration>>).
+====
+
+[[indexing-plan-synchronization-custom]]
+=== [[mapper-orm-indexing-automatic-synchronization-custom]] [[_custom_strategy]] Custom strategy
+
+You can also implement custom strategy.
+The custom strategy can then be set just like the built-in strategies:
+
+* as the default by setting
+the configuration property `hibernate.search.indexing.plan.synchronization.strategy`
+to a <<configuration-bean-reference-parsing,bean reference>> pointing to the custom implementation,
+for example `class:com.mycompany.MySynchronizationStrategy`.
+* at the session level by passing an instance of the custom implementation
+to `SearchSession#indexingPlanSynchronizationStrategy(...)`.
+
+[[indexing-plan-filter]]
+== Indexing plan filter
+
+include::../components/_incubating-warning.adoc[]
+
+In some scenarios, it might be helpful to pause the <<architecture-hsearch-indexing,explicit and listener-triggered indexing>> programmatically, for example,
+when importing larger amounts of data. Hibernate Search allows configuring application-wide
+and session-level filters to manage which types are tracked for changes and indexed.
+
+.Configuring an application-wide filter
+====
+[source, JAVA, indent=0, subs="+callouts"]
+----
+include::{sourcedir}/org/hibernate/search/documentation/mapper/orm/automaticindexing/HibernateOrmIndexingPlanFilterIT.java[tags=application-filter]
+----
+Configuring an application-wide filter requires an instance of the `SearchMapping`.
+
+<1> <<entrypoints-search-mapping,Retrieve the `SearchMapping`>>.
+<2> Start the declaration of the indexing plan filter.
+<3> Configure included/excluded types through the `SearchIndexingPlanFilter`
+====
+
+.Configuring a session-level filter
+====
+[source, JAVA, indent=0, subs="+callouts"]
+----
+include::{sourcedir}/org/hibernate/search/documentation/mapper/orm/automaticindexing/HibernateOrmIndexingPlanFilterIT.java[tags=session-filter]
+----
+Configuring a session level filter is available through an instance of the `SearchSession`.
+
+<1> <<entrypoints-search-session,Retrieve the `SearchSession`>>
+<2> Configure included/excluded types through the `SearchIndexingPlanFilter`
+====
+
+Filter can be defined by providing indexed and contained types as well as their supertypes.
+Interfaces are not allowed and passing an interface class to any of the filter definition methods will result in an exception.
+If dynamic types represented by a `Map` are used then their names must be used to configure the filter.
+Filter rules are:
+
+* If the type `A` is explicitly included by the filter, then a change to an object that is exactly of a type `A` is processed.
+* If the type `A` is explicitly excluded by the filter, then a change to an object that is exactly of a type `A` is ignored.
+* If the type `A` is explicitly included by the filter, then a change to an object that is exactly of a type `B`,
+which is a subtype of the type `A`, is processed unless the filter explicitly excludes a more specific supertype of a type `B`.
+* If the type `A` is excluded by the filter explicitly, then a change to an object that is exactly of a type `B`,
+which is a subtype of type the `A`, is ignored unless the filter explicitly includes a more specific supertype of a type `B`.
+
+A session-level filter takes precedence over an application-wide one. If the session-level filter configuration does not
+either explicitly or through inheritance include/exclude the exact type of an entity, then the decision will be made by
+the application-wide filter. If an application-wide filter also has no explicit configuration for a type, then this type
+is considered to be included.
+
+In some cases we might need to disable the indexing entirely. Listing all entities one by one might be cumbersome,
+but since filter configuration is implicitly applied to subtypes, `.exclude(Object.class)` can be used to exclude all types.
+Conversely, `.include(Object.class)` can be used to enable indexing within a session filter when
+the application-wide filter disables indexing completely.
+
+.Disable all indexing within a session
+====
+[source, JAVA, indent=0, subs="+callouts"]
+----
+include::{sourcedir}/org/hibernate/search/documentation/mapper/orm/automaticindexing/HibernateOrmIndexingPlanFilterIT.java[tags=session-filter-exclude-all]
+----
+Configuring a session level filter is available through an instance of the `SearchSession`.
+
+<1> <<entrypoints-search-session,Retrieve the `SearchSession`>>
+<2> Excluding `Object.class` will lead to excluding all its subtypes which means nothing will be included.
+====
+
+.Enable indexing in the session while application-wide indexing is paused
+====
+[source, JAVA, indent=0, subs="+callouts"]
+----
+include::{sourcedir}/org/hibernate/search/documentation/mapper/orm/automaticindexing/HibernateOrmIndexingPlanFilterIT.java[tags=session-filter-exclude-include-all-application]
+----
+----
+include::{sourcedir}/org/hibernate/search/documentation/mapper/orm/automaticindexing/HibernateOrmIndexingPlanFilterIT.java[tags=session-filter-exclude-include-all-session]
+----
+
+<1> <<entrypoints-search-mapping,Retrieve the `SearchMapping`>>.
+<2> An application-wide filter disables any indexing
+<3> <<entrypoints-search-session,Retrieve the `SearchSession`>>
+<4> A session level filter re-enables indexing *for changes happening in current session only*
+====
+
+[NOTE]
+====
+Trying to configure the same type as both included and excluded at the same time by the same filter
+will lead to an exception being thrown.
+====
+
+[NOTE]
+====
+Only an application-wide filter is safe to use when using the <<coordination-database-polling,`outbox-polling` coordination strategy>>.
+When this coordination strategy is in use, entities are loaded and indexed in a different session from
+the one where they were changed. It might lead to unexpected results as the session where events are processed will not
+apply the filter configured by the session in which entities were modified.
+An exception will be thrown if such a filter is configured unless this filter excludes all the types to prevent any
+unexpected consequences of configuring session-level filters with this coordination strategy.
+====

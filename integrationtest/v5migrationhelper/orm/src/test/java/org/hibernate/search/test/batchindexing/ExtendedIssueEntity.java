@@ -6,7 +6,7 @@
  */
 package org.hibernate.search.test.batchindexing;
 
-import javax.persistence.Entity;
+import jakarta.persistence.Entity;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
@@ -14,7 +14,8 @@ import org.hibernate.search.annotations.Indexed;
 /**
  * @author Sanne Grinovero (C) 2011 Red Hat Inc.
  */
-@Entity @Indexed
+@Entity
+@Indexed
 public class ExtendedIssueEntity extends IssueEntity {
 
 	@Field

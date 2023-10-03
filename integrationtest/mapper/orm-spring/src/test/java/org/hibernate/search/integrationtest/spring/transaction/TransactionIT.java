@@ -6,9 +6,9 @@
  */
 package org.hibernate.search.integrationtest.spring.transaction;
 
-import javax.persistence.Entity;
-import javax.persistence.EntityManager;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.integrationtest.spring.testsupport.AbstractSpringITConfig;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
@@ -32,7 +32,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest
+// Adding a property here is just a "workaround" to make sure that a different context is used for this test
+// otherwise there can be build errors when running all the tests via maven.
+@SpringBootTest(properties = "spring.jta.atomikos.datasource.bean-name=hsearch-datasource1")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class TransactionIT {
 
@@ -50,7 +52,7 @@ public class TransactionIT {
 	private HelperService helperService;
 
 	@Test
-	@TestForIssue( jiraKey = "HSEARCH-1270" )
+	@TestForIssue(jiraKey = "HSEARCH-1270")
 	public void innerTransactionRollback() {
 		Integer outerId = 1;
 		Integer innerId = 2;
@@ -58,10 +60,10 @@ public class TransactionIT {
 		// Check that inner transaction data is NOT pushed to the index (processed, but discarded).
 		backendMock.expectWorks( IndexedEntity.NAME )
 				.createAndDiscardFollowingWorks()
-				.add( innerId.toString(), b -> { } );
+				.add( innerId.toString(), b -> {} );
 		// Check that outer transaction data is pushed to the index.
 		backendMock.expectWorks( IndexedEntity.NAME )
-				.add( outerId.toString(), b -> { } );
+				.add( outerId.toString(), b -> {} );
 
 		helperService.doOuter( outerId, innerId );
 
@@ -69,7 +71,7 @@ public class TransactionIT {
 	}
 
 	@Test
-	@TestForIssue( jiraKey = "HSEARCH-1270" )
+	@TestForIssue(jiraKey = "HSEARCH-1270")
 	public void innerTransactionRollback_flushBeforeInner() {
 		Integer outerId = 1;
 		Integer innerId = 2;
@@ -77,15 +79,15 @@ public class TransactionIT {
 		// Check that outer transaction data is processed.
 		backendMock.expectWorks( IndexedEntity.NAME )
 				.createFollowingWorks()
-				.add( outerId.toString(), b -> { } );
+				.add( outerId.toString(), b -> {} );
 		// Check that inner transaction data is NOT pushed to the index (processed, but discarded).
 		backendMock.expectWorks( IndexedEntity.NAME )
 				.createAndDiscardFollowingWorks()
-				.add( innerId.toString(), b -> { } );
+				.add( innerId.toString(), b -> {} );
 		// Check that outer transaction data is pushed to the index.
 		backendMock.expectWorks( IndexedEntity.NAME )
 				.executeFollowingWorks()
-				.add( outerId.toString(), b -> { } );
+				.add( outerId.toString(), b -> {} );
 
 		helperService.doOuterFlushBeforeInner( outerId, innerId );
 

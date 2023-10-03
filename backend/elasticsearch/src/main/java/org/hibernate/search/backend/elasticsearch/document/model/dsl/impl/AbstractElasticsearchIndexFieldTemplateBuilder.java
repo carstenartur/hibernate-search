@@ -8,35 +8,34 @@ package org.hibernate.search.backend.elasticsearch.document.model.dsl.impl;
 
 import java.util.Map;
 
-import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexField;
 import org.hibernate.search.backend.elasticsearch.document.model.impl.AbstractElasticsearchIndexFieldTemplate;
 import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexCompositeNode;
+import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexField;
 import org.hibernate.search.backend.elasticsearch.lowlevel.index.mapping.impl.AbstractTypeMapping;
 import org.hibernate.search.engine.backend.common.spi.FieldPaths;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaFieldTemplateOptionsStep;
 import org.hibernate.search.engine.backend.document.model.dsl.spi.IndexSchemaBuildContext;
-import org.hibernate.search.engine.backend.document.model.spi.IndexFieldInclusion;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.util.common.pattern.spi.SimpleGlobPattern;
 import org.hibernate.search.util.common.reporting.EventContext;
 
 abstract class AbstractElasticsearchIndexFieldTemplateBuilder<
-				S extends AbstractElasticsearchIndexFieldTemplateBuilder<S, T>,
-				T extends AbstractElasticsearchIndexFieldTemplate<?>
-		>
+		S extends AbstractElasticsearchIndexFieldTemplateBuilder<S, T>,
+		T extends AbstractElasticsearchIndexFieldTemplate<?>>
 		implements IndexSchemaFieldTemplateOptionsStep<S>,
 		ElasticsearchIndexNodeContributor, IndexSchemaBuildContext {
 
 	private final AbstractElasticsearchIndexCompositeNodeBuilder parent;
 	protected final String absolutePath;
-	private final IndexFieldInclusion inclusion;
+	private final TreeNodeInclusion inclusion;
 	private final String prefix;
 
 	private SimpleGlobPattern relativePathGlob;
 	private boolean multiValued = false;
 
 	AbstractElasticsearchIndexFieldTemplateBuilder(AbstractElasticsearchIndexCompositeNodeBuilder parent,
-			String templateName, IndexFieldInclusion inclusion, String prefix) {
+			String templateName, TreeNodeInclusion inclusion, String prefix) {
 		this.parent = parent;
 		this.absolutePath = FieldPaths.compose( parent.getAbsolutePath(), templateName );
 		this.inclusion = inclusion;
@@ -79,7 +78,7 @@ abstract class AbstractElasticsearchIndexFieldTemplateBuilder<
 
 	protected abstract void doContribute(ElasticsearchIndexNodeCollector collector,
 			ElasticsearchIndexCompositeNode parentNode,
-			IndexFieldInclusion inclusion,
+			TreeNodeInclusion inclusion,
 			SimpleGlobPattern absolutePathGlob,
 			boolean multiValued);
 

@@ -21,9 +21,8 @@ import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
-import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexer;
-import org.hibernate.search.engine.backend.work.execution.spi.IndexWorkspace;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexer;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.configuration.DefaultAnalysisDefinitions;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.logging.impl.Log;
@@ -99,12 +98,10 @@ public class IndexIndexerIT {
 		// The operations should succeed.
 		assertThatFuture( future ).isSuccessful();
 
-		int expectedMatchingBooks = NUMBER_OF_BOOKS;
-		refreshIfNecessary();
-		assertThatQuery( index.createScope().query()
-				.where( f -> f.match().field( "title" ).matching( "lord" ) )
-				.toQuery() )
-				.hasTotalHitCount( expectedMatchingBooks );
+		int expectedMatchingBooks1 = NUMBER_OF_BOOKS;
+		searchAfterIndexChanges( () -> assertThatQuery( index.query()
+				.where( f -> f.match().field( "title" ).matching( "lord" ) ) )
+				.hasTotalHitCount( expectedMatchingBooks1 ) );
 
 		// Update
 		int booksToUpdate = NUMBER_OF_BOOKS / 4;
@@ -124,12 +121,10 @@ public class IndexIndexerIT {
 		// The operations should succeed.
 		assertThatFuture( future ).isSuccessful();
 
-		expectedMatchingBooks -= booksToUpdate;
-		refreshIfNecessary();
-		assertThatQuery( index.createScope().query()
-				.where( f -> f.match().field( "title" ).matching( "lord" ) )
-				.toQuery() )
-				.hasTotalHitCount( expectedMatchingBooks );
+		int expectedMatchingBooks2 = expectedMatchingBooks1 - booksToUpdate;
+		searchAfterIndexChanges( () -> assertThatQuery( index.query()
+				.where( f -> f.match().field( "title" ).matching( "lord" ) ) )
+				.hasTotalHitCount( expectedMatchingBooks2 ) );
 
 		// Delete
 		int booksToDelete = NUMBER_OF_BOOKS / 4;
@@ -148,12 +143,10 @@ public class IndexIndexerIT {
 		// The operations should succeed.
 		assertThatFuture( future ).isSuccessful();
 
-		expectedMatchingBooks -= booksToDelete;
-		refreshIfNecessary();
-		assertThatQuery( index.createScope().query()
-				.where( f -> f.match().field( "title" ).matching( "lord" ) )
-				.toQuery() )
-				.hasTotalHitCount( expectedMatchingBooks );
+		int expectedMatchingBooks3 = expectedMatchingBooks2 - booksToDelete;
+		searchAfterIndexChanges( () -> assertThatQuery( index.query()
+				.where( f -> f.match().field( "title" ).matching( "lord" ) ) )
+				.hasTotalHitCount( expectedMatchingBooks3 ) );
 	}
 
 	@Test
@@ -232,10 +225,14 @@ public class IndexIndexerIT {
 		}
 	}
 
-	private void refreshIfNecessary() {
-		if ( DocumentRefreshStrategy.NONE.equals( refreshStrategy ) ) {
-			IndexWorkspace workspace = index.createWorkspace();
-			workspace.refresh( OperationSubmitter.blocking() ).join();
+	private void searchAfterIndexChanges(Runnable assertion) {
+		if ( DocumentRefreshStrategy.FORCE.equals( refreshStrategy ) ) {
+			// Refresh was supposedly already handled
+			assertion.run();
+		}
+		else {
+			// Need to handle the refresh
+			index.searchAfterIndexChanges( assertion );
 		}
 	}
 

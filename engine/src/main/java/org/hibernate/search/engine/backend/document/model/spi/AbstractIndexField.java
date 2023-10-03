@@ -7,28 +7,28 @@
 package org.hibernate.search.engine.backend.document.model.spi;
 
 import org.hibernate.search.engine.backend.common.spi.FieldPaths;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.engine.search.common.spi.SearchIndexNodeTypeContext;
 import org.hibernate.search.engine.search.common.spi.SearchIndexScope;
 import org.hibernate.search.util.common.reporting.EventContext;
 
 public abstract class AbstractIndexField<
-				S extends AbstractIndexField<S, SC, ?, C>,
-				SC extends SearchIndexScope<?>,
-				NT extends SearchIndexNodeTypeContext<SC, ? super S>,
-				C extends IndexCompositeNode<SC, ?, ?>
-		>
+		S extends AbstractIndexField<S, SC, ?, C>,
+		SC extends SearchIndexScope<?>,
+		NT extends SearchIndexNodeTypeContext<SC, ? super S>,
+		C extends IndexCompositeNode<SC, ?, ?>>
 		extends AbstractIndexNode<S, SC, NT>
 		implements IndexField<SC, C> {
 	protected final C parent;
 	protected final String absolutePath;
 	protected final String[] absolutePathComponents;
 	protected final String relativeName;
-	protected final IndexFieldInclusion inclusion;
+	protected final TreeNodeInclusion inclusion;
 	protected final boolean multiValued;
 	private final String closestMultiValuedParentAbsolutePath;
 
-	public AbstractIndexField(C parent, String relativeFieldName, NT type, IndexFieldInclusion inclusion,
+	public AbstractIndexField(C parent, String relativeFieldName, NT type, TreeNodeInclusion inclusion,
 			boolean multiValued) {
 		super( type );
 		this.parent = parent;
@@ -37,7 +37,8 @@ public abstract class AbstractIndexField<
 		this.relativeName = relativeFieldName;
 		this.inclusion = inclusion;
 		this.multiValued = multiValued;
-		this.closestMultiValuedParentAbsolutePath = parent.multiValued() ? parent.absolutePath()
+		this.closestMultiValuedParentAbsolutePath = parent.multiValued()
+				? parent.absolutePath()
 				: parent.closestMultiValuedParentAbsolutePath();
 	}
 
@@ -72,7 +73,7 @@ public abstract class AbstractIndexField<
 	}
 
 	@Override
-	public final IndexFieldInclusion inclusion() {
+	public final TreeNodeInclusion inclusion() {
 		return inclusion;
 	}
 

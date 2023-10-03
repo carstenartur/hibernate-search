@@ -6,10 +6,6 @@
  */
 package org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing.impl;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
 import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.mapper.pojo.extractor.mapping.programmatic.ContainerExtractorPath;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
@@ -20,40 +16,19 @@ import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.Property
 public class IndexedEmbeddedProcessor implements PropertyMappingAnnotationProcessor<IndexedEmbedded> {
 
 	@Override
-	@SuppressWarnings("deprecation") // For IndexedEmbedded.maxDepth, IndexedEmbedded.storage, ObjectFieldStorage
+	@SuppressWarnings("deprecation") // For IndexedEmbedded.prefix
 	public void process(PropertyMappingStep mappingContext, IndexedEmbedded annotation,
 			PropertyMappingAnnotationProcessorContext context) {
-		String cleanedUpPrefix = annotation.prefix();
-		if ( cleanedUpPrefix.isEmpty() ) {
-			cleanedUpPrefix = null;
-		}
+		String cleanedUpPrefix = context.toNullIfDefault( annotation.prefix(), "" );
 
-		String cleanedUpName = annotation.name();
-		if ( cleanedUpName.isEmpty() ) {
-			cleanedUpName = null;
-		}
-
-		Integer cleanedUpIncludeDepth = annotation.includeDepth();
-		if ( cleanedUpIncludeDepth.equals( -1 ) ) {
-			cleanedUpIncludeDepth = null;
-		}
+		String cleanedUpName = context.toNullIfDefault( annotation.name(), "" );
 
 		String[] includePathsArray = annotation.includePaths();
-		Set<String> cleanedUpIncludePaths;
-		if ( includePathsArray.length > 0 ) {
-			cleanedUpIncludePaths = new HashSet<>();
-			Collections.addAll( cleanedUpIncludePaths, includePathsArray );
-		}
-		else {
-			cleanedUpIncludePaths = Collections.emptySet();
-		}
+		String[] excludePathsArray = annotation.excludePaths();
 
 		ContainerExtractorPath extractorPath = context.toContainerExtractorPath( annotation.extraction() );
 
-		Class<?> cleanedUpTargetType = annotation.targetType();
-		if ( cleanedUpTargetType.equals( void.class ) ) {
-			cleanedUpTargetType = null;
-		}
+		Class<?> cleanedUpTargetType = context.toNullIfDefault( annotation.targetType(), void.class );
 
 		ObjectStructure structure = annotation.structure();
 
@@ -61,9 +36,11 @@ public class IndexedEmbeddedProcessor implements PropertyMappingAnnotationProces
 				.extractors( extractorPath )
 				.prefix( cleanedUpPrefix )
 				.structure( structure )
-				.includeDepth( cleanedUpIncludeDepth )
-				.includePaths( cleanedUpIncludePaths )
+				.includeDepth( context.toNullIfDefault( annotation.includeDepth(), -1 ) )
+				.includePaths( MappingAnnotationProcessorUtils.cleanUpPaths( includePathsArray ) )
+				.excludePaths( MappingAnnotationProcessorUtils.cleanUpPaths( excludePathsArray ) )
 				.includeEmbeddedObjectId( annotation.includeEmbeddedObjectId() )
 				.targetType( cleanedUpTargetType );
 	}
+
 }

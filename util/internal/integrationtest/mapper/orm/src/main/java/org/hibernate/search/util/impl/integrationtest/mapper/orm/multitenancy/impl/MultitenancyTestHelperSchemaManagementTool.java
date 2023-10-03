@@ -21,6 +21,7 @@ import org.hibernate.tool.schema.internal.SchemaCreatorImpl;
 import org.hibernate.tool.schema.internal.SchemaDropperImpl;
 import org.hibernate.tool.schema.internal.exec.GenerationTarget;
 import org.hibernate.tool.schema.internal.exec.GenerationTargetToDatabase;
+import org.hibernate.tool.schema.spi.ContributableMatcher;
 import org.hibernate.tool.schema.spi.DelayedDropAction;
 import org.hibernate.tool.schema.spi.ExecutionOptions;
 import org.hibernate.tool.schema.spi.ExtractionTool;
@@ -51,8 +52,8 @@ class MultitenancyTestHelperSchemaManagementTool
 		}
 
 		@Override
-		@SuppressWarnings("rawtypes") // Can't do better: Map is raw in the superclass
-		public SchemaManagementTool initiateService(Map configurationValues, ServiceRegistryImplementor registry) {
+		public SchemaManagementTool initiateService(Map<String, Object> configurationValues,
+				ServiceRegistryImplementor registry) {
 			return new MultitenancyTestHelperSchemaManagementTool( tenantIds );
 		}
 	}
@@ -73,8 +74,8 @@ class MultitenancyTestHelperSchemaManagementTool
 	}
 
 	private GenerationTargetToDatabase[] createSchemaTargets(ServiceRegistryImplementor serviceRegistry) {
-		H2LazyMultiTenantConnectionProvider multiTenantConnectionProvider = (H2LazyMultiTenantConnectionProvider)
-				serviceRegistry.getService( MultiTenantConnectionProvider.class );
+		H2LazyMultiTenantConnectionProvider multiTenantConnectionProvider =
+				(H2LazyMultiTenantConnectionProvider) serviceRegistry.getService( MultiTenantConnectionProvider.class );
 		GenerationTargetToDatabase[] targets = new GenerationTargetToDatabase[tenantIds.length];
 		int index = 0;
 		for ( String tenantId : tenantIds ) {
@@ -88,12 +89,13 @@ class MultitenancyTestHelperSchemaManagementTool
 	}
 
 	@Override
-	@SuppressWarnings("rawtypes") // Can't do better: Map is raw in the superclass
-	public SchemaCreator getSchemaCreator(Map options) {
+	public SchemaCreator getSchemaCreator(Map<String, Object> options) {
 		return new SchemaCreator() {
 			final SchemaCreatorImpl delegate = (SchemaCreatorImpl) toolDelegate.getSchemaCreator( options );
+
 			@Override
-			public void doCreation(Metadata metadata, ExecutionOptions options, SourceDescriptor sourceDescriptor,
+			public void doCreation(Metadata metadata, ExecutionOptions executionOptions,
+					ContributableMatcher contributableMatcher, SourceDescriptor sourceDescriptor,
 					TargetDescriptor targetDescriptor) {
 				delegate.doCreation( metadata, true, generationTargets );
 			}
@@ -101,19 +103,20 @@ class MultitenancyTestHelperSchemaManagementTool
 	}
 
 	@Override
-	@SuppressWarnings("rawtypes") // Can't do better: Map is raw in the superclass
-	public SchemaDropper getSchemaDropper(Map options) {
+	public SchemaDropper getSchemaDropper(Map<String, Object> options) {
 		return new SchemaDropper() {
 			final SchemaDropperImpl delegate = (SchemaDropperImpl) toolDelegate.getSchemaDropper( options );
+
 			@Override
-			public void doDrop(Metadata metadata, ExecutionOptions options, SourceDescriptor sourceDescriptor,
+			public void doDrop(Metadata metadata, ExecutionOptions executionOptions,
+					ContributableMatcher contributableMatcher, SourceDescriptor sourceDescriptor,
 					TargetDescriptor targetDescriptor) {
 				delegate.doDrop( metadata, true, generationTargets );
 			}
 
 			@Override
-			public DelayedDropAction buildDelayedAction(Metadata metadata, ExecutionOptions options,
-					SourceDescriptor sourceDescriptor) {
+			public DelayedDropAction buildDelayedAction(Metadata metadata, ExecutionOptions executionOptions,
+					ContributableMatcher contributableMatcher, SourceDescriptor sourceDescriptor) {
 				return new DelayedDropAction() {
 					@Override
 					public void perform(ServiceRegistry serviceRegistry) {
@@ -125,14 +128,12 @@ class MultitenancyTestHelperSchemaManagementTool
 	}
 
 	@Override
-	@SuppressWarnings("rawtypes") // Can't do better: Map is raw in the superclass
-	public SchemaMigrator getSchemaMigrator(Map options) {
+	public SchemaMigrator getSchemaMigrator(Map<String, Object> options) {
 		throw notSupported();
 	}
 
 	@Override
-	@SuppressWarnings("rawtypes") // Can't do better: Map is raw in the superclass
-	public SchemaValidator getSchemaValidator(Map options) {
+	public SchemaValidator getSchemaValidator(Map<String, Object> options) {
 		throw notSupported();
 	}
 

@@ -6,9 +6,9 @@
  */
 package org.hibernate.search.test.session;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.DocumentId;
 import org.hibernate.search.annotations.Field;
@@ -58,5 +58,4 @@ public class Categorie {
 		this.nom = nom;
 	}
 }
-
 

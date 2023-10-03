@@ -9,16 +9,16 @@ package org.hibernate.search.integrationtest.backend.elasticsearch.schema.manage
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hibernate.search.util.impl.test.JsonHelper.assertJsonEquals;
-import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurationContext;
 import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurer;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendFeatures;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.common.impl.Futures;
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchTestHostConnectionConfiguration;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingSchemaManagementStrategy;
@@ -44,10 +44,9 @@ public class ElasticsearchIndexSchemaManagerUpdateCustomSettingsIT {
 
 	@Before
 	public void checkAssumption() {
-		assumeFalse(
-				"This test only is only relevant if we are allowed to open/close Elasticsearch indexes." +
-						" These operations are not available on AWS in particular.",
-				ElasticsearchTestHostConnectionConfiguration.get().isAws()
+		assumeTrue(
+				"This test only is only relevant if we are allowed to open/close Elasticsearch indexes.",
+				ElasticsearchTckBackendFeatures.supportsIndexClosingAndOpening()
 		);
 	}
 
@@ -55,52 +54,52 @@ public class ElasticsearchIndexSchemaManagerUpdateCustomSettingsIT {
 	public void nothingToDo() {
 		elasticsearchClient.index( index.name() ).deleteAndCreate( "index",
 				" { " +
-				"   'number_of_shards': '3', " +
-				"   'number_of_replicas': '3', " +
-				"   'analysis': { " +
-				"     'analyzer': { " +
-				"       'my_standard-english': { " +
-				"         'type': 'standard', " +
-				"         'stopwords': '_english_' " +
-				"       }, " +
-				"       'my_analyzer_ngram': { " +
-				"         'type': 'custom', " +
-				"         'tokenizer': 'my_analyzer_ngram_tokenizer' " +
-				"       } " +
-				"     }, " +
-				"     'tokenizer': { " +
-				"       'my_analyzer_ngram_tokenizer': { " +
-				"         'type': 'ngram', " +
-				"         'min_gram': '5', " +
-				"         'max_gram': '6' " +
-				"       } " +
-				"     } " +
-				"   } " +
-				" } "
+						"   'number_of_shards': '3', " +
+						"   'number_of_replicas': '3', " +
+						"   'analysis': { " +
+						"     'analyzer': { " +
+						"       'my_standard-english': { " +
+						"         'type': 'standard', " +
+						"         'stopwords': '_english_' " +
+						"       }, " +
+						"       'my_analyzer_ngram': { " +
+						"         'type': 'custom', " +
+						"         'tokenizer': 'my_analyzer_ngram_tokenizer' " +
+						"       } " +
+						"     }, " +
+						"     'tokenizer': { " +
+						"       'my_analyzer_ngram_tokenizer': { " +
+						"         'type': 'ngram', " +
+						"         'min_gram': '5', " +
+						"         'max_gram': '6' " +
+						"       } " +
+						"     } " +
+						"   } " +
+						" } "
 		);
 
 		setupAndUpdateIndex();
 
 		assertJsonEquals(
 				" { " +
-				" 	'analyzer': { " +
-				" 		'my_standard-english': { " +
-				" 			'type': 'standard', " +
-				" 			'stopwords': '_english_' " +
-				" 		}, " +
-				" 		'my_analyzer_ngram': { " +
-				" 			'type': 'custom', " +
-				" 			'tokenizer': 'my_analyzer_ngram_tokenizer' " +
-				" 		} " +
-				" 	}, " +
-				" 	'tokenizer': { " +
-				" 		'my_analyzer_ngram_tokenizer': { " +
-				" 			'type': 'ngram', " +
-				" 			'min_gram': '5', " +
-				" 			'max_gram': '6' " +
-				" 		} " +
-				" 	} " +
-				" } ",
+						" 	'analyzer': { " +
+						" 		'my_standard-english': { " +
+						" 			'type': 'standard', " +
+						" 			'stopwords': '_english_' " +
+						" 		}, " +
+						" 		'my_analyzer_ngram': { " +
+						" 			'type': 'custom', " +
+						" 			'tokenizer': 'my_analyzer_ngram_tokenizer' " +
+						" 		} " +
+						" 	}, " +
+						" 	'tokenizer': { " +
+						" 		'my_analyzer_ngram_tokenizer': { " +
+						" 			'type': 'ngram', " +
+						" 			'min_gram': '5', " +
+						" 			'max_gram': '6' " +
+						" 		} " +
+						" 	} " +
+						" } ",
 				elasticsearchClient.index( index.name() ).settings( "index.analysis" ).get()
 		);
 
@@ -114,52 +113,52 @@ public class ElasticsearchIndexSchemaManagerUpdateCustomSettingsIT {
 	public void change_analysis() {
 		elasticsearchClient.index( index.name() ).deleteAndCreate( "index",
 				" { " +
-				"   'number_of_shards': '3', " +
-				"   'number_of_replicas': '3', " +
-				"   'analysis': { " +
-				"     'analyzer': { " +
-				"       'my_standard-english': { " +
-				"         'type': 'standard', " +
-				"         'stopwords': '_english_' " +
-				"       }, " +
-				"       'my_analyzer_ngram': { " +
-				"         'type': 'custom', " +
-				"         'tokenizer': 'my_analyzer_ngram_tokenizer' " +
-				"       } " +
-				"     }, " +
-				"     'tokenizer': { " +
-				"       'my_analyzer_ngram_tokenizer': { " +
-				"         'type': 'ngram', " +
-				"         'min_gram': '2', " +
-				"         'max_gram': '3' " +
-				"       } " +
-				"     } " +
-				"   } " +
-				" } "
+						"   'number_of_shards': '3', " +
+						"   'number_of_replicas': '3', " +
+						"   'analysis': { " +
+						"     'analyzer': { " +
+						"       'my_standard-english': { " +
+						"         'type': 'standard', " +
+						"         'stopwords': '_english_' " +
+						"       }, " +
+						"       'my_analyzer_ngram': { " +
+						"         'type': 'custom', " +
+						"         'tokenizer': 'my_analyzer_ngram_tokenizer' " +
+						"       } " +
+						"     }, " +
+						"     'tokenizer': { " +
+						"       'my_analyzer_ngram_tokenizer': { " +
+						"         'type': 'ngram', " +
+						"         'min_gram': '2', " +
+						"         'max_gram': '3' " +
+						"       } " +
+						"     } " +
+						"   } " +
+						" } "
 		);
 
 		setupAndUpdateIndex();
 
 		assertJsonEquals(
 				" { " +
-				" 	'analyzer': { " +
-				" 		'my_standard-english': { " +
-				" 			'type': 'standard', " +
-				" 			'stopwords': '_english_' " +
-				" 		}, " +
-				" 		'my_analyzer_ngram': { " +
-				" 			'type': 'custom', " +
-				" 			'tokenizer': 'my_analyzer_ngram_tokenizer' " +
-				" 		} " +
-				" 	}, " +
-				" 	'tokenizer': { " +
-				" 		'my_analyzer_ngram_tokenizer': { " +
-				" 			'type': 'ngram', " +
-				" 			'min_gram': '5', " +
-				" 			'max_gram': '6' " +
-				" 		} " +
-				" 	} " +
-				" } ",
+						" 	'analyzer': { " +
+						" 		'my_standard-english': { " +
+						" 			'type': 'standard', " +
+						" 			'stopwords': '_english_' " +
+						" 		}, " +
+						" 		'my_analyzer_ngram': { " +
+						" 			'type': 'custom', " +
+						" 			'tokenizer': 'my_analyzer_ngram_tokenizer' " +
+						" 		} " +
+						" 	}, " +
+						" 	'tokenizer': { " +
+						" 		'my_analyzer_ngram_tokenizer': { " +
+						" 			'type': 'ngram', " +
+						" 			'min_gram': '5', " +
+						" 			'max_gram': '6' " +
+						" 		} " +
+						" 	} " +
+						" } ",
 				elasticsearchClient.index( index.name() ).settings( "index.analysis" ).get()
 		);
 
@@ -173,28 +172,28 @@ public class ElasticsearchIndexSchemaManagerUpdateCustomSettingsIT {
 	public void change_numberOfShards() {
 		elasticsearchClient.index( index.name() ).deleteAndCreate( "index",
 				" { " +
-				"   'number_of_shards': '7', " +
-				"   'number_of_replicas': '3', " +
-				"   'analysis': { " +
-				"     'analyzer': { " +
-				"       'my_standard-english': { " +
-				"         'type': 'standard', " +
-				"         'stopwords': '_english_' " +
-				"       }, " +
-				"       'my_analyzer_ngram': { " +
-				"         'type': 'custom', " +
-				"         'tokenizer': 'my_analyzer_ngram_tokenizer' " +
-				"       } " +
-				"     }, " +
-				"     'tokenizer': { " +
-				"       'my_analyzer_ngram_tokenizer': { " +
-				"         'type': 'ngram', " +
-				"         'min_gram': '2', " +
-				"         'max_gram': '3' " +
-				"       } " +
-				"     } " +
-				"   } " +
-				" } "
+						"   'number_of_shards': '7', " +
+						"   'number_of_replicas': '3', " +
+						"   'analysis': { " +
+						"     'analyzer': { " +
+						"       'my_standard-english': { " +
+						"         'type': 'standard', " +
+						"         'stopwords': '_english_' " +
+						"       }, " +
+						"       'my_analyzer_ngram': { " +
+						"         'type': 'custom', " +
+						"         'tokenizer': 'my_analyzer_ngram_tokenizer' " +
+						"       } " +
+						"     }, " +
+						"     'tokenizer': { " +
+						"       'my_analyzer_ngram_tokenizer': { " +
+						"         'type': 'ngram', " +
+						"         'min_gram': '2', " +
+						"         'max_gram': '3' " +
+						"       } " +
+						"     } " +
+						"   } " +
+						" } "
 		);
 
 		assertThatThrownBy( () -> setupAndUpdateIndex() )

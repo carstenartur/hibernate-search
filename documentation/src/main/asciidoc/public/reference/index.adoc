@@ -1,0 +1,70 @@
+= Hibernate Search {hibernateSearchVersion}: Reference Documentation
+:doctype: book
+:revdate: {docdate}
+:sectanchors:
+:anchor:
+:toc: left
+:toclevels: 4
+:docinfodir: {docinfodir}
+:docinfo: shared,private
+:title-logo-image: image:hibernate_logo_a.png[align=left,pdfwidth=33%]
+
+:relfileprefix: ../../
+:relfilesuffix: /../en-US/html_single/index.html
+ifdef::backend-pdf[:relfileprefix: {hibernateSearchDocUrl}../../]
+
+:leveloffset: +1
+
+include::_preface.adoc[]
+
+:numbered:
+
+include::_compatibility.adoc[]
+
+include::_getting-started.adoc[]
+
+include::_migrating.adoc[]
+
+include::_concepts.adoc[]
+
+include::_architecture.adoc[]
+
+include::_mapper-orm.adoc[]
+
+include::_mapper-pojo-standalone.adoc[]
+
+include::_configuration.adoc[]
+
+include::_entrypoints.adoc[]
+
+include::_mapping.adoc[]
+
+include::_mapping-projection.adoc[]
+
+include::_binding.adoc[]
+
+include::_schema.adoc[]
+
+include::_indexing.adoc[]
+
+include::_search-dsl.adoc[]
+
+include::_backend-lucene.adoc[]
+
+include::_backend-elasticsearch.adoc[]
+
+include::_coordination.adoc[]
+
+include::_integrations.adoc[]
+
+include::_limitations.adoc[]
+
+include::_troubleshooting.adoc[]
+
+include::_further-reading.adoc[]
+
+include::_credits.adoc[]
+
+include::_configuration-properties-aggregated.adoc[]
+
+:leveloffset: -1

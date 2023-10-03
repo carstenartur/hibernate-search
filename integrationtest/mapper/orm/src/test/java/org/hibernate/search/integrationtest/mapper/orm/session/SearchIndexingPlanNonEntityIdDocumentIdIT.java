@@ -6,8 +6,8 @@
  */
 package org.hibernate.search.integrationtest.mapper.orm.session;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.mapper.orm.Search;
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
@@ -43,7 +43,7 @@ public class SearchIndexingPlanNonEntityIdDocumentIdIT {
 	public void setup(OrmSetupHelper.SetupContext setupContext) {
 		backendMock.expectAnySchema( IndexedEntity.INDEX_NAME );
 
-		setupContext.withProperty( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_ENABLED, false )
+		setupContext.withProperty( HibernateOrmMapperSettings.INDEXING_LISTENERS_ENABLED, false )
 				.withAnnotatedTypes( IndexedEntity.class );
 	}
 

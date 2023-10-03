@@ -10,13 +10,18 @@
     <parent>
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-integrationtest-performance</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
+        <version>7.0.0-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
     <artifactId>hibernate-search-integrationtest-performance-backend-lucene</artifactId>
 
     <name>Hibernate Search ITs - Performance - Backend - Lucene</name>
     <description>Performance tests for the Lucene backend</description>
+
+    <properties>
+        <!-- We don't want to use a Jacoco agent here, and we don't want to rely on these tests for coverage either -->
+        <jacoco.skip>true</jacoco.skip>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -48,6 +53,9 @@
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
+                        <configuration>
+                            <skip>${test.lucene.skip}</skip>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -118,5 +126,20 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>windows</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <!-- For some reason these performance tests don't seem to work on Windows -->
+                <test.lucene.skip>true</test.lucene.skip>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

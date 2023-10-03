@@ -74,13 +74,16 @@ Eclipse shouldn't require any particular setup besides
 
 #### <a id="setup-ide-formatting"></a> Formatting rules and style conventions
 
-The Hibernate family projects share the same style conventions,
-and we provide settings for some IDEs to help you follow these conventions.
-See:
+Hibernate Search has a strictly enforced code style. Code formatting is done by the Eclipse code formatter, 
+using the config files found in the `build/config/src/main/resources` directory. 
+By default, when you run `mvn install`, the code will be formatted automatically. 
+When submitting a pull request the CI build will fail if running the formatter results in any code changes,
+so it is recommended that you always run a full Maven build before submitting a pull request.
 
-* [here for IntelliJ IDEA](https://hibernate.org/community/contribute/intellij-idea/)
-* [here for Eclipse IDE](https://hibernate.org/community/contribute/eclipse-ide/)
-
+The [Adapter for Eclipse Code Formatter](https://plugins.jetbrains.com/plugin/6546-adapter-for-eclipse-code-formatter) plugin
+can be used by IntelliJ IDEA users to apply formatting while within the IDE. Additionally, contributors might need to 
+increase import counts to prevent star imports, as this setting is not exportable and star imports will lead to
+a build failure.
 
 ## Contributing code
 
@@ -91,10 +94,13 @@ few prerequisite steps:
 
 * Make sure you have a [Hibernate JIRA account](https://hibernate.atlassian.net)
 * Make sure you have a [GitHub account](https://github.com/signup/free)
-* [Fork](https://help.github.com/articles/fork-a-repo/) the Hibernate Search [repository](https://github.com/hibernate/hibernate-search).
-As discussed in the linked page, this also includes:
-    * [Setting](https://help.github.com/articles/set-up-git) up your local git install
-    * Cloning your fork
+* Make sure you have [set up git locally](https://help.github.com/articles/set-up-git)
+* On Windows, run `git config --global core.longpaths true`
+so that you are able to clone the Hibernate Search repository
+* [Fork](https://help.github.com/articles/fork-a-repo/) the [Hibernate Search repository](https://github.com/hibernate/hibernate-search)
+* Instruct git to ignore certain commits when using `git blame`.
+From the directory of your local clone, run this:
+`git config blame.ignoreRevsFile .git-blame-ignore-revs`
     
 ### Development environment
 
@@ -193,18 +199,14 @@ as well as any other technology Hibernate Search integrates with.
 Here are some notable sub-directories:
   * `performance`: performance tests.
   * `showcase/library`: a sample application using Hibernate Search in a Spring Boot environment.
-* `jakarta`: Modules that take the source code of other modules (e.g. mapper/orm)
-and transform it to use Jakarta EE instead of Java EE. 
 * `mapper`: The mappers, i.e. the modules that expose APIs to index and search user entities,
 and do the work of converting between user entities and documents to be indexed.
   * `pojo-base`: Contains base classes and APIs that are re-used in other POJO-based mapper.
   * `orm`: A mapper for [Hibernate ORM](http://hibernate.org/orm/) entities.
-  * `orm-coordination-outbox-polling`: An implementation of coordination of automatic indexing between nodes
+  * `orm-outbox-polling`: An implementation of indexing coordination between nodes
   in the orm mapper (see above) using an outbox, i.e. an event table in the database. 
   * `pojo-standalone`: A mapper for POJOs in standalone mode, i.e. without Hibernate ORM.
     Currently incubating, i.e. backwards-incompatible changes in APIs may happen.
-* `orm6`: Modules that take the source code of other modules (e.g. mapper/orm)
-and transform it to use Hibernate ORM 6 instead of Hibernate ORM 5.x.
 * `util`: Various modules containing util classes, both for runtime and for tests.
 
 ## <a id="building-from-source"></a> Building from source
@@ -219,6 +221,10 @@ and run unit tests and integration tests.
 ```bash
 ./mvnw clean install
 ```
+
+Note: on Windows, you will need a Docker install able to run Linux containers.
+If you don't have that, you can skip the Elasticsearch tests and all container startups:
+`./mvnw clean install -Dtest.elasticsearch.skip=true -Dtest.containers.run.skip=true`.
 
 Note: the produced JARs are compatible with Java 8 and later,
 regardless of the JDK used to build Hibernate Search.
@@ -282,16 +288,16 @@ than [the one required for the build](#setup-build-tools),
 you will need to have both JDKs installed,
 and then you will need to pass additional properties to Maven.
 
-To test Hibernate Search against JDK 8:
+To test Hibernate Search against JDK 11:
 
 ```bash
-./mvnw clean install -Djava-version.test.release=8 -Djava-version.test.launcher.java_home=/path/to/jdk8
+./mvnw clean install -Djava-version.test.release=11 -Djava-version.test.launcher.java_home=/path/to/jdk11
 ```
 
-To test Hibernate Search against JDKs other than 8 or the default 17:
+To test Hibernate Search against JDKs other than 11 or the default 17:
 
 ```bash
-./mvnw clean install -Djava-version.test.release=11 -Djava-version.test.compiler.java_home=/path/to/jdk11
+./mvnw clean install -Djava-version.test.release=15 -Djava-version.test.compiler.java_home=/path/to/jdk15
 ```
 
 Or more simply, if the newer JDK you want to test against is newer than 17 and is your default JDK:
@@ -300,6 +306,17 @@ Or more simply, if the newer JDK you want to test against is newer than 17 and i
 ./mvnw clean install -Djava-version.test.release=18
 ```
 
+### Lucene
+
+The Lucene integration tests do not, by themselves,
+require any external setup.
+
+If you are not interested in Lucene integration tests (e.g. you only want to test Elasticsearch),
+you can skip all Lucene tests with:
+
+```bash
+./mvnw clean install -Dtest.lucene.skip=true
+```
 ### Elasticsearch
 
 The Elasticsearch integration tests run against one single version of Elasticsearch at a time,
@@ -311,13 +328,29 @@ You may redefine the distribution/version to use by specifying the properties
 ./mvnw clean install -Dtest.elasticsearch.distribution=elastic -Dtest.elasticsearch.version=6.0.0 
 ```
 The following distribution options are supported:
-* `elastic` - for Elasticsearch distribution
-* `opensearch` - for Opensearch distribution
+* `elastic` for Elasticsearch distribution
+* `opensearch` for OpenSearch (local or Amazon OpenSearch Service)
+* `amazon-opensearch-serverless` for Amazon OpenSearch Serverless
 
 For available versions of Elasticsearch distribution from Elastic see [DockerHub](https://hub.docker.com/r/elastic/elasticsearch/tags).
 Please note that Elasticsearch [distributions starting with version 7.11 are not open-source](https://opensource.org/node/1099).
 
 For available versions of [OpenSearch](https://www.opensearch.org/) distribution see [DockerHub](https://hub.docker.com/r/opensearchproject/opensearch/tags).
+
+For Amazon OpenSearch Serverless, the version must be unset (set to an empty string).
+
+When necessary (e.g. you don't have Docker, or are on Windows and can't run Linux containers),
+you can skip all Elasticsearch tests (and thus the Elasticsearch container startup) with:
+
+```bash
+./mvnw clean install -Dtest.elasticsearch.skip=true
+```
+
+On Windows, you might need to also skip all docker container features:
+
+```bash
+./mvnw clean install -Dtest.elasticsearch.skip=true -Dtest.containers.run.skip=true
+```
 
 Alternatively, you can prevent the build from launching an Elasticsearch server automatically
 and run Elasticsearch-related tests against your own server using the

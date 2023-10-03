@@ -11,7 +11,7 @@
     <parent>
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-parent-public</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
+        <version>7.0.0-SNAPSHOT</version>
         <relativePath>../../build/parents/public</relativePath>
     </parent>
     <artifactId>hibernate-search-mapper-pojo-standalone</artifactId>
@@ -20,6 +20,8 @@
     <description>Hibernate Search Mapper for POJOs in standalone mode (no ORM)</description>
 
     <properties>
+        <!-- This is a publicly distributed module that should be published: -->
+        <deploy.skip>false</deploy.skip>
         <java.module.name>org.hibernate.search.mapper.pojo.standalone</java.module.name>
     </properties>
 

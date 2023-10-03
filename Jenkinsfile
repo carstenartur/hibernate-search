@@ -134,7 +134,7 @@ import org.hibernate.jenkins.pipeline.helpers.alternative.AlternativeMultiMap
  */
 
 @Field final String DEFAULT_JDK_TOOL = 'OpenJDK 17 Latest'
-@Field final String MAVEN_TOOL = 'Apache Maven 3.8'
+@Field final String MAVEN_TOOL = 'Apache Maven 3.9'
 
 // Default node pattern, to be used for resource-intensive stages.
 // Should not include the controller node.
@@ -149,19 +149,26 @@ import org.hibernate.jenkins.pipeline.helpers.alternative.AlternativeMultiMap
 @Field boolean enableDefaultBuild = false
 @Field boolean enableDefaultBuildIT = false
 @Field boolean deploySnapshot = false
+@Field boolean incrementalBuild = false
 
 this.helper = new JobHelper(this)
 
 helper.runWithNotification {
 
 stage('Configure') {
+	// We want to make sure that if we are building a PR that the branch name will not require any escaping of symbols in it.
+	// Otherwise, it may lead to cryptic build errors.
+	if (helper.scmSource.branch.name && !(helper.scmSource.branch.name ==~ /^[\w\d\/\\_\-\.]+$/)) {
+		throw new IllegalArgumentException("""
+											Branch name ${helper.scmSource.branch.name} contains unexpected symbols.
+											 Only characters, digits and -_.\\/ symbols are allowed in the branch name.
+											 Change the branch name and open a new Pull Request.
+										   """)
+	}
 	this.environments = AlternativeMultiMap.create([
 			jdk: [
 					// This should not include every JDK; in particular let's not care too much about EOL'd JDKs like version 9
 					// See http://www.oracle.com/technetwork/java/javase/eol-135779.html
-					// We only run the tests with JDK8, but we compile them with JDK17 (with --release 8).
-					new JdkBuildEnvironment(version: '8', testLauncherTool: 'OpenJDK 8 Latest',
-							condition: TestCondition.AFTER_MERGE),
 					new JdkBuildEnvironment(version: '11', testCompilerTool: 'OpenJDK 11 Latest',
 							condition: TestCondition.AFTER_MERGE),
 					new JdkBuildEnvironment(version: '17', testCompilerTool: 'OpenJDK 17 Latest',
@@ -170,13 +177,13 @@ stage('Configure') {
 					// We want to enable preview features when testing newer builds of OpenJDK:
 					// even if we don't use these features, just enabling them can cause side effects
 					// and it's useful to test that.
-					new JdkBuildEnvironment(version: '19', testCompilerTool: 'OpenJDK 19 Latest',
-							testLauncherArgs: '--enable-preview',
-							condition: TestCondition.AFTER_MERGE),
 					new JdkBuildEnvironment(version: '20', testCompilerTool: 'OpenJDK 20 Latest',
 							testLauncherArgs: '--enable-preview',
 							condition: TestCondition.AFTER_MERGE),
 					new JdkBuildEnvironment(version: '21', testCompilerTool: 'OpenJDK 21 Latest',
+							testLauncherArgs: '--enable-preview',
+							condition: TestCondition.AFTER_MERGE),
+					new JdkBuildEnvironment(version: '22', testCompilerTool: 'OpenJDK 22 Latest',
 							testLauncherArgs: '--enable-preview',
 							condition: TestCondition.AFTER_MERGE)
 			],
@@ -205,97 +212,70 @@ stage('Configure') {
                             slow: true,
                             condition: TestCondition.AFTER_MERGE),
 			],
-			esLocal: [
+			localElasticsearch: [
 					// --------------------------------------------
 					// Elasticsearch distribution from Elastic
-					new EsLocalBuildEnvironment(version: '5.6.16', condition: TestCondition.AFTER_MERGE),
-					// ES 6.2, 6.3.0, 6.3.1 and 6.3.2 and below have a bug that prevents double-nested
-					// sorts from working: https://github.com/elastic/elasticsearch/issues/32130
-					new EsLocalBuildEnvironment(version: '6.2.4', condition: TestCondition.ON_DEMAND),
-					// ES 6.3 has a bug that prevents IndexingIT from passing.
-					// See https://github.com/elastic/elasticsearch/issues/32395
-					new EsLocalBuildEnvironment(version: '6.3.2', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '6.6.2', condition: TestCondition.AFTER_MERGE),
-					// Not testing 6.7 to make the build quicker.
-					// The only difference with 6.8+ is a bug in field sorts that is already present in earlier versions.
-					new EsLocalBuildEnvironment(version: '6.7.2', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '6.8.22', condition: TestCondition.AFTER_MERGE),
-					// Not testing 7.0/7.1/7.2 to make the build quicker.
-					// The only difference with 7.3+ is they have a bug in their BigInteger support.
-					new EsLocalBuildEnvironment(version: '7.2.1', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '7.6.2', condition: TestCondition.AFTER_MERGE),
-					// Not testing 7.7 to make the build quicker.
-					// The only difference with 7.7+ is how we create templates for tests.
-					new EsLocalBuildEnvironment(version: '7.7.1', condition: TestCondition.ON_DEMAND),
-					// Not testing 7.9 to make the build quicker.
-					// The only difference with 7.10+ is an additional test for exists on null values,
-					// which is disabled on 7.10 but enabled on all older versions (not just 7.9).
-					new EsLocalBuildEnvironment(version: '7.9.3', condition: TestCondition.AFTER_MERGE),
-					new EsLocalBuildEnvironment(version: '7.10.1', condition: TestCondition.AFTER_MERGE),
+					// Not testing 7.9- since those versions are EOL'ed.
+					new LocalElasticsearchBuildEnvironment(version: '7.10.1', condition: TestCondition.AFTER_MERGE),
 					// Not testing 7.11 to make the build quicker.
 					// The only difference with 7.12+ is that wildcard predicates on analyzed fields get their pattern normalized,
 					// and that was deemed a bug: https://github.com/elastic/elasticsearch/pull/53127
-					new EsLocalBuildEnvironment(version: '7.11.2', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '7.12.1', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '7.13.2', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '7.11.2', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '7.12.1', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '7.13.2', condition: TestCondition.ON_DEMAND),
 					// 7.14 and 7.15 have annoying bugs that make almost all of our test suite fail,
 					// so we don't test them
 					// See https://hibernate.atlassian.net/browse/HSEARCH-4340
-					new EsLocalBuildEnvironment(version: '7.16.3', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '7.17.10', condition: TestCondition.AFTER_MERGE),
+					new LocalElasticsearchBuildEnvironment(version: '7.16.3', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '7.17.13', condition: TestCondition.AFTER_MERGE),
 					// Not testing 8.0 because we know there are problems in 8.0.1 (see https://hibernate.atlassian.net/browse/HSEARCH-4497)
 					// Not testing 8.1-8.6 to make the build quicker.
-					new EsLocalBuildEnvironment(version: '8.1.3', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.2.3', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.3.3', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.4.3', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.5.3', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.6.2', condition: TestCondition.ON_DEMAND),
-					new EsLocalBuildEnvironment(version: '8.7.1', condition: TestCondition.BEFORE_MERGE, isDefault: true),
+					new LocalElasticsearchBuildEnvironment(version: '8.1.3', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.2.3', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.3.3', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.4.3', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.5.3', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.6.2', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.7.1', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.8.2', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.9.2', condition: TestCondition.ON_DEMAND),
+					new LocalElasticsearchBuildEnvironment(version: '8.10.2', condition: TestCondition.BEFORE_MERGE, isDefault: true),
 
 					// --------------------------------------------
 					// OpenSearch
-					// Not testing 1.0 - 1.2 to make the build quicker.
-					new OpenSearchLocalBuildEnvironment(version: '1.3.10', condition: TestCondition.AFTER_MERGE),
+					// Not testing 1.0 - 1.2 as these versions are EOL'ed.
+					new LocalOpenSearchBuildEnvironment(version: '1.3.13', condition: TestCondition.AFTER_MERGE),
 					// See https://opensearch.org/lines/1x.html for a list of all 1.x versions
-					new OpenSearchLocalBuildEnvironment(version: '2.0.1', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.1.0', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.2.1', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.3.0', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.4.1', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.5.0', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.6.0', condition: TestCondition.ON_DEMAND),
-					new OpenSearchLocalBuildEnvironment(version: '2.7.0', condition: TestCondition.AFTER_MERGE)
+					new LocalOpenSearchBuildEnvironment(version: '2.0.1', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.1.0', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.2.1', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.3.0', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.4.1', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.5.0', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.6.0', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.7.0', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.8.0', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.9.0', condition: TestCondition.ON_DEMAND),
+					new LocalOpenSearchBuildEnvironment(version: '2.10.0', condition: TestCondition.BEFORE_MERGE),
 					// See https://opensearch.org/lines/2x.html for a list of all 2.x versions
-			],
-			esAws: [
-					// --------------------------------------------
-					// AWS Elasticsearch service (OpenDistro)
-					new EsAwsBuildEnvironment(version: '5.6', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '6.0', condition: TestCondition.ON_DEMAND),
-					// ES 6.2, 6.3.0, 6.3.1 and 6.3.2 and below have a bug that prevents double-nested
-					// sorts from working: https://github.com/elastic/elasticsearch/issues/32130
-					new EsAwsBuildEnvironment(version: '6.2', condition: TestCondition.ON_DEMAND),
-					// ES 6.3 has a bug that prevents IndexingIT from passing.
-					// See https://github.com/elastic/elasticsearch/issues/32395
-					new EsAwsBuildEnvironment(version: '6.3', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '6.4', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '6.5', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '6.7', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '6.8', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '7.1', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '7.4', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '7.7', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '7.8', condition: TestCondition.ON_DEMAND),
-					new EsAwsBuildEnvironment(version: '7.10', condition: TestCondition.AFTER_MERGE),
 
 					// --------------------------------------------
-					// AWS OpenSearch service
-					new OpenSearchAwsBuildEnvironment(version: '1.3', condition: TestCondition.AFTER_MERGE),
-					new OpenSearchAwsBuildEnvironment(version: '2.3', condition: TestCondition.ON_DEMAND),
-					new OpenSearchAwsBuildEnvironment(version: '2.5', condition: TestCondition.AFTER_MERGE),
+					// Amazon OpenSearch Serverless dialect running against a local OpenSearch instance
+					// WARNING: this does NOT actually run against Amazon OpenSearch Serverless (yet)
+					// See https://hibernate.atlassian.net/browse/HSEARCH-4919
+					new AmazonOpenSearchServerlessLocalBuildEnvironment(condition: TestCondition.AFTER_MERGE)
+			],
+			amazonElasticsearch: [
+					// --------------------------------------------
+					// Amazon Elasticsearch Service (OpenDistro)
+					new AmazonElasticsearchServiceBuildEnvironment(version: '7.10', condition: TestCondition.AFTER_MERGE),
+
+					// --------------------------------------------
+					// Amazon OpenSearch Service
+					new AmazonOpenSearchServiceBuildEnvironment(version: '1.3', condition: TestCondition.AFTER_MERGE),
+					new AmazonOpenSearchServiceBuildEnvironment(version: '2.5', condition: TestCondition.AFTER_MERGE),
 					// Also test static credentials, but only for the latest version
-					new OpenSearchAwsBuildEnvironment(version: '2.5', condition: TestCondition.AFTER_MERGE, staticCredentials: true)
+					new AmazonOpenSearchServiceBuildEnvironment(version: '2.5', condition: TestCondition.AFTER_MERGE, staticCredentials: true)
 			]
 	])
 
@@ -379,6 +359,10 @@ Some useful filters: 'default', 'jdk', 'jdk-10', 'eclipse', 'postgresql', 'elast
 			environments.content.any { key, envSet -> envSet.enabled.any { buildEnv -> buildEnv.requiresDefaultBuildArtifacts() } } ||
 			deploySnapshot
 
+	if (helper.scmSource.pullRequest) {
+		incrementalBuild = true
+	}
+
 	echo """Branch: ${helper.scmSource.branch.name}
 PR: ${helper.scmSource.pullRequest?.id}
 params.ENVIRONMENT_SET: ${params.ENVIRONMENT_SET}
@@ -389,6 +373,7 @@ Resulting execution plan:
     enableDefaultBuildIT=$enableDefaultBuildIT
     environments=${environments.enabledAsString}
     deploySnapshot=$deploySnapshot
+    incrementalBuild=$incrementalBuild
 """
 }
 
@@ -400,61 +385,95 @@ stage('Default build') {
 	}
 	runBuildOnNode( NODE_PATTERN_BASE, [time: 2, unit: 'HOURS'] ) {
 		withMavenWorkspace(mavenSettingsConfig: deploySnapshot ? helper.configuration.file.deployment.maven.settingsId : null) {
-			String mavenArgs = """ \
+			String commonMavenArgs = """ \
 					--fail-at-end \
-					-Pdist -Pcoverage -Pjqassistant \
-					${enableDefaultBuildIT ? '' : '-DskipITs'} \
+					-Pcoverage \
 					${toTestJdkArg(environments.content.jdk.default)} \
 			"""
-			pullContainerImages( mavenArgs )
+
+			echo "Building code and running unit tests and basic checks."
 			sh """ \
-					mvn clean \
+					mvn \
+					${commonMavenArgs} \
+					-Pdist \
+					-Pjqassistant -Pci-sources-check \
+					-DskipITs \
+					clean \
 					${deploySnapshot ? "\
 							deploy \
 					" : "\
 							install \
 					"} \
-					$mavenArgs \
 			"""
-
-			// Don't try to report to SonarCloud if coverage data is missing
-			if (enableDefaultBuildIT) {
-				if (helper.configuration.file?.sonar?.credentials) {
-					def sonarCredentialsId = helper.configuration.file.sonar.credentials
-					// WARNING: Make sure credentials are evaluated by sh, not Groovy.
-					// To that end, escape the '$' when referencing the variables.
-					// See https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#string-interpolation
-					withCredentials([usernamePassword(
-									credentialsId: sonarCredentialsId,
-									usernameVariable: 'SONARCLOUD_ORGANIZATION',
-									passwordVariable: 'SONARCLOUD_TOKEN'
-					)]) {
-						sh """ \
-								mvn sonar:sonar \
-								-Dsonar.organization=\${SONARCLOUD_ORGANIZATION} \
-								-Dsonar.host.url=https://sonarcloud.io \
-								-Dsonar.login=\${SONARCLOUD_TOKEN} \
-								${helper.scmSource.pullRequest ? """ \
-										-Dsonar.pullrequest.branch=${helper.scmSource.branch.name} \
-										-Dsonar.pullrequest.key=${helper.scmSource.pullRequest.id} \
-										-Dsonar.pullrequest.base=${helper.scmSource.pullRequest.target.name} \
-										${helper.scmSource.gitHubRepoId ? """ \
-												-Dsonar.pullrequest.provider=GitHub \
-												-Dsonar.pullrequest.github.repository=${helper.scmSource.gitHubRepoId} \
-										""" : ''} \
-								""" : """ \
-										-Dsonar.branch.name=${helper.scmSource.branch.name} \
-								"""} \
-						"""
-					}
-				}
-				else {
-					echo "No Sonar organization configured - skipping Sonar report."
-				}
-			}
-
 			dir(helper.configuration.maven.localRepositoryPath) {
 				stash name:'default-build-result', includes:"org/hibernate/search/**"
+			}
+
+			if (!enableDefaultBuildIT) {
+				echo "Skipping integration tests in the default environment."
+				return
+			}
+
+			echo "Running integration tests in the default environment."
+			// We want to include all (relevant) modules in this second build,
+			// so that their coverage data is taken into account by jacoco:report-aggregate:
+			// if some modules are not in the build or classes are not compiled,
+			// Jacoco will just not report coverage for these classes.
+			// In PRs, "relevant" modules are only those affected by changes.
+			// However:
+			// - Maven will normally not recompile anything as class files are still here.
+			// - We disable running unit tests (surefire) because we already ran them just above.
+			// - We disable a couple checks that were run above.
+			// - We activate a profile that fixes the second Maven execution
+			//   by disabling a few misbehaving plugins whose output is already there anyway.
+			String itMavenArgs = """ \
+					${commonMavenArgs} \
+					-DskipSurefireTests \
+					-Pskip-checks \
+					-Pci-rebuild \
+					${incrementalBuild ? """ \
+							-Dincremental \
+							-Dgib.referenceBranch=refs/remotes/origin/${helper.scmSource.pullRequest.target.name} \
+					""" : '' } \
+			"""
+			pullContainerImages( itMavenArgs )
+			sh """ \
+					mvn \
+					${itMavenArgs} \
+					verify \
+			"""
+
+			def sonarCredentialsId = helper.configuration.file?.sonar?.credentials
+			if (sonarCredentialsId) {
+				// WARNING: Make sure credentials are evaluated by sh, not Groovy.
+				// To that end, escape the '$' when referencing the variables.
+				// See https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#string-interpolation
+				withCredentials([usernamePassword(
+								credentialsId: sonarCredentialsId,
+								usernameVariable: 'SONARCLOUD_ORGANIZATION',
+								passwordVariable: 'SONARCLOUD_TOKEN'
+				)]) {
+					sh """ \
+							mvn sonar:sonar \
+							-Dsonar.organization=\${SONARCLOUD_ORGANIZATION} \
+							-Dsonar.host.url=https://sonarcloud.io \
+							-Dsonar.token=\${SONARCLOUD_TOKEN} \
+							${helper.scmSource.pullRequest ? """ \
+									-Dsonar.pullrequest.branch=${helper.scmSource.branch.name} \
+									-Dsonar.pullrequest.key=${helper.scmSource.pullRequest.id} \
+									-Dsonar.pullrequest.base=${helper.scmSource.pullRequest.target.name} \
+									${helper.scmSource.gitHubRepoId ? """ \
+											-Dsonar.pullrequest.provider=GitHub \
+											-Dsonar.pullrequest.github.repository=${helper.scmSource.gitHubRepoId} \
+									""" : ''} \
+							""" : """ \
+									-Dsonar.branch.name=${helper.scmSource.branch.name} \
+							"""} \
+					"""
+				}
+			}
+			else {
+				echo "Skipping Sonar report: no credentials."
 			}
 		}
 	}
@@ -463,9 +482,17 @@ stage('Default build') {
 stage('Non-default environments') {
 	Map<String, Closure> executions = [:]
 
+	Closure addExecution = { String tag, Closure execution ->
+		executions.put( tag, {
+			// This nested stage is necessary to be able to mark a single parallel execution as skipped
+			// See https://stackoverflow.com/a/59210261/6692043
+			stage( tag, execution )
+		} )
+	}
+
 	// Test with multiple JDKs
 	environments.content.jdk.enabled.each { JdkBuildEnvironment buildEnv ->
-		executions.put(buildEnv.tag, {
+		addExecution(buildEnv.tag, {
 			runBuildOnNode {
 				withMavenWorkspace {
 					// Re-run integration tests against the JARs produced by the default build,
@@ -478,12 +505,15 @@ stage('Non-default environments') {
 
 	// Build with different compilers
 	environments.content.compiler.enabled.each { CompilerBuildEnvironment buildEnv ->
-		executions.put(buildEnv.tag, {
+		addExecution(buildEnv.tag, {
 			runBuildOnNode {
 				withMavenWorkspace {
+					// NOTE: we are not relying on incremental build in this case as
+					// we'd better recompile everything with the same compiler rather than get some strange errors
 					mavenNonDefaultBuild buildEnv, """ \
 							-DskipTests -DskipITs \
 							-P${buildEnv.mavenProfile},!javaModuleITs \
+							-Dgib.buildAll=true \
 					"""
 				}
 			}
@@ -492,7 +522,7 @@ stage('Non-default environments') {
 
 	// Test ORM integration with multiple databases
 	environments.content.database.enabled.each { DatabaseBuildEnvironment buildEnv ->
-		executions.put(buildEnv.tag, {
+		addExecution(buildEnv.tag, {
 			runBuildOnNode(NODE_PATTERN_BASE, [time: buildEnv.slow ? 2 : 1, unit: 'HOURS']) {
 				withMavenWorkspace {
 					def artifactsToTest = ['hibernate-search-mapper-orm']
@@ -502,30 +532,11 @@ stage('Non-default environments') {
 					String mavenBuildAdditionalArgs = ''' \
 							-pl !documentation \
 							-pl !integrationtest/mapper/orm-spring \
-							-pl !integrationtest/mapper/orm-batch-jsr352 \
 							-pl !integrationtest/v5migrationhelper/orm \
 							-pl !integrationtest/java/modules/orm-lucene \
 							-pl !integrationtest/java/modules/orm-elasticsearch \
-							-pl !integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
+							-pl !integrationtest/java/modules/orm-outbox-polling-elasticsearch \
 					'''
-					if ( !buildEnv.slow ) {
-						// If the DB testing is reasonably fast, we'll also test ORM6 and Jakarta
-						artifactsToTest += ['hibernate-search-mapper-orm-orm6', 'hibernate-search-mapper-orm-jakarta']
-						mavenBuildAdditionalArgs += ''' \
-								-pl !orm6/documentation \
-								-pl !orm6/integrationtest/mapper/orm-batch-jsr352 \
-								-pl !orm6/integrationtest/v5migrationhelper/orm \
-								-pl !orm6/integrationtest/java/modules/orm-lucene \
-								-pl !orm6/integrationtest/java/modules/orm-elasticsearch \
-								-pl !orm6/integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
-								-pl !jakarta/documentation \
-								-pl !jakarta/integrationtest/mapper/orm-batch-jsr352 \
-								-pl !jakarta/integrationtest/v5migrationhelper/orm \
-								-pl !jakarta/integrationtest/java/modules/orm-lucene \
-								-pl !jakarta/integrationtest/java/modules/orm-elasticsearch \
-								-pl !jakarta/integrationtest/java/modules/orm-coordination-outbox-polling-elasticsearch \
-						'''
-					}
 					String mavenDockerArgs = ""
 					def startedContainers = false
 					// DB2 setup is super slow (~5 to 15 minutes).
@@ -571,14 +582,15 @@ stage('Non-default environments') {
 	}
 
 	// Test Elasticsearch integration with multiple versions in a local instance
-	environments.content.esLocal.enabled.each { EsLocalBuildEnvironment buildEnv ->
-		executions.put(buildEnv.tag, {
+	environments.content.localElasticsearch.enabled.each { LocalElasticsearchBuildEnvironment buildEnv ->
+		addExecution(buildEnv.tag, {
 			runBuildOnNode {
 				withMavenWorkspace {
 					mavenNonDefaultBuild buildEnv, """ \
 							-Pdist \
 							-Dtest.elasticsearch.distribution=$buildEnv.distribution \
 							-Dtest.elasticsearch.version=$buildEnv.version \
+							-Dtest.lucene.skip=true \
 							""",
 							['hibernate-search-backend-elasticsearch']
 				}
@@ -587,7 +599,7 @@ stage('Non-default environments') {
 	}
 
 	// Test Elasticsearch integration with multiple versions in an AWS instance
-	environments.content.esAws.enabled.each { EsAwsBuildEnvironment buildEnv ->
+	environments.content.amazonElasticsearch.enabled.each { AmazonElasticsearchServiceBuildEnvironment buildEnv ->
 		if (!env.ES_AWS_REGION) {
 			throw new IllegalStateException("Environment variable ES_AWS_REGION is not set")
 		}
@@ -598,7 +610,7 @@ stage('Non-default environments') {
 				throw new IllegalStateException("Missing AWS credentials")
 			}
 		}
-		executions.put(buildEnv.tag, {
+		addExecution(buildEnv.tag, {
 			lock(label: buildEnv.lockedResourcesLabel, variable: 'LOCKED_RESOURCE_URI') {
 				runBuildOnNode(NODE_PATTERN_BASE + '&&AWS') {
 					if (awsCredentialsId == null) {
@@ -621,6 +633,7 @@ stage('Non-default environments') {
 											'org.hibernate.search:hibernate-search-integrationtest-backend-elasticsearch',
 											'org.hibernate.search:hibernate-search-integrationtest-showcase-library'
 											 ].join(',')} \
+										-Dtest.lucene.skip=true \
 										-Dtest.elasticsearch.distribution=$buildEnv.distribution \
 										-Dtest.elasticsearch.version=$buildEnv.version \
 										-Dtest.elasticsearch.connection.uris=$env.LOCKED_RESOURCE_URI \
@@ -660,6 +673,7 @@ stage('Non-default environments') {
 									mavenNonDefaultBuild buildEnv, """ \
 										--fail-fast \
 										-pl org.hibernate.search:hibernate-search-integrationtest-backend-elasticsearch,org.hibernate.search:hibernate-search-integrationtest-showcase-library \
+										-Dtest.lucene.skip=true \
 										-Dtest.elasticsearch.distribution=$buildEnv.distribution \
 										-Dtest.elasticsearch.version=$buildEnv.version \
 										-Dtest.elasticsearch.connection.uris=$env.LOCKED_RESOURCE_URI \
@@ -747,42 +761,54 @@ class DatabaseBuildEnvironment extends BuildEnvironment {
 	String getTag() { "database-$dbName" }
 }
 
-class EsLocalBuildEnvironment extends BuildEnvironment {
+class LocalElasticsearchBuildEnvironment extends BuildEnvironment {
 	String version
+	String getTagPrefix() { 'elasticsearch-local' }
 	@Override
-    String getTag() { "elasticsearch-local-$version" }
-    String getDistribution() { "elastic" }
+	String getTag() { tagPrefix + (version ? '-' + version : '') }
+	String getDistribution() { 'elastic' }
 }
 
-class OpenSearchLocalBuildEnvironment extends EsLocalBuildEnvironment {
+class LocalOpenSearchBuildEnvironment extends LocalElasticsearchBuildEnvironment {
 	String version
 	@Override
-	String getTag() { "opensearch-local-$version" }
+	String getTagPrefix() { 'opensearch-local' }
 	@Override
-	String getDistribution() { "opensearch" }
+	String getDistribution() { 'opensearch' }
 }
 
-class EsAwsBuildEnvironment extends EsLocalBuildEnvironment {
+class AmazonOpenSearchServerlessLocalBuildEnvironment
+		extends LocalOpenSearchBuildEnvironment {
+	{
+		setVersion('')
+	}
+	@Override
+	String getTagPrefix() { 'amazon-opensearch-serverless' }
+	@Override
+	String getDistribution() { 'amazon-opensearch-serverless' }
+}
+
+class AmazonElasticsearchServiceBuildEnvironment extends LocalElasticsearchBuildEnvironment {
 	boolean staticCredentials = false
 	@Override
-	String getTag() { "elasticsearch-aws-$version" + (staticCredentials ? "-credentials-static" : "") }
-	String getNameEmbeddableVersion() {
-		version.replaceAll('\\.', '-')
+	String getTagPrefix() { 'amazon-elasticsearch-service' }
+	@Override
+	String getTag() {
+		tagPrefix + (version ? '-' + version : '') + (staticCredentials ? '-credentials-static' : '')
 	}
+	String getLockedResourcesPrefix() { 'es' }
 	String getLockedResourcesLabel() {
-		"es-aws-${nameEmbeddableVersion}"
+		"$lockedResourcesPrefix-aws-${version.replaceAll('\\.', '-')}"
 	}
 }
 
-class OpenSearchAwsBuildEnvironment extends EsAwsBuildEnvironment {
+class AmazonOpenSearchServiceBuildEnvironment extends AmazonElasticsearchServiceBuildEnvironment {
 	@Override
-	String getTag() { "opensearch-aws-$version" + (staticCredentials ? "-credentials-static" : "") }
+	String getTagPrefix() { 'amazon-opensearch-service' }
 	@Override
-	String getDistribution() { "opensearch" }
+	String getDistribution() { 'opensearch' }
 	@Override
-	String getLockedResourcesLabel() {
-		"opensearch-aws-${nameEmbeddableVersion}"
-	}
+	String getLockedResourcesPrefix() { 'opensearch' }
 }
 
 void keepOnlyEnvironmentsMatchingFilter(String regex) {
@@ -906,14 +932,29 @@ void mavenNonDefaultBuild(BuildEnvironment buildEnv, String args, List<String> a
 		}
 	}
 
-	String argsWithProjectSelection = args
+	// We want to run relevant integration test modules only (see array of module names)
+	// and in PRs we want to run only those affected by changes
+	// (see gib.disableSelectedProjectsHandling=true).
+	String incrementalProjectsListFile = 'target/.gib-impacted'
+	args = """ \
+		${incrementalBuild ? """ \
+				-Dincremental -Dgib.disableSelectedProjectsHandling=true \
+				-Dgib.referenceBranch=refs/remotes/origin/${helper.scmSource.pullRequest.target.name} \
+				-Dgib.logImpactedTo='${incrementalProjectsListFile}' \
+		""" : ''} \
+		${args} \
+	"""
+	if ( buildEnv.requiresDefaultBuildArtifacts() ) {
+		// - We disable a couple checks that were run above.
+		// - We activate a profile that fixes the second Maven execution for some modules
+		//   by disabling a few misbehaving plugins whose output is already there anyway.
+		args += ' -Pskip-checks'
+	}
 	if ( artifactsToTest ) {
-		argsWithProjectSelection = '-pl ' +
-				sh(script: "./ci/list-dependent-integration-tests.sh ${artifactsToTest.join(',')}", returnStdout: true).trim() +
-				' ' + args
+		args += ' -pl ' + sh(script: "./ci/list-dependent-integration-tests.sh ${artifactsToTest.join(',')}", returnStdout: true).trim()
 	}
 
-	pullContainerImages( argsWithProjectSelection )
+	pullContainerImages( args )
 
 	// Add a suffix to tests to distinguish between different executions
 	// of the same test in different environments in reports
@@ -923,8 +964,17 @@ void mavenNonDefaultBuild(BuildEnvironment buildEnv, String args, List<String> a
 			mvn clean install -Dsurefire.environment=$testSuffix \
 					${toTestJdkArg(buildEnv)} \
 					--fail-at-end \
-					$argsWithProjectSelection \
+					$args \
 	"""
+
+	// In incremental builds, the Maven execution above
+	// created a file listing projects relevant to the incremental build.
+	// If it is empty, it means the incremental build didn't actually do anything,
+	// so make sure to mark the stage as skipped.
+	if (incrementalBuild && 0 == sh(script: "test ! -s '${incrementalProjectsListFile}'", returnStatus: true)) {
+		echo 'Skipping stage because PR changes do not affect tested modules'
+		helper.markStageSkipped()
+	}
 }
 
 String toTestJdkArg(BuildEnvironment buildEnv) {

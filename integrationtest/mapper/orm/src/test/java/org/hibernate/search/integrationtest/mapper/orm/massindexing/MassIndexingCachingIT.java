@@ -9,10 +9,10 @@ package org.hibernate.search.integrationtest.mapper.orm.massindexing;
 import static org.assertj.core.api.Fail.fail;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.SharedCacheMode;
-import javax.persistence.Table;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.SharedCacheMode;
+import jakarta.persistence.Table;
 
 import org.hibernate.CacheMode;
 import org.hibernate.cfg.AvailableSettings;
@@ -56,8 +56,8 @@ public class MassIndexingCachingIT {
 	public void setup(OrmSetupHelper.SetupContext setupContext) {
 		backendMock.expectAnySchema( IndexedEntity.NAME );
 
-		setupContext.withPropertyRadical( HibernateOrmMapperSettings.Radicals.AUTOMATIC_INDEXING_ENABLED, "false" )
-				.withProperty( AvailableSettings.JPA_SHARED_CACHE_MODE, SharedCacheMode.ALL.name() )
+		setupContext.withPropertyRadical( HibernateOrmMapperSettings.Radicals.INDEXING_LISTENERS_ENABLED, "false" )
+				.withProperty( AvailableSettings.JAKARTA_SHARED_CACHE_MODE, SharedCacheMode.ALL.name() )
 				.withProperty( AvailableSettings.GENERATE_STATISTICS, "true" )
 				.withProperty( AvailableSettings.USE_SECOND_LEVEL_CACHE, "true" )
 				.withAnnotatedTypes( IndexedEntity.class );

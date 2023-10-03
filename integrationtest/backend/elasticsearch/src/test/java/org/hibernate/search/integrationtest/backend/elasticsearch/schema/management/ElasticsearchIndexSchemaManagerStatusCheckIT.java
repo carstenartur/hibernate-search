@@ -17,6 +17,7 @@ import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysis
 import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurer;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
 import org.hibernate.search.backend.elasticsearch.index.IndexStatus;
+import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendFeatures;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.common.impl.Futures;
@@ -25,6 +26,7 @@ import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedInde
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingSchemaManagementStrategy;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,6 +60,14 @@ public class ElasticsearchIndexSchemaManagerStatusCheckIT {
 		this.operation = operation;
 	}
 
+	@Before
+	public void checkAssumptions() {
+		assumeTrue(
+				"This test only makes sense if the backend supports index status checks",
+				ElasticsearchTckBackendFeatures.supportsIndexStatusCheck()
+		);
+	}
+
 	@Test
 	public void indexMissing() throws Exception {
 		assumeFalse( "The operation " + operation + " creates an index automatically."
@@ -89,7 +99,7 @@ public class ElasticsearchIndexSchemaManagerStatusCheckIT {
 	@Test
 	public void invalidIndexStatus_usingPreexistingIndex() throws Exception {
 		assumeFalse( "The operation " + operation + " drops the existing index automatically."
-						+ " No point running this test.",
+				+ " No point running this test.",
 				ElasticsearchIndexSchemaManagerOperation.dropping().contains( operation ) );
 
 		// Make sure automatically created indexes will never be green by requiring 5 replicas

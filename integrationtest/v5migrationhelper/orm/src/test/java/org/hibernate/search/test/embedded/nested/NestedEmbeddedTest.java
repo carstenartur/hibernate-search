@@ -6,22 +6,21 @@
  */
 package org.hibernate.search.test.embedded.nested;
 
-import java.util.List;
+import static org.junit.Assert.assertEquals;
 
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Query;
+import java.util.List;
 
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-
 import org.hibernate.search.FullTextSession;
 import org.hibernate.search.Search;
 import org.hibernate.search.test.SearchTestBase;
 import org.hibernate.search.testsupport.TestConstants;
+
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Query;
 
 /**
  * @author Emmanuel Bernard
@@ -145,7 +144,12 @@ public class NestedEmbeddedTest extends SearchTestBase {
 	@Override
 	public Class<?>[] getAnnotatedClasses() {
 		return new Class[] {
-				Product.class, Attribute.class, AttributeValue.class, Person.class, Place.class, Address.class
+				Product.class,
+				Attribute.class,
+				AttributeValue.class,
+				Person.class,
+				Place.class,
+				Address.class
 		};
 	}
 }

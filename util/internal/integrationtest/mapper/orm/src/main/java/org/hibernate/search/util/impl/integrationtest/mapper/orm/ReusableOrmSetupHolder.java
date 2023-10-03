@@ -23,15 +23,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
-import javax.persistence.metamodel.Attribute;
-import javax.persistence.metamodel.EmbeddableType;
-import javax.persistence.metamodel.EntityType;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.Metamodel;
+
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.EmbeddableType;
+import jakarta.persistence.metamodel.EntityType;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.Metamodel;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -50,6 +51,7 @@ import org.hibernate.search.util.impl.test.function.ThrowingConsumer;
 import org.hibernate.search.util.impl.test.function.ThrowingFunction;
 
 import org.hibernate.testing.junit4.CustomParameterized;
+
 import org.junit.rules.MethodRule;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -146,7 +148,7 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 
 	public interface DataClearConfig {
 
-		DataClearConfig tenants(String ... tenantIds);
+		DataClearConfig tenants(String... tenantIds);
 
 		DataClearConfig preClear(Consumer<Session> preClear);
 
@@ -250,7 +252,8 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 	}
 
 	@Override
-	public <R, E extends Throwable> R applyInTransaction(ThrowingBiFunction<? super Session, ? super Transaction, R, E> action) throws E {
+	public <R, E extends Throwable> R applyInTransaction(ThrowingBiFunction<? super Session, ? super Transaction, R, E> action)
+			throws E {
 		return with().applyInTransaction( action );
 	}
 
@@ -455,7 +458,7 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 		for ( Class<?> entityClass : config.entityClearOrder ) {
 			EntityType<?> entityType;
 			try {
-				entityType = sessionFactory.getMetamodel().entity( entityClass );
+				entityType = sessionFactory.getJpaMetamodel().entity( entityClass );
 			}
 			catch (IllegalArgumentException e) {
 				// When using annotatedTypes to infer the clear order,
@@ -472,7 +475,7 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 		// we try to delete all remaining entity types.
 		// Note we're stabilizing the order, because ORM uses a HashSet internally
 		// and the order may change from one execution to the next.
-		List<EntityType<?>> sortedEntityTypes = sessionFactory.getMetamodel().getEntities().stream()
+		List<EntityType<?>> sortedEntityTypes = sessionFactory.getJpaMetamodel().getEntities().stream()
 				.sorted( Comparator.comparing( EntityType::getName ) )
 				.collect( Collectors.toList() );
 		for ( EntityType<?> entityType : sortedEntityTypes ) {
@@ -490,8 +493,8 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 			return;
 		}
 		if (
-				// Workaround until https://hibernate.atlassian.net/browse/HHH-5529 gets implemented
-				hasPotentiallyJoinTable( sessionFactory, entityType )
+			// Workaround until https://hibernate.atlassian.net/browse/HHH-5529 gets implemented
+		hasPotentiallyJoinTable( sessionFactory, entityType )
 				// Workaround until https://hibernate.atlassian.net/browse/HHH-14814 gets fixed
 				|| hasEntitySubclass( sessionFactory, entityType )
 		) {
@@ -561,6 +564,7 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 			builder.append( " where type( e ) in (:type)" );
 			typeArg = entityType.getJavaType();
 		}
+		@SuppressWarnings("deprecation")
 		Query<?> query = QueryType.SELECT.equals( queryType )
 				? session.createQuery( builder.toString(), entityType.getJavaType() )
 				: session.createQuery( builder.toString() );
@@ -571,7 +575,7 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 	}
 
 	private static boolean hasEntitySubclass(SessionFactory sessionFactory, EntityType<?> parentEntity) {
-		Metamodel metamodel = sessionFactory.unwrap( SessionFactoryImplementor.class ).getMetamodel();
+		Metamodel metamodel = sessionFactory.unwrap( SessionFactoryImplementor.class ).getJpaMetamodel();
 		for ( EntityType<?> entity : metamodel.getEntities() ) {
 			if ( parentEntity.equals( entity.getSupertype() ) ) {
 				return true;
@@ -593,7 +597,7 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 				case ELEMENT_COLLECTION:
 					return true;
 				case EMBEDDED:
-					EmbeddableType<?> embeddable = sessionFactory.getMetamodel().embeddable( attribute.getJavaType() );
+					EmbeddableType<?> embeddable = sessionFactory.getJpaMetamodel().embeddable( attribute.getJavaType() );
 					if ( hasPotentiallyJoinTable( sessionFactory, embeddable ) ) {
 						return true;
 					}
@@ -640,7 +644,7 @@ public class ReusableOrmSetupHolder implements TestRule, PersistenceRunner<Sessi
 		private final List<ThrowingConsumer<Session, RuntimeException>> preClear = new ArrayList<>();
 
 		@Override
-		public DataClearConfig tenants(String ... tenantIds) {
+		public DataClearConfig tenants(String... tenantIds) {
 			Collections.addAll( this.tenantsIds, tenantIds );
 			return this;
 		}

@@ -11,18 +11,19 @@ import static org.junit.Assert.fail;
 
 import java.util.List;
 import java.util.Map;
-import javax.persistence.Access;
-import javax.persistence.AccessType;
-import javax.persistence.Basic;
-import javax.persistence.ElementCollection;
-import javax.persistence.Embeddable;
-import javax.persistence.Embedded;
-import javax.persistence.EmbeddedId;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.MapKeyClass;
-import javax.persistence.OneToMany;
-import javax.persistence.Transient;
+
+import jakarta.persistence.Access;
+import jakarta.persistence.AccessType;
+import jakarta.persistence.Basic;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.MapKeyClass;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Transient;
 
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
 import org.hibernate.search.util.common.reflect.spi.ValueReadHandle;
@@ -52,7 +53,8 @@ public class HibernateOrmBootstrapIntrospectorAccessTypeTest
 
 	@Test
 	public void embeddedId_defaultMethodAccess() {
-		HibernateOrmBootstrapIntrospector introspector = createIntrospector( EntityWithEmbeddedIdWithDefaultMethodAccess.class );
+		HibernateOrmBootstrapIntrospector introspector =
+				createIntrospector( EntityWithEmbeddedIdWithDefaultMethodAccess.class );
 		testEmbeddableWithDefaultMethodAccess( introspector );
 	}
 
@@ -198,7 +200,8 @@ public class HibernateOrmBootstrapIntrospectorAccessTypeTest
 		valueReadHandle = nestedEmbeddableTypeModel.property( "propertyWithDefaultFieldAccess" ).handle();
 		assertThat( valueReadHandle.get( nestedEmbeddable ) ).isEqualTo( nestedEmbeddable.propertyWithDefaultFieldAccess );
 		valueReadHandle = nestedEmbeddableTypeModel.property( "propertyWithNonDefaultMethodAccess" ).handle();
-		assertThat( valueReadHandle.get( nestedEmbeddable ) ).isEqualTo( nestedEmbeddable.getPropertyWithNonDefaultMethodAccess() );
+		assertThat( valueReadHandle.get( nestedEmbeddable ) )
+				.isEqualTo( nestedEmbeddable.getPropertyWithNonDefaultMethodAccess() );
 	}
 
 	private void testEmbeddableWithDefaultMethodAccess(HibernateOrmBootstrapIntrospector introspector) {
@@ -223,7 +226,8 @@ public class HibernateOrmBootstrapIntrospectorAccessTypeTest
 		PojoRawTypeModel<NestedEmbeddableWithDefaultMethodAccess> nestedEmbeddableTypeModel =
 				introspector.typeModel( NestedEmbeddableWithDefaultMethodAccess.class );
 		valueReadHandle = nestedEmbeddableTypeModel.property( "propertyWithDefaultMethodAccess" ).handle();
-		assertThat( valueReadHandle.get( nestedEmbeddable ) ).isEqualTo( nestedEmbeddable.getPropertyWithDefaultMethodAccess() );
+		assertThat( valueReadHandle.get( nestedEmbeddable ) )
+				.isEqualTo( nestedEmbeddable.getPropertyWithDefaultMethodAccess() );
 		valueReadHandle = nestedEmbeddableTypeModel.property( "propertyWithNonDefaultFieldAccess" ).handle();
 		assertThat( valueReadHandle.get( nestedEmbeddable ) ).isEqualTo( nestedEmbeddable.propertyWithNonDefaultFieldAccess );
 	}
@@ -269,7 +273,7 @@ public class HibernateOrmBootstrapIntrospectorAccessTypeTest
 	private static class EntityWithDefaultMethodAccess {
 		private String idWithDefaultMethodAccess = "idWithDefaultMethodAccessValue";
 
-		@Access( AccessType.FIELD )
+		@Access(AccessType.FIELD)
 		@Basic
 		protected String propertyWithNonDefaultFieldAccess = "propertyWithNonDefaultFieldAccessValue";
 

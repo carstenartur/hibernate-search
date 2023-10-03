@@ -7,9 +7,10 @@
 package org.hibernate.search.integrationtest.mapper.orm.bootstrap;
 
 import java.util.function.Consumer;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import org.hibernate.search.engine.cfg.EngineSettings;
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
@@ -87,7 +88,7 @@ public class UnusedPropertiesIT {
 		 * Check that the "configuration property tracking strategy" property is considered used.
 		 * This is a corner case worth testing, since the property may legitimately be accessed before
 		 * we start tracking property usage.
- 		 */
+		 */
 		logged.expectMessage( "some properties in the given configuration are not used" )
 				.never();
 		logged.expectMessage( "Configuration property tracking is disabled" )

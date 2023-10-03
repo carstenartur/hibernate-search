@@ -13,7 +13,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -173,12 +174,11 @@ public class PredicateDslIT {
 			// tag::and[]
 			List<Book> hits = searchSession.search( Book.class )
 					.where( f -> f.and(
-									f.match().field( "title" )
-											.matching( "robot" ), // <1>
-									f.match().field( "description" )
-											.matching( "crime" ) // <2>
-							)
-					)
+							f.match().field( "title" )
+									.matching( "robot" ), // <1>
+							f.match().field( "description" )
+									.matching( "crime" ) // <2>
+					) )
 					.fetchHits( 20 ); // <3>
 			// end::and[]
 			assertThat( hits )
@@ -246,12 +246,11 @@ public class PredicateDslIT {
 			// tag::or[]
 			List<Book> hits = searchSession.search( Book.class )
 					.where( f -> f.or(
-									f.match().field( "title" )
-											.matching( "robot" ), // <1>
-									f.match().field( "description" )
-											.matching( "investigation" ) // <2>
-							)
-					)
+							f.match().field( "title" )
+									.matching( "robot" ), // <1>
+							f.match().field( "description" )
+									.matching( "investigation" ) // <2>
+					) )
 					.fetchHits( 20 ); // <3>
 			// end::or[]
 			assertThat( hits )
@@ -895,7 +894,7 @@ public class PredicateDslIT {
 			hits = searchSession.search( Book.class )
 					.where( f -> f.regexp().field( "description" )
 							.matching( "r@t" )
-							.flags( RegexpQueryFlag.ANY_STRING, RegexpQueryFlag.COMPLEMENT )
+							.flags( RegexpQueryFlag.ANY_STRING )
 					)
 					.fetchHits( 20 );
 			// end::regexp-flags[]
@@ -1191,8 +1190,11 @@ public class PredicateDslIT {
 
 	private interface MySearchParameters {
 		Genre getGenreFilter();
+
 		String getFullTextFilter();
+
 		Integer getPageCountMaxFilter();
+
 		List<String> getAuthorFilters();
 	}
 }

@@ -6,14 +6,14 @@
  */
 package org.hibernate.search.integrationtest.showcase.library.model;
 
-import javax.persistence.Basic;
-import javax.persistence.Convert;
-import javax.persistence.Entity;
+import jakarta.persistence.Basic;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
 
 import org.hibernate.search.integrationtest.showcase.library.attributeconverter.ISBNAttributeConverter;
+import org.hibernate.search.integrationtest.showcase.library.bridge.ISBNBridge;
 import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.ValueBinderRef;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
-import org.hibernate.search.integrationtest.showcase.library.bridge.ISBNBridge;
 
 /**
  * A mainly textual document.

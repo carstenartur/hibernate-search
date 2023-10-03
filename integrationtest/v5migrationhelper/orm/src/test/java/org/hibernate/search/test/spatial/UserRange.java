@@ -6,8 +6,8 @@
  */
 package org.hibernate.search.test.spatial;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.annotations.Latitude;
@@ -28,7 +28,7 @@ public class UserRange {
 	@Longitude
 	Double homeLongitude;
 
-	public UserRange( Integer id, Double homeLatitude, Double homeLongitude) {
+	public UserRange(Integer id, Double homeLatitude, Double homeLongitude) {
 		this.id = id;
 		this.homeLatitude = homeLatitude;
 		this.homeLongitude = homeLongitude;

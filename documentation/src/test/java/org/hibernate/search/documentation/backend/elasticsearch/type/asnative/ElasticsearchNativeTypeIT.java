@@ -6,12 +6,12 @@
  */
 package org.hibernate.search.documentation.backend.elasticsearch.type.asnative;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.List;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
@@ -49,10 +49,10 @@ public class ElasticsearchNativeTypeIT {
 					.extension( ElasticsearchExtension.get() )
 					.where( f -> f.fromJson(
 							"{\n" +
-							"  \"term\": {\n" +
-							"    \"ipAddress\": \"192.168.0.0/16\"\n" +
-							"  }\n" +
-							"}"
+									"  \"term\": {\n" +
+									"    \"ipAddress\": \"192.168.0.0/16\"\n" +
+									"  }\n" +
+									"}"
 					) )
 					.fetchHits( 20 );
 

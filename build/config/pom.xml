@@ -9,9 +9,9 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.hibernate.search</groupId>
-        <artifactId>hibernate-search-parent</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
-        <relativePath>../..</relativePath>
+        <artifactId>hibernate-search-parent-build</artifactId>
+        <version>7.0.0-SNAPSHOT</version>
+        <relativePath>../parents/build</relativePath>
     </parent>
     <artifactId>hibernate-search-build-config</artifactId>
 
@@ -19,7 +19,6 @@
     <description>Hibernate Search common build configuration files</description>
 
     <properties>
-        <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
         <jqassistant.skip>true</jqassistant.skip>
 
         <!--
@@ -28,11 +27,18 @@
          -->
         <checkstyle.skip>true</checkstyle.skip>
         <forbiddenapis.skip>true</forbiddenapis.skip>
+        <format.skip>true</format.skip>
 
         <tmpdir.dependencies-javadoc-packagelists>${project.build.directory}/dependencies-javadoc-packagelists</tmpdir.dependencies-javadoc-packagelists>
+        <tmpdir.dependencies-to-parse>${project.build.directory}/dependencies-to-parse</tmpdir.dependencies-to-parse>
     </properties>
 
+
     <dependencies>
+        <dependency>
+            <groupId>io.smallrye</groupId>
+            <artifactId>jandex</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.puppycrawl.tools</groupId>
             <artifactId>checkstyle</artifactId>
@@ -55,6 +61,48 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <!--
+                        We cannot include this execution in the root pom because it depends on a project artifact
+                        that we need to build first.
+                        It should be enough to only run this rule on this build module, since the check it performs is always
+                        the same - get the property value, and compare it to the dependency version from dependency management.
+                    -->
+                    <execution>
+                        <id>enforce-custom-rules</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <versionAlignRule>
+                                    <propertiesToCheck>
+                                        <!--
+                                            We want to make sure that the value we store in the property matches
+                                            the version that is imported from the Hibernate ORM BOM
+                                         -->
+                                        <item>
+                                            <property>${version.jakarta.persistence}</property>
+                                            <artifact>jakarta.persistence:jakarta.persistence-api</artifact>
+                                            <failOnNotFound>true</failOnNotFound>
+                                        </item>
+                                    </propertiesToCheck>
+                                </versionAlignRule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.hibernate.search</groupId>
+                        <artifactId>hibernate-search-build-enforcer</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
                     <!-- See https://maven.apache.org/plugins/maven-dependency-plugin/examples/unpacking-artifacts.html -->
@@ -68,11 +116,11 @@
                             <skip>${maven.javadoc.skip}</skip>
                             <artifactItems>
                                 <artifactItem>
-                                    <groupId>org.hibernate</groupId>
+                                    <groupId>org.hibernate.orm</groupId>
                                     <artifactId>hibernate-core</artifactId>
                                     <classifier>javadoc</classifier>
                                     <type>jar</type>
-                                    <version>${version.org.hibernate}</version>
+                                    <version>${version.org.hibernate.orm}</version>
                                     <outputDirectory>${tmpdir.dependencies-javadoc-packagelists}/hibernate-core</outputDirectory>
                                 </artifactItem>
                                 <artifactItem>
@@ -85,7 +133,7 @@
                                 </artifactItem>
                                 <artifactItem>
                                     <groupId>org.apache.lucene</groupId>
-                                    <artifactId>lucene-analyzers-common</artifactId>
+                                    <artifactId>lucene-analysis-common</artifactId>
                                     <classifier>javadoc</classifier>
                                     <type>jar</type>
                                     <version>${version.org.apache.lucene}</version>
@@ -100,24 +148,127 @@
                                     <outputDirectory>${tmpdir.dependencies-javadoc-packagelists}/lucene-queryparser</outputDirectory>
                                 </artifactItem>
                                 <artifactItem>
-                                    <groupId>javax.batch</groupId>
-                                    <artifactId>javax.batch-api</artifactId>
-                                    <classifier>javadoc</classifier>
-                                    <type>jar</type>
-                                    <version>${version.javax.batch}</version>
-                                    <outputDirectory>${tmpdir.dependencies-javadoc-packagelists}/batch-api</outputDirectory>
-                                </artifactItem>
-                                <artifactItem>
                                     <groupId>jakarta.batch</groupId>
                                     <artifactId>jakarta.batch-api</artifactId>
                                     <classifier>javadoc</classifier>
                                     <type>jar</type>
-                                    <version>${version.javax.batch}</version>
+                                    <version>${version.jakarta.batch}</version>
                                     <outputDirectory>${tmpdir.dependencies-javadoc-packagelists}/batch-api</outputDirectory>
                                 </artifactItem>
                             </artifactItems>
-                            <includes>package-list</includes>
+                            <includes>package-list,element-list</includes>
                             <overWriteSnapshots>true</overWriteSnapshots>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>unpack-dependencies-incubating-report</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.hibernate.orm</groupId>
+                                    <artifactId>hibernate-core</artifactId>
+                                    <type>jar</type>
+                                    <version>${version.org.hibernate.orm}</version>
+                                    <outputDirectory>${tmpdir.dependencies-to-parse}/hibernate-core</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-hibernate-core-incubating-report</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>org.hibernate.checkstyle.report.AnnotationReportGenerator</mainClass>
+                            <arguments>
+                                <!-- The location of classes to process: -->
+                                <argument>${tmpdir.dependencies-to-parse}/hibernate-core</argument>
+                                <!--
+                                    The report output directory path.
+                                    We write to the build output directory so that the report is included in the jar:
+                                -->
+                                <argument>${project.build.outputDirectory}</argument>
+                                <!-- The report file name main part. Generator will add any suffixes and extensions it needs to it. -->
+                                <argument>hibernate-core-incubating</argument>
+                                <!-- The annotation to look for: -->
+                                <argument>org.hibernate.Incubating</argument>
+                                <!-- Ignore rules: -->
+                                <!--
+                                    Rules can start with a `-Rinternal ` or a `-Rpublic ` prefixes.
+                                    This would mean that a corresponding pattern will only be applied to filtering of internal/public rules.
+                                    If no prefix is specified then rule is considered to be both public and internal at the same time.
+                                -->
+                                <argument>^org\.hibernate\.query\.Query$</argument>
+                                <argument>^org\.hibernate\.query\.SelectionQuery$</argument>
+                                <argument>^org\.hibernate\.query\.MutationQuery$</argument>
+                                <argument>^org\.hibernate\.query\.BindableType$</argument>
+
+                                <argument>^org\.hibernate\.metamodel\.MappingMetamodel$</argument>
+                                <argument>^org\.hibernate\.metamodel\.mapping\.Bindable$</argument>
+                                <argument>^org\.hibernate\.metamodel\.mapping\.SelectableMapping$</argument>
+                                <argument>^org\.hibernate\.metamodel\.mapping\.SelectablePath$</argument>
+                                <argument>^org\.hibernate\.metamodel\.model\.domain\.JpaMetamodel$</argument>
+
+                                <argument>^org\.hibernate\.boot\.spi\.BootstrapContext$</argument>
+                                <argument>^org\.hibernate\.boot\.spi\.AdditionalMappingContributor$</argument>
+                                <argument>^org\.hibernate\.boot\.spi\.AdditionalMappingContributions$</argument>
+                                <argument>^org\.hibernate\.collection\.spi\.PersistentCollection$</argument>
+                                <argument>^org\.hibernate\.type\.spi\.TypeConfiguration$</argument>
+                                <argument>^org\.hibernate\.query\.spi\.ScrollableResultsImplementor$</argument>
+                                <argument>^org\.hibernate\.query\.spi\.QueryParameterBindingTypeResolver$</argument>
+                                <argument>^org\.hibernate\.query\.sqm\.spi\.SqmCreationContext$</argument>
+                            </arguments>
+                            <!--
+                                While this will include more than we really need, it is easier to do so.
+                                Alternatively, if we would use plugin dependencies and add Jandex there,
+                                we would need to explicitly specify the version of Jandex, since dependency management
+                                doesn't seem to work on dependencies added to a plugin configuration >_<
+                            -->
+                            <includeProjectDependencies>true</includeProjectDependencies>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-hibernate-core-internal-report</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>org.hibernate.checkstyle.report.InternalReportGenerator</mainClass>
+                            <arguments>
+                                <!-- The location of classes to process: -->
+                                <argument>${tmpdir.dependencies-to-parse}/hibernate-core</argument>
+                                <!--
+                                    The report output directory path.
+                                    We write to the build output directory so that the report is included in the jar:
+                                -->
+                                <argument>${project.build.outputDirectory}</argument>
+                                <!-- The report file name main part. Generator will add any suffixes and extensions it needs to it. -->
+                                <argument>hibernate-core-internal-packages</argument>
+                                <!-- The base package to start from: -->
+                                <argument>org.hibernate</argument>
+                                <!-- Ignore rules: -->
+                            </arguments>
+                            <!--
+                                While this will include more than we really need, it is easier to do so.
+                                Alternatively, if we would use plugin dependencies and add Jandex there,
+                                we would need to explicitly specify the version of Jandex, since dependency management
+                                doesn't seem to work on dependencies added to a plugin configuration >_<
+                            -->
+                            <includeProjectDependencies>true</includeProjectDependencies>
                         </configuration>
                     </execution>
                 </executions>

@@ -19,9 +19,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import javax.persistence.Basic;
-import javax.persistence.Entity;
-import javax.persistence.Id;
+
+import jakarta.persistence.Basic;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.HibernateException;
 import org.hibernate.SessionFactory;
@@ -276,7 +277,7 @@ public class IndexingPlanSynchronizationStrategyIT {
 				Level.ERROR,
 				CoreMatchers.sameInstance( indexingWorkException ),
 				"Failing operation:",
-				"Automatic indexing of entities",
+				"Background indexing of entities",
 				"Entities that could not be indexed correctly:",
 				IndexedEntity.NAME + "#" + ENTITY_1_ID + " " + IndexedEntity.NAME + "#" + ENTITY_2_ID
 		);
@@ -592,7 +593,8 @@ public class IndexingPlanSynchronizationStrategyIT {
 		return sessionFactory;
 	}
 
-	private static Consumer<Throwable> transactionSynchronizationExceptionMatcher(Throwable indexingWorkException, int ... entityIds) {
+	private static Consumer<Throwable> transactionSynchronizationExceptionMatcher(Throwable indexingWorkException,
+			int... entityIds) {
 		StringBuilder entityReferences = new StringBuilder();
 		for ( int entityId : entityIds ) {
 			if ( entityReferences.length() > 0 ) {
@@ -603,21 +605,22 @@ public class IndexingPlanSynchronizationStrategyIT {
 		return transactionSynchronizationExceptionMatcher( indexingWorkException, entityReferences.toString() );
 	}
 
-	private static Consumer<Throwable> transactionSynchronizationExceptionMatcher(Throwable indexingWorkException, String entityReferences) {
+	private static Consumer<Throwable> transactionSynchronizationExceptionMatcher(Throwable indexingWorkException,
+			String entityReferences) {
 		return throwable -> assertThat( throwable ).isInstanceOf( HibernateException.class )
 				.extracting( Throwable::getCause ).asInstanceOf( InstanceOfAssertFactories.THROWABLE )
-						.isInstanceOf( SearchException.class )
-						.hasMessageContainingAll(
-								"Unable to index documents for automatic indexing after transaction completion: ",
-								"Indexing failure: " + indexingWorkException.getMessage(),
-								"The following entities may not have been updated correctly in the index: [" + entityReferences + "]"
-						)
+				.isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"Unable to index documents for indexing after transaction completion: ",
+						"Indexing failure: " + indexingWorkException.getMessage(),
+						"The following entities may not have been updated correctly in the index: [" + entityReferences + "]"
+				)
 				.extracting( Throwable::getCause ).asInstanceOf( InstanceOfAssertFactories.THROWABLE )
-						.isInstanceOf( SearchException.class )
-						.hasMessageContainingAll(
-								"Indexing failure: " + indexingWorkException.getMessage(),
-								"The following entities may not have been updated correctly in the index: [" + entityReferences + "]"
-						)
+				.isInstanceOf( SearchException.class )
+				.hasMessageContainingAll(
+						"Indexing failure: " + indexingWorkException.getMessage(),
+						"The following entities may not have been updated correctly in the index: [" + entityReferences + "]"
+				)
 				.extracting( Throwable::getCause ).isSameAs( indexingWorkException );
 	}
 

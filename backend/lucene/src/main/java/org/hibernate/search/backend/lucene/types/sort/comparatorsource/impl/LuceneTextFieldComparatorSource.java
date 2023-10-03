@@ -17,6 +17,7 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.search.FieldComparator;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.comparators.TermOrdValComparator;
 import org.apache.lucene.util.BytesRef;
 
 public class LuceneTextFieldComparatorSource extends LuceneFieldComparatorSource {
@@ -24,14 +25,15 @@ public class LuceneTextFieldComparatorSource extends LuceneFieldComparatorSource
 	private final Object missingValue;
 	private final MultiValueMode multiValueMode;
 
-	public LuceneTextFieldComparatorSource(String nestedDocumentPath, Object missingValue, MultiValueMode multiValueMode, Query luceneFilter) {
+	public LuceneTextFieldComparatorSource(String nestedDocumentPath, Object missingValue, MultiValueMode multiValueMode,
+			Query luceneFilter) {
 		super( nestedDocumentPath, luceneFilter );
 		this.missingValue = missingValue;
 		this.multiValueMode = multiValueMode;
 	}
 
 	@Override
-	public FieldComparator<?> newComparator(String fieldname, int numHits, int sortPos, boolean reversed) {
+	public FieldComparator<?> newComparator(String fieldname, int numHits, boolean enableSkipping, boolean reversed) {
 		final boolean considerMissingHighest;
 		if ( SortMissingValue.MISSING_LOWEST.equals( missingValue ) ) {
 			considerMissingHighest = false;
@@ -44,13 +46,14 @@ public class LuceneTextFieldComparatorSource extends LuceneFieldComparatorSource
 			considerMissingHighest = !reversed;
 		}
 		else { // SortMissingValue.MISSING_FIRST, the default
-			// To appear first, missing values must be considered lowest, or highest if the order is reversed.
+				// To appear first, missing values must be considered lowest, or highest if the order is reversed.
 			considerMissingHighest = reversed;
 		}
 		TextMultiValuesToSingleValuesSource source =
 				TextMultiValuesToSingleValuesSource.fromField( fieldname, multiValueMode, nestedDocsProvider );
 
-		return new FieldComparator.TermOrdValComparator( numHits, fieldname, considerMissingHighest ) {
+		// forcing to not skipping documents
+		return new TermOrdValComparator( numHits, fieldname, considerMissingHighest, reversed, false ) {
 			@Override
 			protected SortedDocValues getSortedDocValues(LeafReaderContext context, String field) throws IOException {
 				SortedDocValues sortedDocValues = source.getValues( context );

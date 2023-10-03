@@ -14,8 +14,8 @@ import java.util.concurrent.CompletableFuture;
 import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurer;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.configuration.ElasticsearchIndexSchemaManagerNormalizerITAnalysisConfigurer;
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingSchemaManagementStrategy;
 import org.hibernate.search.util.impl.test.annotation.PortedFromSearch5;
@@ -57,7 +57,7 @@ public class ElasticsearchIndexSchemaManagerCreationNormalizerIT {
 	@Test
 	public void success_simple() {
 		elasticSearchClient.index( mainIndex.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupHelper.start()
 				.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -70,35 +70,35 @@ public class ElasticsearchIndexSchemaManagerCreationNormalizerIT {
 
 		assertJsonEquals(
 				"{"
-					+ "'normalizer': {"
-							+ "'custom-normalizer': {"
-									+ "'type': 'custom',"
-									+ "'char_filter': ['custom-char-mapping'],"
-									+ "'filter': ['custom-elision']"
-							+ "}"
-					+ "},"
-					+ "'char_filter': {"
-							+ "'custom-char-mapping': {"
-									+ "'type': 'mapping',"
-									+ "'mappings': ['foo => bar']"
-							+ "}"
-					+ "},"
-					+ "'filter': {"
-							+ "'custom-elision': {"
-									+ "'type': 'elision',"
-									+ "'articles': ['l', 'd']"
-							+ "}"
-					+ "}"
-				+ "}",
+						+ " 'normalizer': {"
+						+ "   'custom-normalizer': {"
+						+ "     'type': 'custom',"
+						+ "     'char_filter': ['custom-char-mapping'],"
+						+ "     'filter': ['custom-elision']"
+						+ "   }"
+						+ " },"
+						+ " 'char_filter': {"
+						+ "   'custom-char-mapping': {"
+						+ "     'type': 'mapping',"
+						+ "     'mappings': ['foo => bar']"
+						+ "   }"
+						+ " },"
+						+ " 'filter': {"
+						+ "   'custom-elision': {"
+						+ "     'type': 'elision',"
+						+ "     'articles': ['l', 'd']"
+						+ "   }"
+						+ " }"
+						+ "}",
 				elasticSearchClient.index( mainIndex.name() ).settings( "index.analysis" ).get() );
 	}
 
 	@Test
 	public void success_multiIndex() {
 		elasticSearchClient.index( mainIndex.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 		elasticSearchClient.index( otherIndex.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupHelper.start()
 				.withSchemaManagement( StubMappingSchemaManagementStrategy.DROP_ON_SHUTDOWN_ONLY )
@@ -124,40 +124,40 @@ public class ElasticsearchIndexSchemaManagerCreationNormalizerIT {
 
 		assertJsonEquals(
 				"{"
-					+ "'normalizer': {"
-							+ "'custom-normalizer': {"
-									+ "'type': 'custom',"
-									+ "'char_filter': ['custom-char-mapping'],"
-									+ "'filter': ['custom-elision']"
-							+ "}"
-					+ "},"
-					+ "'char_filter': {"
-							+ "'custom-char-mapping': {"
-									+ "'type': 'mapping',"
-									+ "'mappings': ['foo => bar']"
-							+ "}"
-					+ "},"
-					+ "'filter': {"
-							+ "'custom-elision': {"
-									+ "'type': 'elision',"
-									+ "'articles': ['l', 'd']"
-							+ "}"
-					+ "}"
-				+ "}",
+						+ " 'normalizer': {"
+						+ "   'custom-normalizer': {"
+						+ "     'type': 'custom',"
+						+ "     'char_filter': ['custom-char-mapping'],"
+						+ "     'filter': ['custom-elision']"
+						+ "   }"
+						+ " },"
+						+ " 'char_filter': {"
+						+ "   'custom-char-mapping': {"
+						+ "     'type': 'mapping',"
+						+ "     'mappings': ['foo => bar']"
+						+ "   }"
+						+ " },"
+						+ " 'filter': {"
+						+ "   'custom-elision': {"
+						+ "     'type': 'elision',"
+						+ "     'articles': ['l', 'd']"
+						+ "   }"
+						+ " }"
+						+ "}",
 				elasticSearchClient.index( mainIndex.name() ).settings( "index.analysis" ).get() );
 
 		assertJsonEquals( "{"
-					+ "'normalizer': {"
-							+ "'custom-normalizer': {"
-									+ "'type': 'custom',"
-									+ "'filter': ['lowercase', 'asciifolding']"
-							+ "},"
-							+ "'custom-normalizer-2': {"
-									+ "'type': 'custom',"
-									+ "'filter': ['lowercase']"
-							+ "}"
-							// elements defined in the default configurer shouldn't appear here: they've been overridden
-					+ "}"
+				+ " 'normalizer': {"
+				+ "   'custom-normalizer': {"
+				+ "     'type': 'custom',"
+				+ "     'filter': ['lowercase', 'asciifolding']"
+				+ "   },"
+				+ "   'custom-normalizer-2': {"
+				+ "     'type': 'custom',"
+				+ "     'filter': ['lowercase']"
+				+ "   }"
+				// elements defined in the default configurer shouldn't appear here: they've been overridden
+				+ " }"
 				+ "}",
 				elasticSearchClient.index( otherIndex.name() ).settings( "index.analysis" ).get() );
 	}

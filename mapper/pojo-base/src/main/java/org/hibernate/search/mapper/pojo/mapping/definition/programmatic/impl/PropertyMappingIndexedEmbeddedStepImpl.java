@@ -13,23 +13,23 @@ import java.util.Set;
 
 import org.hibernate.search.engine.backend.common.spi.FieldPaths;
 import org.hibernate.search.engine.backend.types.ObjectStructure;
+import org.hibernate.search.engine.common.tree.TreeFilterDefinition;
 import org.hibernate.search.mapper.pojo.extractor.mapping.programmatic.ContainerExtractorPath;
 import org.hibernate.search.mapper.pojo.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoIndexMappingCollectorPropertyNode;
 import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoPropertyMetadataContributor;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.PropertyMappingIndexedEmbeddedStep;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.PropertyMappingStep;
-import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
+import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 import org.hibernate.search.util.common.annotation.Search5DeprecatedAPI;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
-
 
 class PropertyMappingIndexedEmbeddedStepImpl extends DelegatingPropertyMappingStep
 		implements PropertyMappingIndexedEmbeddedStep, PojoPropertyMetadataContributor {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
-	private final PojoRawTypeModel<?> definingTypeModel;
+	private final PojoRawTypeIdentifier<?> definingType;
 
 	private final String relativeFieldName;
 
@@ -39,16 +39,17 @@ class PropertyMappingIndexedEmbeddedStepImpl extends DelegatingPropertyMappingSt
 
 	private Integer includeDepth;
 	private final Set<String> includePaths = new HashSet<>();
+	private final Set<String> excludePaths = new HashSet<>();
 	private boolean includeEmbeddedObjectId = false;
 
 	private Class<?> targetType;
 
 	private ContainerExtractorPath extractorPath = ContainerExtractorPath.defaultExtractors();
 
-	PropertyMappingIndexedEmbeddedStepImpl(PropertyMappingStep parent, PojoRawTypeModel<?> definingTypeModel,
+	PropertyMappingIndexedEmbeddedStepImpl(PropertyMappingStep parent, PojoRawTypeIdentifier<?> definingType,
 			String relativeFieldName) {
 		super( parent );
-		this.definingTypeModel = definingTypeModel;
+		this.definingType = definingType;
 		if ( relativeFieldName != null && relativeFieldName.contains( FieldPaths.PATH_SEPARATOR_STRING ) ) {
 			throw log.invalidFieldNameDotNotAllowed( relativeFieldName );
 		}
@@ -65,8 +66,9 @@ class PropertyMappingIndexedEmbeddedStepImpl extends DelegatingPropertyMappingSt
 			actualPrefix = prefix;
 		}
 		collector.value( extractorPath ).indexedEmbedded(
-				definingTypeModel, actualPrefix, structure, includeDepth, includePaths, includeEmbeddedObjectId,
-				targetType
+				definingType, actualPrefix, structure,
+				new TreeFilterDefinition( includeDepth, includePaths, excludePaths ),
+				includeEmbeddedObjectId, targetType
 		);
 	}
 
@@ -96,6 +98,12 @@ class PropertyMappingIndexedEmbeddedStepImpl extends DelegatingPropertyMappingSt
 	@Override
 	public PropertyMappingIndexedEmbeddedStep includePaths(Collection<String> paths) {
 		this.includePaths.addAll( paths );
+		return this;
+	}
+
+	@Override
+	public PropertyMappingIndexedEmbeddedStep excludePaths(Collection<String> paths) {
+		this.excludePaths.addAll( paths );
 		return this;
 	}
 

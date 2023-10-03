@@ -35,14 +35,10 @@ org.jboss.logging.processor.util.Objects @ Bad import, use java.util.Objects
 ################################################################################################################
 # Unsafe API/SPI from Hibernate ORM
 org.hibernate.SharedSessionContract#getTransaction() @ Using this method is often unsafe
-org.hibernate.SharedSessionContract#createCriteria(java.lang.Class) @ Native Criteria are deprecated
-org.hibernate.SharedSessionContract#createCriteria(java.lang.Class, java.lang.String) @ Native Criteria are deprecated
-org.hibernate.SharedSessionContract#createCriteria(java.lang.String) @ Native Criteria are deprecated
-org.hibernate.SharedSessionContract#createCriteria(java.lang.String, java.lang.String) @ Native Criteria are deprecated
-org.hibernate.criterion.** @ Native Criteria are deprecated
 org.hibernate.jpa.QueryHints @ Hibernate ORM's QueryHints constants may not be correct for Jakarta artifacts.
 org.hibernate.annotations.QueryHints @ Hibernate ORM's QueryHints constants may not be correct for Jakarta artifacts.
 org.hibernate.service.ServiceRegistry#getService(java.lang.Class) @ Use HibernateOrmUtils.getServiceOrFail(...) or HibernateOrmUtils.getServiceOrEmpty(...) instead
+org.hibernate.tuple.entity.EntityMetamodel @ Use other mapping classes (e.g. EntityPersister) instead
 
 ################################################################################################################
 # Use our Contracts class instead
@@ -68,6 +64,7 @@ java.time.ZonedDateTime#parse(java.lang.CharSequence, java.time.format.DateTimeF
 @defaultMessage Avoid using Hibernate ORM internals
 org.hibernate.internal.**
 org.hibernate.**.internal.**
+org.hibernate.persister.** @ Prefer EntityMappingType to the implicitly internal EntityPersister and related classes; see https://hibernate.zulipchat.com/#narrow/stream/132094-hibernate-orm-dev/topic/persister.20and.20internal
 
 ################################################################################################################
 @defaultMessage Favor EntityManager methods over their Session equivalent
@@ -76,6 +73,7 @@ org.hibernate.Session.save(java.lang.String, java.lang.Object) @ Use persist() i
 org.hibernate.Session.update(java.lang.Object) @ Use merge() instead
 org.hibernate.Session.update(java.lang.String, java.lang.Object) @ Use merge() instead
 org.hibernate.Session.load(java.lang.Class<T>, java.lang.Object) @ Use getReference() instead
+org.hibernate.Session.load(java.lang.String, java.lang.Object) @ Use getReference() instead
 org.hibernate.Session.delete(java.lang.Object) @ Use remove() instead
 org.hibernate.Session.delete(java.lang.String, java.lang.Object) @ Use remove() instead
 
@@ -106,3 +104,23 @@ java.util.concurrent.CompletableFuture#join()
 @defaultMessage CompletableFuture#runAsync(...) returns a CompletableFuture whose cancel() method will never actually cancel the task. Use Futures.runAsync(...) instead.
 java.util.concurrent.CompletableFuture#runAsync(java.lang.Runnable)
 java.util.concurrent.CompletableFuture#runAsync(java.lang.Runnable, java.util.concurrent.Executor)
+
+################################################################################################################
+# Nobody should be using the deprecated annotations for JBoss Logger: migrate to org.jboss.logging.annotations.*
+org.jboss.logging.Cause @ Migrate to org.jboss.logging.annotations.*
+org.jboss.logging.LogMessage @ Migrate to org.jboss.logging.annotations.*
+org.jboss.logging.Message @ Migrate to org.jboss.logging.annotations.*
+org.jboss.logging.MessageLogger @ Migrate to org.jboss.logging.annotations.*
+
+################################################################################################################
+# Nobody should be using the AssertionFailure from commons-annotations.
+org.hibernate.annotations.common.AssertionFailure @ AssertionFailure from commons-annotations is not allowed.
+
+################################################################################################################
+# Nobody should be using the Util class from JGroups for assertions which should use JUnit.
+org.jgroups.util.Util @ Use AssertJ or non-deprecated JUnit assertions instead
+junit.framework.Assert @ Use AssertJ or non-deprecated JUnit assertions instead
+
+################################################################################################################
+# Nobody should be using the StringHelper from commons-annotations: use org.hibernate.search.util.StringHelper.
+org.hibernate.annotations.common.util.StringHelper @ Use org.hibernate.search.util.StringHelper instead.

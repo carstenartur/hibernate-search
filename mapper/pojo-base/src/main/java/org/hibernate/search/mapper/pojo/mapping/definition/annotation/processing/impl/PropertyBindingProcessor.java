@@ -32,16 +32,12 @@ public final class PropertyBindingProcessor implements PropertyMappingAnnotation
 		PropertyBinderRef propertyBinder = annotation.binder();
 		PropertyBinder binder = createBinder( propertyBinder, context );
 
-		if ( propertyBinder.params() != null ) {
-			Map<String, Object> params = context.toMap( propertyBinder.params() );
-			mapping.binder( binder, params );
-		}
-		else {
-			mapping.binder( binder );
-		}
+		Map<String, Object> params = context.toMap( propertyBinder.params() );
+		mapping.binder( binder, params );
 	}
 
-	private PropertyBinder createBinder(PropertyBinderRef binderReferenceAnnotation, MappingAnnotationProcessorContext context) {
+	private PropertyBinder createBinder(PropertyBinderRef binderReferenceAnnotation,
+			MappingAnnotationProcessorContext context) {
 		Optional<BeanReference<? extends PropertyBinder>> binderReference = context.toBeanReference(
 				PropertyBinder.class,
 				PropertyBinderRef.UndefinedBinderImplementationType.class,

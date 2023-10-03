@@ -28,4 +28,14 @@ public class LuceneBackendConfiguration extends BackendConfiguration {
 		return properties;
 	}
 
+	@Override
+	public boolean supportsExplicitPurge() {
+		return true;
+	}
+
+	@Override
+	public boolean supportsExplicitRefresh() {
+		return true;
+	}
+
 }

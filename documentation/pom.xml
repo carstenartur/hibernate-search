@@ -10,7 +10,7 @@
     <parent>
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-parent-integrationtest</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
+        <version>7.0.0-SNAPSHOT</version>
         <relativePath>../build/parents/integrationtest</relativePath>
     </parent>
     <artifactId>hibernate-search-documentation</artifactId>
@@ -20,7 +20,7 @@
     <description>Hibernate Search reference documentation</description>
 
     <properties>
-        <test.elasticsearch.run.skip>${test.elasticsearch.connection.uris.defined}</test.elasticsearch.run.skip>
+        <test.elasticsearch.run.skip>${test.elasticsearch.run.skip.forRelevantModules}</test.elasticsearch.run.skip>
         <test.database.run.skip>false</test.database.run.skip>
 
         <asciidoctor.base-output-dir>${project.build.directory}/asciidoctor/</asciidoctor.base-output-dir>
@@ -88,10 +88,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- JSR-352 integration -->
+        <!-- Jakarta Batch integration -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>hibernate-search-mapper-orm-batch-jsr352-core</artifactId>
+            <artifactId>hibernate-search-mapper-orm-jakarta-batch-core</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -128,6 +128,7 @@
                             <goal>integration-test</goal>
                         </goals>
                         <configuration>
+                            <skip>${test.lucene.skip}</skip>
                             <reportNameSuffix>${surefire.reportNameSuffix}-lucene</reportNameSuffix>
                             <classpathDependencyExcludes>
                                 <classpathDependencyExclude>org.hibernate.search:hibernate-search-backend-elasticsearch</classpathDependencyExclude>
@@ -146,6 +147,7 @@
                             <goal>integration-test</goal>
                         </goals>
                         <configuration>
+                            <skip>${test.elasticsearch.skip}</skip>
                             <reportNameSuffix>${surefire.reportNameSuffix}-elasticsearch</reportNameSuffix>
                             <classpathDependencyExcludes>
                                 <classpathDependencyExclude>org.hibernate.search:hibernate-search-backend-lucene</classpathDependencyExclude>
@@ -253,46 +255,9 @@
                         </goals>
                         <configuration>
                             <backend>html5</backend>
-                            <sourceDocumentName>reference/index.asciidoc</sourceDocumentName>
-                            <outputDirectory>${asciidoctor.base-output-dir}/reference/html_single</outputDirectory>
-                            <attributes>
-                                <imagesdir>images</imagesdir>
-                                <stylesdir>css</stylesdir>
-                                <iconfont-remote>false</iconfont-remote>
-                                <iconfont-name>font-awesome/css/font-awesome.min</iconfont-name>
-                                <source-highlighter>coderay</source-highlighter>
-                            </attributes>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>internals-output-html</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>process-asciidoc</goal>
-                        </goals>
-                        <configuration>
-                            <backend>html5</backend>
-                            <sourceDocumentName>internals/index.asciidoc</sourceDocumentName>
-                            <outputDirectory>${asciidoctor.base-output-dir}/internals/html_single</outputDirectory>
-                            <attributes>
-                                <imagesdir>images</imagesdir>
-                                <stylesdir>css</stylesdir>
-                                <iconfont-remote>false</iconfont-remote>
-                                <iconfont-name>font-awesome/css/font-awesome.min</iconfont-name>
-                                <source-highlighter>coderay</source-highlighter>
-                            </attributes>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>migration-output-html</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>process-asciidoc</goal>
-                        </goals>
-                        <configuration>
-                            <backend>html5</backend>
-                            <sourceDocumentName>migration/index.asciidoc</sourceDocumentName>
-                            <outputDirectory>${asciidoctor.base-output-dir}/migration/html_single</outputDirectory>
+                            <sourceDirectory>src/main/asciidoc</sourceDirectory>
+                            <outputDirectory>${asciidoctor.base-output-dir}/html</outputDirectory>
+                            <preserveDirectories>true</preserveDirectories>
                             <attributes>
                                 <imagesdir>images</imagesdir>
                                 <stylesdir>css</stylesdir>
@@ -323,11 +288,10 @@
                         <hibernateSearchMigrationGuidesIndexUrl>https://hibernate.org/search/documentation/migrate/</hibernateSearchMigrationGuidesIndexUrl>
                         <hibernateCommunityUrl>https://hibernate.org/community</hibernateCommunityUrl>
                         <hibernateBlogUrl>https://in.relation.to/</hibernateBlogUrl>
-                        <hibernateVersion>${version.org.hibernate}</hibernateVersion>
-                        <hibernateDocUrl>${documentation.org.hibernate.url}</hibernateDocUrl>
-                        <jpaVersion>${parsed-version.javax.persistence.majorVersion}.${parsed-version.javax.persistence.minorVersion}</jpaVersion>
-                        <hibernateOrm6DocUrl>${documentation.org.hibernate.orm.url}</hibernateOrm6DocUrl>
-                        <hibernateOrm6Version>${version.org.hibernate.orm}</hibernateOrm6Version>
+                        <hibernateVersion>${version.org.hibernate.orm}</hibernateVersion>
+                        <hibernateDocUrl>${documentation.org.hibernate.orm.url}</hibernateDocUrl>
+                        <hibernateJavadocUrl>${javadoc.org.hibernate.orm.url}</hibernateJavadocUrl>
+                        <javaeeUrl>https://www.oracle.com/java/technologies/java-ee-glance.html</javaeeUrl>
                         <jakartaUrl>https://jakarta.ee/</jakartaUrl>
                         <jakartaPersistenceVersion>${parsed-version.jakarta.persistence.majorVersion}.${parsed-version.jakarta.persistence.minorVersion}</jakartaPersistenceVersion>
                         <luceneVersion>${version.org.apache.lucene}</luceneVersion>
@@ -336,12 +300,14 @@
                         <elasticsearchUrl>https://www.elastic.co/elasticsearch</elasticsearchUrl>
                         <elasticsearchDocUrl>${documentation.org.elasticsearch.url}</elasticsearchDocUrl>
                         <elasticsearchClientVersions>${version.org.elasticsearch.client}</elasticsearchClientVersions>
-                        <elasticsearchCompatibleVersions>${version.org.elasticsearch.compatible.regularly-tested.text}</elasticsearchCompatibleVersions>
-                        <elasticsearchExpectedRunningVersions>${version.org.elasticsearch.compatible.expected.text}</elasticsearchExpectedRunningVersions>
-                        <opensearchExpectedRunningVersions>${version.org.opensearch.compatible.expected.text}</opensearchExpectedRunningVersions>
+                        <elasticsearchCompatibleVersions>${version.org.elasticsearch.compatible.expected.text}</elasticsearchCompatibleVersions>
+                        <elasticsearchTestedVersions>${version.org.elasticsearch.compatible.regularly-tested.text}</elasticsearchTestedVersions>
                         <elasticsearchOtherPotentiallyCompatibleVersions>${version.org.elasticsearch.compatible.not-regularly-tested.text}</elasticsearchOtherPotentiallyCompatibleVersions>
                         <openSearchUrl>https://www.opensearch.org</openSearchUrl>
-                        <openSearchCompatibleVersions>${version.org.opensearch.compatible.regularly-tested.text}</openSearchCompatibleVersions>
+                        <openSearchCompatibleVersions>${version.org.opensearch.compatible.expected.text}</openSearchCompatibleVersions>
+                        <openSearchTestedVersions>${version.org.opensearch.compatible.regularly-tested.text}</openSearchTestedVersions>
+                        <amazonOpenSearchServiceUrl>https://docs.aws.amazon.com/opensearch-service/latest/developerguide</amazonOpenSearchServiceUrl>
+                        <amazonOpenSearchServerlessUrl>https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html</amazonOpenSearchServerlessUrl>
                         <wildflyUrl>https://wildfly.org/</wildflyUrl>
                         <quarkusUrl>https://quarkus.io/</quarkusUrl>
                         <springUrl>https://spring.io/</springUrl>
@@ -381,68 +347,34 @@
             <build>
                 <plugins>
                     <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <configuration combine.children="append">
+                            <descriptors>
+                                <descriptor>${basedir}/src/main/assembly/dist.xml</descriptor>
+                                <descriptor>${basedir}/src/main/assembly/pdf.xml</descriptor>
+                            </descriptors>
+                        </configuration>
+                    </plugin>
+                    <plugin>
                         <groupId>org.asciidoctor</groupId>
                         <artifactId>asciidoctor-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>reference-output-pdf</id>
+                                <id>output-pdf</id>
                                 <phase>process-resources</phase>
                                 <goals>
                                     <goal>process-asciidoc</goal>
                                 </goals>
                                 <configuration>
                                     <backend>pdf</backend>
-                                    <sourceDocumentName>reference/index.asciidoc</sourceDocumentName>
-                                    <outputDirectory>${asciidoctor.base-output-dir}/reference/pdf</outputDirectory>
-                                    <outputFile>hibernate_search_reference.pdf</outputFile>
+                                    <sourceDirectory>src/main/asciidoc</sourceDirectory>
+                                    <outputDirectory>${asciidoctor.base-output-dir}/pdf</outputDirectory>
+                                    <preserveDirectories>true</preserveDirectories>
                                     <attributes>
                                         <imagesdir>${asciidoctor.aggregated-resources-dir}/images/</imagesdir>
-                                        <pdf-stylesdir>${asciidoctor.aggregated-resources-dir}/theme</pdf-stylesdir>
-                                        <pdf-style>hibernate</pdf-style>
-                                        <pdf-fontsdir>${asciidoctor.aggregated-resources-dir}/theme/fonts</pdf-fontsdir>
-                                        <pagenums/>
-                                        <idseparator>-</idseparator>
-                                        <source-highlighter>coderay</source-highlighter>
-                                    </attributes>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>internals-output-pdf</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>process-asciidoc</goal>
-                                </goals>
-                                <configuration>
-                                    <backend>pdf</backend>
-                                    <sourceDocumentName>internals/index.asciidoc</sourceDocumentName>
-                                    <outputDirectory>${asciidoctor.base-output-dir}/internals/pdf</outputDirectory>
-                                    <outputFile>hibernate_search_internals.pdf</outputFile>
-                                    <attributes>
-                                        <imagesdir>${asciidoctor.aggregated-resources-dir}/images/</imagesdir>
-                                        <pdf-stylesdir>${asciidoctor.aggregated-resources-dir}/theme</pdf-stylesdir>
-                                        <pdf-style>hibernate</pdf-style>
-                                        <pdf-fontsdir>${asciidoctor.aggregated-resources-dir}/theme/fonts</pdf-fontsdir>
-                                        <pagenums/>
-                                        <idseparator>-</idseparator>
-                                        <source-highlighter>coderay</source-highlighter>
-                                    </attributes>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>migration-output-pdf</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>process-asciidoc</goal>
-                                </goals>
-                                <configuration>
-                                    <backend>pdf</backend>
-                                    <sourceDocumentName>migration/index.asciidoc</sourceDocumentName>
-                                    <outputDirectory>${asciidoctor.base-output-dir}/migration/pdf</outputDirectory>
-                                    <outputFile>hibernate_search_migration.pdf</outputFile>
-                                    <attributes>
-                                        <imagesdir>${asciidoctor.aggregated-resources-dir}/images/</imagesdir>
-                                        <pdf-stylesdir>${asciidoctor.aggregated-resources-dir}/theme</pdf-stylesdir>
-                                        <pdf-style>hibernate</pdf-style>
+                                        <pdf-themesdir>${asciidoctor.aggregated-resources-dir}/theme</pdf-themesdir>
+                                        <pdf-theme>hibernate</pdf-theme>
                                         <pdf-fontsdir>${asciidoctor.aggregated-resources-dir}/theme/fonts</pdf-fontsdir>
                                         <pagenums/>
                                         <idseparator>-</idseparator>

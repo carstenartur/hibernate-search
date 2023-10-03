@@ -6,7 +6,6 @@
  */
 package org.hibernate.search.backend.lucene.search.extraction.impl;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
 import org.apache.lucene.document.Document;
@@ -62,12 +61,12 @@ public final class ReusableDocumentStoredFieldVisitor extends StoredFieldVisitor
 	}
 
 	@Override
-	public void stringField(FieldInfo fieldInfo, byte[] value) {
+	public void stringField(FieldInfo fieldInfo, String value) {
 		final FieldType ft = new FieldType( TextField.TYPE_STORED );
 		ft.setStoreTermVectors( fieldInfo.hasVectors() );
 		ft.setOmitNorms( fieldInfo.omitsNorms() );
 		ft.setIndexOptions( fieldInfo.getIndexOptions() );
-		getDocument().add( new Field( fieldInfo.name, new String( value, StandardCharsets.UTF_8 ), ft ) );
+		getDocument().add( new Field( fieldInfo.name, value, ft ) );
 	}
 
 	@Override
@@ -142,10 +141,12 @@ public final class ReusableDocumentStoredFieldVisitor extends StoredFieldVisitor
 	private static final class ChainedFieldAcceptor implements FieldAcceptor {
 		final FieldAcceptor next;
 		final String acceptedFieldName;
+
 		ChainedFieldAcceptor(FieldAcceptor next, String acceptedFieldName) {
 			this.next = next;
 			this.acceptedFieldName = acceptedFieldName;
 		}
+
 		@Override
 		public Status acceptField(final String fieldName) {
 			if ( acceptedFieldName.equals( fieldName ) ) {

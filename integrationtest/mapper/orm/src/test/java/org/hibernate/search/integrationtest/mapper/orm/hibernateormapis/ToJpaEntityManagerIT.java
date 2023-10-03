@@ -9,9 +9,9 @@ package org.hibernate.search.integrationtest.mapper.orm.hibernateormapis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import javax.persistence.Entity;
-import javax.persistence.EntityManager;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.engine.search.query.SearchQuery;
 import org.hibernate.search.mapper.orm.Search;
@@ -84,7 +84,7 @@ public class ToJpaEntityManagerIT {
 	}
 
 	@Test
-	@TestForIssue( jiraKey = "HSEARCH-1857" )
+	@TestForIssue(jiraKey = "HSEARCH-1857")
 	public void reuseSearchSessionAfterEntityManagerIsClosed_noMatching() {
 		EntityManager entityManager = setupHolder.entityManagerFactory().createEntityManager();
 		SearchSession searchSession = Search.session( entityManager );

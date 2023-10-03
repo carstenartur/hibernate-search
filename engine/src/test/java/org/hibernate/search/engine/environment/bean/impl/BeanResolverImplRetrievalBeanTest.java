@@ -8,6 +8,7 @@ package org.hibernate.search.engine.environment.bean.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -34,7 +35,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -54,7 +54,7 @@ public class BeanResolverImplRetrievalBeanTest {
 	@Mock
 	private BeanProvider beanManagerBeanProviderMock;
 
-	@Mock(answer = Answers.CALLS_REAL_METHODS)
+	@Mock
 	private ConfigurationPropertySource configurationSourceMock;
 
 	@Mock
@@ -84,7 +84,11 @@ public class BeanResolverImplRetrievalBeanTest {
 
 		when( serviceResolverMock.loadJavaServices( BeanConfigurer.class ) )
 				.thenReturn( Collections.singletonList( beanConfigurer1 ) );
-		when( configurationSourceMock.get( EngineSpiSettings.Radicals.BEAN_CONFIGURERS ) )
+		when( configurationSourceMock.withMask( any() ) )
+				.thenCallRealMethod();
+		when( configurationSourceMock.withFallback( any() ) )
+				.thenCallRealMethod();
+		when( configurationSourceMock.get( EngineSpiSettings.BEAN_CONFIGURERS ) )
 				.thenReturn( (Optional) Optional.of( Collections.singletonList( beanConfigurer2 ) ) );
 		beanResolver = BeanResolverImpl.create( classResolverMock, serviceResolverMock, beanManagerBeanProviderMock,
 				configurationSourceMock );
@@ -167,7 +171,7 @@ public class BeanResolverImplRetrievalBeanTest {
 		assertThatThrownBy( () -> beanResolver.resolve( InvalidType.class, "someName", BeanRetrieval.BEAN ) )
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll( "Unable to resolve bean reference to type '" + InvalidType.class.getName()
-								+ "' and name 'someName'",
+						+ "' and name 'someName'",
 						beanManagerNotFoundException.getMessage() )
 				.hasCause( beanManagerNotFoundException );
 		verifyNoOtherInteractionsAndReset();
@@ -175,10 +179,11 @@ public class BeanResolverImplRetrievalBeanTest {
 		// resolve(Class, String) through BeanReference
 		when( beanManagerBeanProviderMock.forTypeAndName( InvalidType.class, "someName" ) )
 				.thenThrow( beanManagerNotFoundException );
-		assertThatThrownBy( () -> beanResolver.resolve( BeanReference.of( InvalidType.class, "someName", BeanRetrieval.BEAN ) ) )
+		assertThatThrownBy(
+				() -> beanResolver.resolve( BeanReference.of( InvalidType.class, "someName", BeanRetrieval.BEAN ) ) )
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll( "Unable to resolve bean reference to type '" + InvalidType.class.getName()
-								+ "' and name 'someName'",
+						+ "' and name 'someName'",
 						beanManagerNotFoundException.getMessage() )
 				.hasCause( beanManagerNotFoundException );
 		verifyNoOtherInteractionsAndReset();

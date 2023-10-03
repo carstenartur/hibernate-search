@@ -23,18 +23,24 @@ import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 import com.google.gson.JsonObject;
 
-
-
 public class ElasticsearchRequestSuccessAssessor {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
 	private static final JsonAccessor<Integer> BULK_ITEM_STATUS_CODE = JsonAccessor.root().property( "status" ).asInteger();
-	private static final JsonAccessor<String> ERROR_TYPE = JsonAccessor.root().property( "error" ).property( "type" ).asString();
+	private static final JsonAccessor<String> ERROR_TYPE =
+			JsonAccessor.root().property( "error" ).property( "type" ).asString();
 
+	private static final JsonAccessor<Integer> FAILED_SHARDS_COUNT = JsonAccessor.root()
+			.property( "_shards" )
+			.property( "failed" )
+			.asInteger();
 	private static final int TIME_OUT_HTTP_STATUS_CODE = 408;
 
+	public static final ElasticsearchRequestSuccessAssessor SHARD_FAILURE_CHECKED_INSTANCE =
+			builder().ignoreShardFailures( false ).build();
 	public static final ElasticsearchRequestSuccessAssessor DEFAULT_INSTANCE = builder().build();
+
 
 	public static Builder builder() {
 		return new Builder();
@@ -43,16 +49,22 @@ public class ElasticsearchRequestSuccessAssessor {
 	public static class Builder {
 		private final Set<Integer> ignoredErrorStatuses = new HashSet<>();
 		private final Set<String> ignoredErrorTypes = new HashSet<>();
+		private boolean ignoreShardFailures = true;
 
-		public Builder ignoreErrorStatuses(int ... ignoredErrorStatuses) {
+		public Builder ignoreErrorStatuses(int... ignoredErrorStatuses) {
 			for ( int ignoredErrorStatus : ignoredErrorStatuses ) {
 				this.ignoredErrorStatuses.add( ignoredErrorStatus );
 			}
 			return this;
 		}
 
-		public Builder ignoreErrorTypes(String ... ignoredErrorTypes) {
+		public Builder ignoreErrorTypes(String... ignoredErrorTypes) {
 			Collections.addAll( this.ignoredErrorTypes, ignoredErrorTypes );
+			return this;
+		}
+
+		public Builder ignoreShardFailures(boolean ignoreShardFailures) {
+			this.ignoreShardFailures = ignoreShardFailures;
 			return this;
 		}
 
@@ -63,10 +75,12 @@ public class ElasticsearchRequestSuccessAssessor {
 
 	private final Set<Integer> ignoredErrorStatuses;
 	private final Set<String> ignoredErrorTypes;
+	private final boolean ignoreShardFailures;
 
 	private ElasticsearchRequestSuccessAssessor(Builder builder) {
 		this.ignoredErrorStatuses = Collections.unmodifiableSet( new HashSet<>( builder.ignoredErrorStatuses ) );
 		this.ignoredErrorTypes = Collections.unmodifiableSet( new HashSet<>( builder.ignoredErrorTypes ) );
+		this.ignoreShardFailures = builder.ignoreShardFailures;
 	}
 
 	@Override
@@ -75,6 +89,7 @@ public class ElasticsearchRequestSuccessAssessor {
 				.append( getClass().getSimpleName() ).append( "[" )
 				.append( "ignoredErrorStatuses=" ).append( ignoredErrorStatuses )
 				.append( ", ignoredErrorTypes=" ).append( ignoredErrorTypes )
+				.append( ", ignoreShardFailures=" ).append( ignoreShardFailures )
 				.append( "]" )
 				.toString();
 	}
@@ -97,7 +112,8 @@ public class ElasticsearchRequestSuccessAssessor {
 	 */
 	public void checkSuccess(JsonObject bulkResponseItem) {
 		// Result items have the following format: { "actionName" : { "status" : 201, ... } }
-		JsonObject responseBody = bulkResponseItem == null ? null : bulkResponseItem.entrySet().iterator().next().getValue().getAsJsonObject();
+		JsonObject responseBody =
+				bulkResponseItem == null ? null : bulkResponseItem.entrySet().iterator().next().getValue().getAsJsonObject();
 		Optional<Integer> statusCode = BULK_ITEM_STATUS_CODE.get( responseBody );
 		checkSuccess( statusCode, responseBody );
 	}
@@ -116,9 +132,14 @@ public class ElasticsearchRequestSuccessAssessor {
 	private boolean isSuccess(Optional<Integer> statusCode, JsonObject responseBody) {
 		return statusCode.map(
 				c -> ElasticsearchClientUtils.isSuccessCode( c ) || ignoredErrorStatuses.contains( c )
-				)
-				.orElse( false )
+		).orElse( false )
+				&& ( FAILED_SHARDS_COUNT.get( responseBody ).map( this::checkShardFailures )
+						.orElse( true ) )
 				|| ERROR_TYPE.get( responseBody ).map( ignoredErrorTypes::contains ).orElse( false );
+	}
+
+	private boolean checkShardFailures(Integer failures) {
+		return ignoreShardFailures || failures == 0;
 	}
 
 }

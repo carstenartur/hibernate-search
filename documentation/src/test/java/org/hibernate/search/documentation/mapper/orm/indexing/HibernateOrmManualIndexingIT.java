@@ -8,11 +8,14 @@ package org.hibernate.search.documentation.mapper.orm.indexing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.Arrays;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+
+import org.hibernate.SessionFactory;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
 import org.hibernate.search.mapper.orm.Search;
@@ -44,7 +47,7 @@ public class HibernateOrmManualIndexingIT {
 			// tag::persist-automatic-indexing-periodic-flush-clear[]
 			entityManager.getTransaction().begin();
 			try {
-				for ( int i = 0 ; i < NUMBER_OF_BOOKS ; ++i ) { // <1>
+				for ( int i = 0; i < NUMBER_OF_BOOKS; ++i ) { // <1>
 					Book book = newBook( i );
 					entityManager.persist( book ); // <2>
 
@@ -78,7 +81,7 @@ public class HibernateOrmManualIndexingIT {
 
 			entityManager.getTransaction().begin();
 			try {
-				for ( int i = 0 ; i < NUMBER_OF_BOOKS ; ++i ) {
+				for ( int i = 0; i < NUMBER_OF_BOOKS; ++i ) {
 					Book book = newBook( i );
 					entityManager.persist( book ); // <3>
 
@@ -226,6 +229,16 @@ public class HibernateOrmManualIndexingIT {
 			SearchWorkspace bookAndAuthorWorkspace = searchSession.workspace( Book.class, Author.class ); // <4>
 			// end::workspace-retrieval-session[]
 		} );
+	}
+
+	@Test
+	public void purge() {
+		assumeTrue( "This test only makes sense if the backend supports explicit purges",
+				BackendConfigurations.simple().supportsExplicitPurge() );
+
+		int numberOfBooks = 10;
+		EntityManagerFactory entityManagerFactory = setup( true );
+		initBooksAndAuthors( entityManagerFactory, numberOfBooks );
 
 		with( entityManagerFactory ).runNoTransaction( entityManager -> {
 			assertBookCount( entityManager, numberOfBooks );
@@ -288,30 +301,32 @@ public class HibernateOrmManualIndexingIT {
 	}
 
 	private void assertBookCount(EntityManager entityManager, int expectedCount) {
-		SearchSession searchSession = Search.session( entityManager );
-		searchSession.workspace().refresh();
-		assertThat(
-				searchSession.search( Book.class )
-						.where( f -> f.matchAll() )
-						.fetchTotalHitCount()
-		)
-				.isEqualTo( expectedCount );
+		setupHelper.assertions().searchAfterIndexChanges(
+				entityManager.getEntityManagerFactory().unwrap( SessionFactory.class ),
+				() -> {
+					SearchSession searchSession = Search.session( entityManager );
+					assertThat( searchSession.search( Book.class )
+							.where( f -> f.matchAll() )
+							.fetchTotalHitCount() )
+							.isEqualTo( expectedCount );
+				} );
 	}
 
 	private void assertAuthorCount(EntityManager entityManager, int expectedCount) {
-		SearchSession searchSession = Search.session( entityManager );
-		searchSession.workspace().refresh();
-		assertThat(
-				searchSession.search( Author.class )
-						.where( f -> f.matchAll() )
-						.fetchTotalHitCount()
-		)
-				.isEqualTo( expectedCount );
+		setupHelper.assertions().searchAfterIndexChanges(
+				entityManager.getEntityManagerFactory().unwrap( SessionFactory.class ),
+				() -> {
+					SearchSession searchSession = Search.session( entityManager );
+					assertThat( searchSession.search( Author.class )
+							.where( f -> f.matchAll() )
+							.fetchTotalHitCount() )
+							.isEqualTo( expectedCount );
+				} );
 	}
 
 	private EntityManagerFactory setup(boolean automaticIndexingEnabled) {
 		return setupHelper.start()
-				.withProperty( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_ENABLED, automaticIndexingEnabled )
+				.withProperty( HibernateOrmMapperSettings.INDEXING_LISTENERS_ENABLED, automaticIndexingEnabled )
 				.setup( Book.class, Author.class );
 	}
 

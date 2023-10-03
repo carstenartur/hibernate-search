@@ -16,13 +16,14 @@ import java.util.List;
 import java.util.ServiceConfigurationError;
 import java.util.Set;
 
+import org.hibernate.search.engine.cfg.spi.ConfigurationProvider;
 import org.hibernate.search.engine.environment.bean.BeanReference;
 import org.hibernate.search.engine.environment.bean.spi.BeanNotFoundException;
 import org.hibernate.search.engine.environment.classpath.spi.ClassLoadingException;
-import org.hibernate.search.engine.logging.spi.MappableTypeModelFormatter;
-import org.hibernate.search.engine.mapper.model.spi.MappableTypeModel;
+import org.hibernate.search.engine.mapper.model.spi.MappingElement;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.common.spi.SearchQueryElementTypeKey;
+import org.hibernate.search.engine.search.projection.definition.ProjectionDefinition;
 import org.hibernate.search.engine.spatial.GeoPoint;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.common.SearchTimeoutException;
@@ -198,18 +199,21 @@ public interface Log extends BasicLogger {
 	SearchException subtypeExpected(@FormatWith(ClassFormatter.class) Class<?> classToLoad,
 			@FormatWith(ClassFormatter.class) Class<?> superType);
 
-	@Message(id = ID_OFFSET + 43, value = "Invalid type '%1$s': this type is an interface. An implementation class is required.")
+	@Message(id = ID_OFFSET + 43,
+			value = "Invalid type '%1$s': this type is an interface. An implementation class is required.")
 	SearchException implementationRequired(@FormatWith(ClassFormatter.class) Class<?> classToLoad);
 
-	@Message(id = ID_OFFSET + 44, value = "Invalid type '%1$s': missing constructor. The type must expose a public constructor with a single parameter of type Map.")
+	@Message(id = ID_OFFSET + 44,
+			value = "Invalid type '%1$s': missing constructor. The type must expose a public constructor with a single parameter of type Map.")
 	SearchException noPublicMapArgConstructor(@FormatWith(ClassFormatter.class) Class<?> classToLoad);
 
-	@Message(id = ID_OFFSET + 46, value = "Cyclic @IndexedEmbedded recursion starting from type '%2$s'."
-			+ " Path starting from that type and ending with a cycle: '%1$s'."
+	@Message(id = ID_OFFSET + 46, value = "Cyclic recursion starting from '%1$s' on %2$s."
+			+ " Index field path starting from that location and ending with a cycle: '%3$s'."
 			+ " A type cannot declare an unrestricted @IndexedEmbedded to itself, even indirectly."
-			+ " To break the cycle, you should consider adding filters to your @IndexedEmbedded: includePaths, includeDepth, ...")
-	SearchException indexedEmbeddedCyclicRecursion(String cyclicRecursionPath,
-			@FormatWith(MappableTypeModelFormatter.class) MappableTypeModel parentTypeModel);
+			+ " To break the cycle, you should consider adding filters to your @IndexedEmbedded: includePaths, includeDepth, excludePaths, ...")
+	SearchException indexedEmbeddedCyclicRecursion(MappingElement indexedEmbedded,
+			@FormatWith(EventContextNoPrefixFormatter.class) EventContext indexedEmbeddedLocation,
+			String cyclicRecursionPath);
 
 	@Message(id = ID_OFFSET + 47,
 			value = "Invalid BeanReference value: expected an instance of '%1$s', BeanReference, String or Class. %2$s")
@@ -239,7 +243,8 @@ public interface Log extends BasicLogger {
 			@FormatWith(SimpleNameClassFormatter.class) Class<? extends TemporalAccessor> type, String value,
 			DateTimeFormatter formatter, @Cause Exception cause);
 
-	@Message(id = ID_OFFSET + 58, value = "Invalid %1$s value: expected either a Number or a String that can be parsed into a %1$s. %2$s")
+	@Message(id = ID_OFFSET + 58,
+			value = "Invalid %1$s value: expected either a Number or a String that can be parsed into a %1$s. %2$s")
 	SearchException invalidNumberPropertyValue(@FormatWith(SimpleNameClassFormatter.class) Class<? extends Number> type,
 			String nestedErrorMessage, @Cause Exception cause);
 
@@ -474,8 +479,9 @@ public interface Log extends BasicLogger {
 			@FormatWith(EventContextNoPrefixFormatter.class) EventContext elementContext,
 			SearchQueryElementTypeKey<?> key, String hint, @Param EventContext context, @Cause Exception cause);
 
-	@Message(value = "Make sure the field is marked as searchable/sortable/projectable/aggregable/highlightable (whichever is relevant)."
-			+ " If it already is, then '%1$s' is not available for fields of this type.")
+	@Message(
+			value = "Make sure the field is marked as searchable/sortable/projectable/aggregable/highlightable (whichever is relevant)."
+					+ " If it already is, then '%1$s' is not available for fields of this type.")
 	String missingSupportHintForValueField(SearchQueryElementTypeKey<?> key);
 
 	@Message(value = "Some object field features require a nested structure;"
@@ -532,9 +538,31 @@ public interface Log extends BasicLogger {
 	SearchException unableToResolveField(String absolutePath, String causeMessage, @Cause SearchException e,
 			@Param EventContext context);
 
-	@LogMessage(level = Logger.Level.WARN)
+	@LogMessage(level = DEBUG)
 	@Message(id = ID_OFFSET + 116,
 			value = "Ignoring ServiceConfigurationError caught while trying to instantiate service '%s'.")
 	void ignoringServiceConfigurationError(Class<?> serviceContract, @Cause ServiceConfigurationError error);
 
+	@Message(id = ID_OFFSET + 117,
+			value = "Parameter with name '%1$s' was not defined on projection definition '%2$s'.")
+	SearchException paramNotDefined(String paramName, ProjectionDefinition<?> definition);
+
+	@Message(id = ID_OFFSET + 118,
+			value = "Invalid type for entity projection on type '%1$s':"
+					+ " the entity type's Java class '%2$s' does not extend the requested projection type '%3$s'.")
+	SearchException invalidTypeForEntityProjection(String name, @FormatWith(ClassFormatter.class) Class<?> entityType,
+			@FormatWith(ClassFormatter.class) Class<?> requestedEntityType);
+
+	@Message(id = ID_OFFSET + 119,
+			value = "'includePaths' and 'excludePaths' cannot be used together in the same filter. "
+					+ "Use either `includePaths` or `excludePaths` leaving the other one empty. "
+					+ "Included paths are: '%1$s', excluded paths are: '%2$s'.")
+	SearchException cannotIncludeAndExcludePathsWithinSameFilter(Set<String> includePaths,
+			Set<String> excludePaths);
+
+	@LogMessage(level = DEBUG)
+	@Message(id = ID_OFFSET + 120,
+			value = "Multiple configuration providers are available for scope '%1$s'. "
+					+ "They will be taken under consideration in the following order: '%2$s'.")
+	void multipleConfigurationProvidersAvailable(String scope, List<ConfigurationProvider> configurationProviders);
 }

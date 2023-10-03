@@ -13,19 +13,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.persistence.Basic;
-import javax.persistence.CollectionTable;
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToOne;
-import javax.persistence.OrderColumn;
-import javax.persistence.Transient;
+
+import jakarta.persistence.Basic;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.Transient;
 
 import org.hibernate.annotations.LazyGroup;
 import org.hibernate.cfg.AvailableSettings;
@@ -46,6 +47,7 @@ import org.hibernate.search.util.impl.integrationtest.mapper.orm.ReusableOrmSetu
 
 import org.hibernate.testing.bytecode.enhancement.BytecodeEnhancerRunner;
 import org.hibernate.testing.bytecode.enhancement.EnhancementOptions;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -59,12 +61,11 @@ import org.junit.runner.RunWith;
 @EnhancementOptions(lazyLoading = true)
 public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 		extends AbstractAutomaticIndexingSingleValuedAssociationBaseIT<
-						AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.IndexedEntity,
-						AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainingEntity,
-						AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainingEmbeddable,
-						AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainedEntity,
-						AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainedEmbeddable
-				> {
+				AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.IndexedEntity,
+				AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainingEntity,
+				AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainingEmbeddable,
+				AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainedEntity,
+				AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT.ContainedEmbeddable> {
 
 	public AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT() {
 		super( IndexedEntity.PRIMITIVES, ContainingEntity.PRIMITIVES, ContainingEmbeddable.PRIMITIVES,
@@ -301,81 +302,86 @@ public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 					) );
 		}
 
-		static final ContainingEntityPrimitives<ContainingEntity, ContainingEmbeddable, ContainedEntity> PRIMITIVES = new ContainingEntityPrimitives<ContainingEntity, ContainingEmbeddable, ContainedEntity>() {
-			@Override
-			public Class<ContainingEntity> entityClass() {
-				return ContainingEntity.class;
-			}
+		static final ContainingEntityPrimitives<ContainingEntity, ContainingEmbeddable, ContainedEntity> PRIMITIVES =
+				new ContainingEntityPrimitives<ContainingEntity, ContainingEmbeddable, ContainedEntity>() {
+					@Override
+					public Class<ContainingEntity> entityClass() {
+						return ContainingEntity.class;
+					}
 
-			@Override
-			public ContainingEntity newInstance(int id) {
-				ContainingEntity entity = new ContainingEntity();
-				entity.setId( id );
-				return entity;
-			}
+					@Override
+					public ContainingEntity newInstance(int id) {
+						ContainingEntity entity = new ContainingEntity();
+						entity.setId( id );
+						return entity;
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainingEntity> child() {
-				return PropertyAccessor.create( ContainingEntity::setChild );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainingEntity> child() {
+						return PropertyAccessor.create( ContainingEntity::setChild );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainingEntity> parent() {
-				return PropertyAccessor.create( ContainingEntity::setParent );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainingEntity> parent() {
+						return PropertyAccessor.create( ContainingEntity::setParent );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainedEntity> containedIndexedEmbedded() {
-				return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbedded,
-						ContainingEntity::getContainedIndexedEmbedded );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainedEntity> containedIndexedEmbedded() {
+						return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbedded,
+								ContainingEntity::getContainedIndexedEmbedded );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainedEntity> containedNonIndexedEmbedded() {
-				return PropertyAccessor.create( ContainingEntity::setContainedNonIndexedEmbedded,
-						ContainingEntity::getContainedNonIndexedEmbedded );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainedEntity> containedNonIndexedEmbedded() {
+						return PropertyAccessor.create( ContainingEntity::setContainedNonIndexedEmbedded,
+								ContainingEntity::getContainedNonIndexedEmbedded );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainedEntity> containedIndexedEmbeddedShallowReindexOnUpdate() {
-				return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbeddedShallowReindexOnUpdate,
-						ContainingEntity::getContainedIndexedEmbeddedShallowReindexOnUpdate );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity,
+							ContainedEntity> containedIndexedEmbeddedShallowReindexOnUpdate() {
+						return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbeddedShallowReindexOnUpdate,
+								ContainingEntity::getContainedIndexedEmbeddedShallowReindexOnUpdate );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainedEntity> containedIndexedEmbeddedNoReindexOnUpdate() {
-				return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbeddedNoReindexOnUpdate,
-						ContainingEntity::getContainedIndexedEmbeddedNoReindexOnUpdate );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainedEntity> containedIndexedEmbeddedNoReindexOnUpdate() {
+						return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbeddedNoReindexOnUpdate,
+								ContainingEntity::getContainedIndexedEmbeddedNoReindexOnUpdate );
+					}
 
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainedEntity> containedUsedInCrossEntityDerivedProperty() {
-				return PropertyAccessor.create( ContainingEntity::setContainedUsedInCrossEntityDerivedProperty,
-						ContainingEntity::getContainedUsedInCrossEntityDerivedProperty );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainedEntity> containedUsedInCrossEntityDerivedProperty() {
+						return PropertyAccessor.create( ContainingEntity::setContainedUsedInCrossEntityDerivedProperty,
+								ContainingEntity::getContainedUsedInCrossEntityDerivedProperty );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainedEntity> containedIndexedEmbeddedWithCast() {
-				return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbeddedWithCast );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainedEntity> containedIndexedEmbeddedWithCast() {
+						return PropertyAccessor.create( ContainingEntity::setContainedIndexedEmbeddedWithCast );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, ContainingEmbeddable> embeddedAssociations() {
-				return PropertyAccessor.create( ContainingEntity::setEmbeddedAssociations, ContainingEntity::getEmbeddedAssociations );
-			}
+					@Override
+					public PropertyAccessor<ContainingEntity, ContainingEmbeddable> embeddedAssociations() {
+						return PropertyAccessor.create( ContainingEntity::setEmbeddedAssociations,
+								ContainingEntity::getEmbeddedAssociations );
+					}
 
-			@Override
-			public MultiValuedPropertyAccessor<ContainingEntity, ContainingEmbeddable, List<ContainingEmbeddable>> elementCollectionAssociations() {
-				return MultiValuedPropertyAccessor.create( ContainerPrimitives.collection(),
-						ContainingEntity::getElementCollectionAssociations );
-			}
+					@Override
+					public MultiValuedPropertyAccessor<ContainingEntity,
+							ContainingEmbeddable,
+							List<ContainingEmbeddable>> elementCollectionAssociations() {
+						return MultiValuedPropertyAccessor.create( ContainerPrimitives.collection(),
+								ContainingEntity::getElementCollectionAssociations );
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEntity, String> nonIndexedField() {
-				return PropertyAccessor.create( ContainingEntity::setNonIndexedField );
-			}
-		};
+					@Override
+					public PropertyAccessor<ContainingEntity, String> nonIndexedField() {
+						return PropertyAccessor.create( ContainingEntity::setNonIndexedField );
+					}
+				};
 	}
 
 	public static class ContainingEmbeddable {
@@ -384,50 +390,49 @@ public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 		@JoinColumn(name = "CEmbIdxEmbedded")
 		@IndexedEmbedded(includePaths = { "indexedField", "indexedElementCollectionField", "containedDerivedField" },
 				name = "containedIndexedEmbedded")
-		// TODO Remove the "emb" prefix from this field when HHH-15604 gets fixed (it's just a workaround)
-		private ContainedEntity embContainedIndexedEmbedded;
+		private ContainedEntity containedIndexedEmbedded;
 
 		@OneToOne
 		@JoinColumn(name = "CEmbNonIdxEmbedded")
-		// TODO Remove the "emb" prefix from this field when HHH-15604 gets fixed (it's just a workaround)
-		private ContainedEntity embContainedNonIndexedEmbedded;
+		private ContainedEntity containedNonIndexedEmbedded;
 
-		public ContainedEntity getEmbContainedIndexedEmbedded() {
-			return embContainedIndexedEmbedded;
+		public ContainedEntity getContainedIndexedEmbedded() {
+			return containedIndexedEmbedded;
 		}
 
-		public void setEmbContainedIndexedEmbedded(ContainedEntity embContainedIndexedEmbedded) {
-			this.embContainedIndexedEmbedded = embContainedIndexedEmbedded;
+		public void setContainedIndexedEmbedded(ContainedEntity containedIndexedEmbedded) {
+			this.containedIndexedEmbedded = containedIndexedEmbedded;
 		}
 
-		public ContainedEntity getEmbContainedNonIndexedEmbedded() {
-			return embContainedNonIndexedEmbedded;
+		public ContainedEntity getContainedNonIndexedEmbedded() {
+			return containedNonIndexedEmbedded;
 		}
 
-		public void setEmbContainedNonIndexedEmbedded(ContainedEntity embContainedNonIndexedEmbedded) {
-			this.embContainedNonIndexedEmbedded = embContainedNonIndexedEmbedded;
+		public void setContainedNonIndexedEmbedded(ContainedEntity containedNonIndexedEmbedded) {
+			this.containedNonIndexedEmbedded = containedNonIndexedEmbedded;
 		}
 
-		static final ContainingEmbeddablePrimitives<ContainingEmbeddable, ContainedEntity> PRIMITIVES = new ContainingEmbeddablePrimitives<ContainingEmbeddable, ContainedEntity>() {
-			@Override
-			public ContainingEmbeddable newInstance() {
-				return new ContainingEmbeddable();
-			}
+		static final ContainingEmbeddablePrimitives<ContainingEmbeddable, ContainedEntity> PRIMITIVES =
+				new ContainingEmbeddablePrimitives<ContainingEmbeddable, ContainedEntity>() {
+					@Override
+					public ContainingEmbeddable newInstance() {
+						return new ContainingEmbeddable();
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEmbeddable, ContainedEntity> containedIndexedEmbedded() {
-				return PropertyAccessor.create( ContainingEmbeddable::setEmbContainedIndexedEmbedded,
-						ContainingEmbeddable::getEmbContainedIndexedEmbedded
-				);
-			}
+					@Override
+					public PropertyAccessor<ContainingEmbeddable, ContainedEntity> containedIndexedEmbedded() {
+						return PropertyAccessor.create( ContainingEmbeddable::setContainedIndexedEmbedded,
+								ContainingEmbeddable::getContainedIndexedEmbedded
+						);
+					}
 
-			@Override
-			public PropertyAccessor<ContainingEmbeddable, ContainedEntity> containedNonIndexedEmbedded() {
-				return PropertyAccessor.create( ContainingEmbeddable::setEmbContainedNonIndexedEmbedded,
-						ContainingEmbeddable::getEmbContainedNonIndexedEmbedded
-				);
-			}
-		};
+					@Override
+					public PropertyAccessor<ContainingEmbeddable, ContainedEntity> containedNonIndexedEmbedded() {
+						return PropertyAccessor.create( ContainingEmbeddable::setContainedNonIndexedEmbedded,
+								ContainingEmbeddable::getContainedNonIndexedEmbedded
+						);
+					}
+				};
 	}
 
 	@Entity(name = "indexed")
@@ -500,7 +505,7 @@ public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 		@JoinColumn(name = "CECAssocIdxEmb")
 		@AssociationInverseSide(inversePath = @ObjectPath({
 				@PropertyValue(propertyName = "elementCollectionAssociations"),
-				@PropertyValue(propertyName = "embContainedIndexedEmbedded")
+				@PropertyValue(propertyName = "containedIndexedEmbedded")
 		}))
 		private ContainingEntity containingAsElementCollectionAssociationsIndexedEmbedded;
 
@@ -513,7 +518,7 @@ public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 		@JoinColumn(name = "CECAssocNonIdxEmb")
 		@AssociationInverseSide(inversePath = @ObjectPath({
 				@PropertyValue(propertyName = "elementCollectionAssociations"),
-				@PropertyValue(propertyName = "embContainedNonIndexedEmbedded")
+				@PropertyValue(propertyName = "containedNonIndexedEmbedded")
 		}))
 		private ContainingEntity containingAsElementCollectionAssociationsNonIndexedEmbedded;
 
@@ -629,7 +634,8 @@ public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 
 		public void setContainingAsElementCollectionAssociationsIndexedEmbedded(
 				ContainingEntity containingAsElementCollectionAssociationsIndexedEmbedded) {
-			this.containingAsElementCollectionAssociationsIndexedEmbedded = containingAsElementCollectionAssociationsIndexedEmbedded;
+			this.containingAsElementCollectionAssociationsIndexedEmbedded =
+					containingAsElementCollectionAssociationsIndexedEmbedded;
 		}
 
 		public ContainingEntity getContainingAsElementCollectionAssociationsNonIndexedEmbedded() {
@@ -638,7 +644,8 @@ public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 
 		public void setContainingAsElementCollectionAssociationsNonIndexedEmbedded(
 				ContainingEntity containingAsElementCollectionAssociationsNonIndexedEmbedded) {
-			this.containingAsElementCollectionAssociationsNonIndexedEmbedded = containingAsElementCollectionAssociationsNonIndexedEmbedded;
+			this.containingAsElementCollectionAssociationsNonIndexedEmbedded =
+					containingAsElementCollectionAssociationsNonIndexedEmbedded;
 		}
 
 		public String getIndexedField() {
@@ -715,165 +722,173 @@ public class AutomaticIndexingOneToOneOwnedByContainingLazyOnContainedSideIT
 			return computeDerived( Stream.of( fieldUsedInContainedDerivedField1, fieldUsedInContainedDerivedField2 ) );
 		}
 
-		static ContainedEntityPrimitives<ContainedEntity, ContainedEmbeddable, ContainingEntity> PRIMITIVES = new ContainedEntityPrimitives<ContainedEntity, ContainedEmbeddable, ContainingEntity>() {
-			@Override
-			public Class<ContainedEntity> entityClass() {
-				return ContainedEntity.class;
-			}
+		static ContainedEntityPrimitives<ContainedEntity, ContainedEmbeddable, ContainingEntity> PRIMITIVES =
+				new ContainedEntityPrimitives<ContainedEntity, ContainedEmbeddable, ContainingEntity>() {
+					@Override
+					public Class<ContainedEntity> entityClass() {
+						return ContainedEntity.class;
+					}
 
-			@Override
-			public ContainedEntity newInstance(int id) {
-				ContainedEntity entity = new ContainedEntity();
-				entity.setId( id );
-				return entity;
-			}
+					@Override
+					public ContainedEntity newInstance(int id) {
+						ContainedEntity entity = new ContainedEntity();
+						entity.setId( id );
+						return entity;
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsIndexedEmbedded() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbedded,
-						ContainedEntity::getContainingAsIndexedEmbedded );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsIndexedEmbedded() {
+						return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbedded,
+								ContainedEntity::getContainingAsIndexedEmbedded );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsNonIndexedEmbedded() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsNonIndexedEmbedded,
-						ContainedEntity::getContainingAsNonIndexedEmbedded );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsNonIndexedEmbedded() {
+						return PropertyAccessor.create( ContainedEntity::setContainingAsNonIndexedEmbedded,
+								ContainedEntity::getContainingAsNonIndexedEmbedded );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsIndexedEmbeddedShallowReindexOnUpdate() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbeddedShallowReindexOnUpdate,
-						ContainedEntity::getContainingAsIndexedEmbeddedShallowReindexOnUpdate );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity,
+							ContainingEntity> containingAsIndexedEmbeddedShallowReindexOnUpdate() {
+						return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbeddedShallowReindexOnUpdate,
+								ContainedEntity::getContainingAsIndexedEmbeddedShallowReindexOnUpdate );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsIndexedEmbeddedNoReindexOnUpdate() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbeddedNoReindexOnUpdate,
-						ContainedEntity::getContainingAsIndexedEmbeddedNoReindexOnUpdate );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsIndexedEmbeddedNoReindexOnUpdate() {
+						return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbeddedNoReindexOnUpdate,
+								ContainedEntity::getContainingAsIndexedEmbeddedNoReindexOnUpdate );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsUsedInCrossEntityDerivedProperty() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsUsedInCrossEntityDerivedProperty,
-						ContainedEntity::getContainingAsUsedInCrossEntityDerivedProperty );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsUsedInCrossEntityDerivedProperty() {
+						return PropertyAccessor.create( ContainedEntity::setContainingAsUsedInCrossEntityDerivedProperty,
+								ContainedEntity::getContainingAsUsedInCrossEntityDerivedProperty );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsIndexedEmbeddedWithCast() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbeddedWithCast );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsIndexedEmbeddedWithCast() {
+						return PropertyAccessor.create( ContainedEntity::setContainingAsIndexedEmbeddedWithCast );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainedEmbeddable> embeddedAssociations() {
-				return PropertyAccessor.create( ContainedEntity::setEmbeddedAssociations, ContainedEntity::getEmbeddedAssociations );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, ContainedEmbeddable> embeddedAssociations() {
+						return PropertyAccessor.create( ContainedEntity::setEmbeddedAssociations,
+								ContainedEntity::getEmbeddedAssociations );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsElementCollectionAssociationsIndexedEmbedded() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsElementCollectionAssociationsIndexedEmbedded,
-						ContainedEntity::getContainingAsElementCollectionAssociationsIndexedEmbedded );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity,
+							ContainingEntity> containingAsElementCollectionAssociationsIndexedEmbedded() {
+						return PropertyAccessor.create(
+								ContainedEntity::setContainingAsElementCollectionAssociationsIndexedEmbedded,
+								ContainedEntity::getContainingAsElementCollectionAssociationsIndexedEmbedded );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, ContainingEntity> containingAsElementCollectionAssociationsNonIndexedEmbedded() {
-				return PropertyAccessor.create( ContainedEntity::setContainingAsElementCollectionAssociationsNonIndexedEmbedded,
-						ContainedEntity::getContainingAsElementCollectionAssociationsNonIndexedEmbedded );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity,
+							ContainingEntity> containingAsElementCollectionAssociationsNonIndexedEmbedded() {
+						return PropertyAccessor.create(
+								ContainedEntity::setContainingAsElementCollectionAssociationsNonIndexedEmbedded,
+								ContainedEntity::getContainingAsElementCollectionAssociationsNonIndexedEmbedded );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, String> indexedField() {
-				return PropertyAccessor.create( ContainedEntity::setIndexedField );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, String> indexedField() {
+						return PropertyAccessor.create( ContainedEntity::setIndexedField );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, String> nonIndexedField() {
-				return PropertyAccessor.create( ContainedEntity::setNonIndexedField );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, String> nonIndexedField() {
+						return PropertyAccessor.create( ContainedEntity::setNonIndexedField );
+					}
 
-			@Override
-			public MultiValuedPropertyAccessor<ContainedEntity, String, List<String>> indexedElementCollectionField() {
-				return MultiValuedPropertyAccessor.create( ContainerPrimitives.collection(),
-						ContainedEntity::getIndexedElementCollectionField,
-						ContainedEntity::setIndexedElementCollectionField );
-			}
+					@Override
+					public MultiValuedPropertyAccessor<ContainedEntity, String, List<String>> indexedElementCollectionField() {
+						return MultiValuedPropertyAccessor.create( ContainerPrimitives.collection(),
+								ContainedEntity::getIndexedElementCollectionField,
+								ContainedEntity::setIndexedElementCollectionField );
+					}
 
-			@Override
-			public MultiValuedPropertyAccessor<ContainedEntity, String, List<String>> nonIndexedElementCollectionField() {
-				return MultiValuedPropertyAccessor.create( ContainerPrimitives.collection(),
-						ContainedEntity::getNonIndexedElementCollectionField,
-						ContainedEntity::setNonIndexedElementCollectionField );
-			}
+					@Override
+					public MultiValuedPropertyAccessor<ContainedEntity,
+							String,
+							List<String>> nonIndexedElementCollectionField() {
+						return MultiValuedPropertyAccessor.create( ContainerPrimitives.collection(),
+								ContainedEntity::getNonIndexedElementCollectionField,
+								ContainedEntity::setNonIndexedElementCollectionField );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, String> fieldUsedInContainedDerivedField1() {
-				return PropertyAccessor.create( ContainedEntity::setFieldUsedInContainedDerivedField1 );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, String> fieldUsedInContainedDerivedField1() {
+						return PropertyAccessor.create( ContainedEntity::setFieldUsedInContainedDerivedField1 );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, String> fieldUsedInContainedDerivedField2() {
-				return PropertyAccessor.create( ContainedEntity::setFieldUsedInContainedDerivedField2 );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, String> fieldUsedInContainedDerivedField2() {
+						return PropertyAccessor.create( ContainedEntity::setFieldUsedInContainedDerivedField2 );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, String> fieldUsedInCrossEntityDerivedField1() {
-				return PropertyAccessor.create( ContainedEntity::setFieldUsedInCrossEntityDerivedField1 );
-			}
+					@Override
+					public PropertyAccessor<ContainedEntity, String> fieldUsedInCrossEntityDerivedField1() {
+						return PropertyAccessor.create( ContainedEntity::setFieldUsedInCrossEntityDerivedField1 );
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEntity, String> fieldUsedInCrossEntityDerivedField2() {
-				return PropertyAccessor.create( ContainedEntity::setFieldUsedInCrossEntityDerivedField2 );
-			}
-		};
+					@Override
+					public PropertyAccessor<ContainedEntity, String> fieldUsedInCrossEntityDerivedField2() {
+						return PropertyAccessor.create( ContainedEntity::setFieldUsedInCrossEntityDerivedField2 );
+					}
+				};
 	}
 
 	public static class ContainedEmbeddable {
 
-		@OneToOne(mappedBy = "embeddedAssociations.embContainedIndexedEmbedded", fetch = FetchType.LAZY)
+		@OneToOne(mappedBy = "embeddedAssociations.containedIndexedEmbedded", fetch = FetchType.LAZY)
 		@LazyGroup("embeddable_containingAsIndexedEmbedded")
-		// TODO Remove the "emb" prefix from this field when HHH-15604 gets fixed (it's just a workaround)
-		private ContainingEntity embContainingAsIndexedEmbedded;
+		private ContainingEntity containingAsIndexedEmbedded;
 
-		@OneToOne(mappedBy = "embeddedAssociations.embContainedNonIndexedEmbedded", fetch = FetchType.LAZY)
+		@OneToOne(mappedBy = "embeddedAssociations.containedNonIndexedEmbedded", fetch = FetchType.LAZY)
 		@LazyGroup("embeddable_containingAsNonIndexedEmbedded")
-		// TODO Remove the "emb" prefix from this field when HHH-15604 gets fixed (it's just a workaround)
-		private ContainingEntity embContainingAsNonIndexedEmbedded;
+		private ContainingEntity containingAsNonIndexedEmbedded;
 
-		public ContainingEntity getEmbContainingAsIndexedEmbedded() {
-			return embContainingAsIndexedEmbedded;
+		public ContainingEntity getContainingAsIndexedEmbedded() {
+			return containingAsIndexedEmbedded;
 		}
 
-		public void setEmbContainingAsIndexedEmbedded(ContainingEntity embContainingAsIndexedEmbedded) {
-			this.embContainingAsIndexedEmbedded = embContainingAsIndexedEmbedded;
+		public void setContainingAsIndexedEmbedded(ContainingEntity containingAsIndexedEmbedded) {
+			this.containingAsIndexedEmbedded = containingAsIndexedEmbedded;
 		}
 
-		public ContainingEntity getEmbContainingAsNonIndexedEmbedded() {
-			return embContainingAsNonIndexedEmbedded;
+		public ContainingEntity getContainingAsNonIndexedEmbedded() {
+			return containingAsNonIndexedEmbedded;
 		}
 
-		public void setEmbContainingAsNonIndexedEmbedded(ContainingEntity embContainingAsNonIndexedEmbedded) {
-			this.embContainingAsNonIndexedEmbedded = embContainingAsNonIndexedEmbedded;
+		public void setContainingAsNonIndexedEmbedded(ContainingEntity containingAsNonIndexedEmbedded) {
+			this.containingAsNonIndexedEmbedded = containingAsNonIndexedEmbedded;
 		}
 
-		static ContainedEmbeddablePrimitives<ContainedEmbeddable, ContainingEntity> PRIMITIVES = new ContainedEmbeddablePrimitives<ContainedEmbeddable, ContainingEntity>() {
-			@Override
-			public ContainedEmbeddable newInstance() {
-				return new ContainedEmbeddable();
-			}
+		static ContainedEmbeddablePrimitives<ContainedEmbeddable, ContainingEntity> PRIMITIVES =
+				new ContainedEmbeddablePrimitives<ContainedEmbeddable, ContainingEntity>() {
+					@Override
+					public ContainedEmbeddable newInstance() {
+						return new ContainedEmbeddable();
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEmbeddable, ContainingEntity> containingAsIndexedEmbedded() {
-				return PropertyAccessor.create( ContainedEmbeddable::setEmbContainingAsIndexedEmbedded,
-						ContainedEmbeddable::getEmbContainingAsIndexedEmbedded
-				);
-			}
+					@Override
+					public PropertyAccessor<ContainedEmbeddable, ContainingEntity> containingAsIndexedEmbedded() {
+						return PropertyAccessor.create( ContainedEmbeddable::setContainingAsIndexedEmbedded,
+								ContainedEmbeddable::getContainingAsIndexedEmbedded
+						);
+					}
 
-			@Override
-			public PropertyAccessor<ContainedEmbeddable, ContainingEntity> containingAsNonIndexedEmbedded() {
-				return PropertyAccessor.create( ContainedEmbeddable::setEmbContainingAsIndexedEmbedded,
-						ContainedEmbeddable::getEmbContainingAsIndexedEmbedded
-				);
-			}
-		};
+					@Override
+					public PropertyAccessor<ContainedEmbeddable, ContainingEntity> containingAsNonIndexedEmbedded() {
+						return PropertyAccessor.create( ContainedEmbeddable::setContainingAsIndexedEmbedded,
+								ContainedEmbeddable::getContainingAsIndexedEmbedded
+						);
+					}
+				};
 	}
 
 }

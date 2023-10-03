@@ -11,10 +11,11 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.Basic;
-import javax.persistence.Entity;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Id;
+
+import jakarta.persistence.Basic;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.integrationtest.mapper.orm.realbackend.testsupport.BackendConfigurations;
 import org.hibernate.search.mapper.orm.Search;
@@ -25,8 +26,8 @@ import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.RoutingBinderR
 import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.RoutingBinder;
 import org.hibernate.search.mapper.pojo.bridge.runtime.RoutingBridgeRouteContext;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
-import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategyNames;
 import org.hibernate.search.mapper.pojo.route.DocumentRoutes;
+import org.hibernate.search.mapper.pojo.work.IndexingPlanSynchronizationStrategyNames;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmSetupHelper;
 
 import org.junit.Before;
@@ -43,7 +44,8 @@ public class RoutingBridgeRoutingKeyIT {
 	private static final int SHARD_COUNT = 64;
 
 	@Rule
-	public OrmSetupHelper setupHelper = OrmSetupHelper.withSingleBackend( BackendConfigurations.hashBasedSharding( SHARD_COUNT ) );
+	public OrmSetupHelper setupHelper =
+			OrmSetupHelper.withSingleBackend( BackendConfigurations.hashBasedSharding( SHARD_COUNT ) );
 
 	private EntityManagerFactory entityManagerFactory;
 

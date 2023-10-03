@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.Transient;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
@@ -87,12 +87,14 @@ public class ProductArticle {
 	@Transient
 	@Field
 	@IndexingDependency(derivedFrom = {
-			@ObjectPath({@PropertyValue(propertyName = "model"),
+			@ObjectPath({
+					@PropertyValue(propertyName = "model"),
 					@PropertyValue(propertyName = "mainReferenceCode"),
-					@PropertyValue(propertyName = "rawValue")}),
-			@ObjectPath({@PropertyValue(propertyName = "model"),
+					@PropertyValue(propertyName = "rawValue") }),
+			@ObjectPath({
+					@PropertyValue(propertyName = "model"),
 					@PropertyValue(propertyName = "additionalReferenceCodes"),
-					@PropertyValue(propertyName = "rawValue")})
+					@PropertyValue(propertyName = "rawValue") })
 	})
 	public Collection<String> getProductReferenceCodeWithColorCollection() {
 		Collection<String> productReferenceCodeWithColorCollection = new ArrayList<String>();

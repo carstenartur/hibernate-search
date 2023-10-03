@@ -16,10 +16,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import javax.persistence.EntityGraph;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.SharedCacheMode;
+
+import jakarta.persistence.EntityGraph;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.SharedCacheMode;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.AvailableSettings;
@@ -61,7 +62,7 @@ public class QueryDslIT {
 	@Before
 	public void setup() {
 		entityManagerFactory = setupHelper.start()
-				.withProperty( AvailableSettings.JPA_SHARED_CACHE_MODE, SharedCacheMode.ENABLE_SELECTIVE.name() )
+				.withProperty( AvailableSettings.JAKARTA_SHARED_CACHE_MODE, SharedCacheMode.ENABLE_SELECTIVE.name() )
 				.setup( Book.class, Manager.class, Associate.class );
 		initData();
 	}
@@ -99,8 +100,8 @@ public class QueryDslIT {
 			SearchSession searchSession = Search.session( entityManager );
 			// tag::targeting-multiple[]
 			SearchResult<Person> result = searchSession.search( Arrays.asList( // <1>
-							Manager.class, Associate.class
-					) )
+					Manager.class, Associate.class
+			) )
 					.where( f -> f.match() // <2>
 							.field( "name" )
 							.matching( "james" ) )
@@ -121,11 +122,11 @@ public class QueryDslIT {
 			SearchSession searchSession = Search.session( entityManager );
 			// tag::targeting-entityName[]
 			SearchResult<Person> result = searchSession.search( // <1>
-							searchSession.scope( // <2>
-									Person.class,
-									Arrays.asList( "Manager", "Associate" )
-							)
+					searchSession.scope( // <2>
+							Person.class,
+							Arrays.asList( "Manager", "Associate" )
 					)
+			)
 					.where( f -> f.match() // <3>
 							.field( "name" )
 							.matching( "james" ) )
@@ -308,7 +309,7 @@ public class QueryDslIT {
 			SearchQuery<Book> query = searchSession.search( Book.class ) // <1>
 					.where( f -> f.matchAll() )
 					.toQuery(); // <2>
-			javax.persistence.TypedQuery<Book> jpaQuery = Search.toJpaQuery( query ); // <3>
+			jakarta.persistence.TypedQuery<Book> jpaQuery = Search.toJpaQuery( query ); // <3>
 			org.hibernate.query.Query<Book> ormQuery = Search.toOrmQuery( query ); // <4>
 			// end::searchQuery-toORM[]
 			List<Book> hits = jpaQuery.getResultList();

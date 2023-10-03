@@ -7,15 +7,15 @@
 package org.hibernate.search.mapper.pojo.identity.impl;
 
 import java.util.Map;
-import java.util.Set;
 
 import org.hibernate.search.engine.backend.types.ObjectStructure;
+import org.hibernate.search.engine.common.tree.TreeFilterDefinition;
 import org.hibernate.search.mapper.pojo.bridge.binding.spi.FieldModelContributor;
 import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.ValueBinder;
 import org.hibernate.search.mapper.pojo.mapping.building.impl.PojoMappingHelper;
 import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoIndexMappingCollectorValueNode;
 import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPathValueNode;
-import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
+import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeIdentifier;
 
 class IdentityMappingCollectorValueNode extends AbstractIdentityMappingCollectorNode
 		implements PojoIndexMappingCollectorValueNode {
@@ -39,9 +39,9 @@ class IdentityMappingCollectorValueNode extends AbstractIdentityMappingCollector
 	}
 
 	@Override
-	public void indexedEmbedded(PojoRawTypeModel<?> definingTypeModel, String relativePrefix,
+	public void indexedEmbedded(PojoRawTypeIdentifier<?> definingType, String relativePrefix,
 			ObjectStructure structure,
-			Integer includeDepth, Set<String> includePaths, boolean includeEmbeddedObjectId,
+			TreeFilterDefinition filterDefinition, boolean includeEmbeddedObjectId,
 			Class<?> targetType) {
 		// No-op, we're just collecting the identity mapping.
 	}

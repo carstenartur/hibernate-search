@@ -6,15 +6,16 @@
  */
 package org.hibernate.search.test.query.timeout;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.persistence.QueryTimeoutException;
 
-import org.apache.lucene.search.Query;
-
-import org.junit.Before;
-import org.junit.Test;
+import jakarta.persistence.QueryTimeoutException;
 
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.FullTextQuery;
@@ -24,10 +25,10 @@ import org.hibernate.search.query.dsl.QueryBuilder;
 import org.hibernate.search.test.jpa.JPATestCase;
 import org.hibernate.search.util.impl.integrationtest.backend.lucene.query.SlowQuery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
+import org.junit.Before;
+import org.junit.Test;
+
+import org.apache.lucene.search.Query;
 
 /**
  * @author Emmanuel Bernard
@@ -57,7 +58,7 @@ public class JPATimeoutTest extends JPATestCase {
 		em.getTransaction().begin();
 		FullTextQuery hibernateQuery = em.createFullTextQuery( slowQuery, Clock.class );
 
-		hibernateQuery.setHint( "javax.persistence.query.timeout", 1 );
+		hibernateQuery.setHint( "jakarta.persistence.query.timeout", 1 );
 		try {
 			hibernateQuery.getResultList();
 			fail( "timeout exception should happen" );
@@ -105,14 +106,14 @@ public class JPATimeoutTest extends JPATestCase {
 
 		//We cannot test intermediate limit, Lucene / hibernate: too unpredictable
 
-//		hibernateQuery = fts.createFullTextQuery( slowQuery, Clock.class );
-//		hibernateQuery.limitFetchingTime( 1000, TimeUnit.NANOSECONDS );
-//		results = hibernateQuery.list();
-//		System.out.println("Result size partial: " + results.size() );
-//		assertTrue("Regular failure when some elements are fetched", 0 < results.size() && results.size() < 500 );
-//		assertTrue( hibernateQuery.hasPartialResults() );
-//
-//		fts.clear();
+		//		hibernateQuery = fts.createFullTextQuery( slowQuery, Clock.class );
+		//		hibernateQuery.limitFetchingTime( 1000, TimeUnit.NANOSECONDS );
+		//		results = hibernateQuery.list();
+		//		System.out.println("Result size partial: " + results.size() );
+		//		assertTrue("Regular failure when some elements are fetched", 0 < results.size() && results.size() < 500 );
+		//		assertTrue( hibernateQuery.hasPartialResults() );
+		//
+		//		fts.clear();
 
 		hibernateQuery = em.createFullTextQuery( slowQuery, Clock.class );
 		hibernateQuery.limitExecutionTimeTo( 30, TimeUnit.SECONDS );

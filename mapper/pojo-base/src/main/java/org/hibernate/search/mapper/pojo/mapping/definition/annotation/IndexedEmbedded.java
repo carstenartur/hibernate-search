@@ -19,6 +19,7 @@ import org.hibernate.search.mapper.pojo.extractor.mapping.annotation.ContainerEx
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing.PropertyMapping;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing.PropertyMappingAnnotationProcessorRef;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing.impl.IndexedEmbeddedProcessor;
+import org.hibernate.search.util.common.annotation.Incubating;
 import org.hibernate.search.util.common.annotation.Search5DeprecatedAPI;
 
 /**
@@ -99,7 +100,8 @@ import org.hibernate.search.util.common.annotation.Search5DeprecatedAPI;
 @Repeatable(IndexedEmbedded.List.class)
 @Target({ ElementType.METHOD, ElementType.FIELD })
 @Retention(RetentionPolicy.RUNTIME)
-@PropertyMapping(processor = @PropertyMappingAnnotationProcessorRef(type = IndexedEmbeddedProcessor.class, retrieval = BeanRetrieval.CONSTRUCTOR))
+@PropertyMapping(processor = @PropertyMappingAnnotationProcessorRef(type = IndexedEmbeddedProcessor.class,
+		retrieval = BeanRetrieval.CONSTRUCTOR))
 public @interface IndexedEmbedded {
 
 	/**
@@ -126,34 +128,65 @@ public @interface IndexedEmbedded {
 	 * <p>
 	 * This takes precedence over {@link #includeDepth()}.
 	 * <p>
-	 * By default, if neither {@code includePaths} nor {@link #includeDepth()} is defined,
+	 * By default, if none of {@code includePaths}, {@code excludePaths} or {@link #includeDepth()} are defined,
 	 * all index fields are included.
+	 * <p>
+	 * Cannot be used when {@link #excludePaths()} contains any paths.
 	 *
 	 * @return The paths of index fields to include explicitly.
 	 * Provided paths must be relative to the indexed-embedded element,
 	 * i.e. they must not include the {@link #name()}.
+	 * Paths <b>must</b> lead to a field and <b>cannot</b> end with some {@link #prefix() prefix used to construct a field name}.
 	 */
-	String[] includePaths() default {};
+	String[] includePaths() default { };
+
+
+	/**
+	 * The paths of index fields from the indexed-embedded element that should not be embedded.
+	 * <p>
+	 * This takes precedence over {@link #includeDepth()}.
+	 * <p>
+	 * By default, if none of {@code includePaths}, {@code excludePaths} or {@link #includeDepth()} are defined,
+	 * all index fields are included.
+	 * <p>
+	 * Cannot be used when {@link #includePaths()} contains any paths.
+	 *
+	 * @return The paths of index fields to exclude explicitly.
+	 * Provided paths must be relative to the indexed-embedded element,
+	 * i.e. they must not include the {@link #name()}.
+	 * Paths <b>must</b> lead to a field and <b>cannot</b> end with some {@link #prefix() prefix used to construct a field name}.
+	 */
+	@Incubating
+	String[] excludePaths() default { };
 
 	/**
 	 * The number of levels of indexed-embedded that will have all their fields included by default.
 	 * <p>
 	 * {@code includeDepth} is the number of `@IndexedEmbedded` that will be traversed
 	 * and for which all fields of the indexed-embedded element will be included,
-	 * even if these fields are not included explicitly through {@code includePaths}:
+	 * even if these fields are not included explicitly through {@code includePaths},
+	 * unless these fields are excluded explicitly through {@code excludePaths}:
 	 * <ul>
-	 * <li>{@code includeDepth=0} means fields of the indexed-embedded element are <strong>not</strong> included,
+	 * <li>{@code includeDepth=0} means fields of this indexed-embedded element are <strong>not</strong> included,
 	 * nor is any field of nested indexed-embedded elements,
 	 * unless these fields are included explicitly through {@link #includePaths()}.
-	 * <li>{@code includeDepth=1} means fields of the indexed-embedded element <strong>are</strong> included,
-	 * but <strong>not</strong> fields of nested indexed-embedded elements,
+	 * <li>{@code includeDepth=1} means fields of this indexed-embedded element <strong>are</strong> included,
+	 * unless these fields are explicitly excluded through {@code excludePaths},
+	 * but <strong>not</strong> fields of nested indexed-embedded elements ({@code @IndexedEmbedded} within this {@code @IndexedEmbedded}),
+	 * unless these fields are included explicitly through {@link #includePaths()}.
+	 * <li>{@code includeDepth=2} means fields of this indexed-embedded element <strong>are</strong> included,
+	 * and so are fields of the immediately nested indexed-embedded elements ({@code @IndexedEmbedded} within this {@code @IndexedEmbedded}),
+	 * unless these fields are explicitly excluded through {@code excludePaths},
+	 * but <strong>not</strong> fields of nested indexed-embedded elements beyond that
+	 * ({@code @IndexedEmbedded} within an {@code @IndexedEmbedded} within this {@code @IndexedEmbedded}),
 	 * unless these fields are included explicitly through {@link #includePaths()}.
 	 * <li>And so on.
 	 * </ul>
-	 * The default value depends on the value of the {@link #includePaths()} attribute:
-	 * if {@link #includePaths()} is empty, the default is {@code Integer.MAX_VALUE} (include all fields at every level)
-	 * if {@link #includePaths()} is <strong>not</strong> empty, the default is {@code 0}
-	 * (only include fields included explicitly).
+	 * The default value depends on the value of {@link #includePaths()} attributes:
+	 * <ul>
+	 * <li>if {@link #includePaths()} is empty, the default is {@code Integer.MAX_VALUE} (include all fields at every level)</li>
+	 * <li>if {@link #includePaths()} is <strong>not</strong> empty, the default is {@code 0} (only include fields included explicitly).</li>
+	 * </ul>
 	 *
 	 * @return The number of levels of indexed-embedded that will have all their fields included by default.
 	 */
@@ -162,12 +195,12 @@ public @interface IndexedEmbedded {
 	/**
 	 * Whether the identifier of embedded objects should be included as an index field.
 	 * <p>
-	 * The index field will defined as if the following annotation was put on the identifier property
+	 * The index field will be defined as if the following annotation was put on the identifier property
 	 * of the embedded type:
 	 * {@code @GenericField(searchable = Searchable.YES, projectable = Projectable.YES)}.
 	 * The name of the index field will be the name of the identifier property.
-	 * Its bridge will be the identifier bridge applied to the identifier property using {@link DocumentId} if any,
-	 * or the default value bridge for the property type by default.
+	 * Its bridge will be the identifier bridge referenced by the embedded type's {@link DocumentId} annotation, if any,
+	 * or the default value bridge for the identifier property's type, by default.
 	 * <p>
 	 * If you need more advanced mapping (custom name, custom bridge, sortable, ...),
 	 * define the field explicitly in the embedded type by annotating the identifier property

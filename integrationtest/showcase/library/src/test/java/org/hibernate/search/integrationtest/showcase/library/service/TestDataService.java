@@ -8,8 +8,8 @@ package org.hibernate.search.integrationtest.showcase.library.service;
 
 import java.util.Locale;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Query;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 
 import org.hibernate.search.integrationtest.showcase.library.model.Book;
 import org.hibernate.search.integrationtest.showcase.library.model.BookMedium;
@@ -116,7 +116,7 @@ public class TestDataService {
 
 		Book thesaurusOfLanguages = documentService.createBook(
 				THESAURUS_OF_LANGUAGES_ID,
-				"978-0-00-000006-6" ,
+				"978-0-00-000006-6",
 				"Thesaurus of Indo-European Languages",
 				"Dorothy White",
 				"An entertaining list of about three thousand languages, most of which are long dead",

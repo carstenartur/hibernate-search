@@ -10,7 +10,8 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 
 import java.util.List;
 import java.util.Optional;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
@@ -44,7 +45,7 @@ public class ElasticsearchHibernateOrmSchemaManagerIT {
 						HibernateOrmMapperSettings.SCHEMA_MANAGEMENT_STRATEGY,
 						SchemaManagementStrategyName.NONE
 				)
-				.withProperty( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_ENABLED, false )
+				.withProperty( HibernateOrmMapperSettings.INDEXING_LISTENERS_ENABLED, false )
 				.setup( Book.class, Author.class );
 	}
 
@@ -64,7 +65,7 @@ public class ElasticsearchHibernateOrmSchemaManagerIT {
 									.bodyParts(); // <2>
 						}
 					}
-					// end::walking-the-schema-extension[]
+			// end::walking-the-schema-extension[]
 			);
 		} );
 	}

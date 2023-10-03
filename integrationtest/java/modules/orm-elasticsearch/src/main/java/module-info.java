@@ -11,16 +11,10 @@ module org.hibernate.search.integrationtest.java.module.orm.elasticsearch {
 	opens org.hibernate.search.integrationtest.java.modules.orm.elasticsearch.config to
 			org.hibernate.search.engine; // For reflective instantiation of the analysis configurer
 
-	requires java.persistence;
+	requires jakarta.persistence;
 	requires org.hibernate.orm.core;
 	requires org.hibernate.search.mapper.orm;
 	requires org.hibernate.search.backend.elasticsearch;
-
-	// This should be re-exported transitively by org.hibernate.search.mapper.orm
-	// but currently isn't, because org.hibernate.search.mapper.orm
-	// is still an automatic module
-	requires org.hibernate.search.engine;
-	requires org.hibernate.search.mapper.pojo;
 
 	/*
 	 * This is necessary in order to use SessionFactory,

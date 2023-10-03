@@ -9,9 +9,10 @@ package org.hibernate.search.integrationtest.mapper.orm.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.regex.Pattern;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 
 import org.hibernate.search.engine.Version;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
@@ -139,8 +140,7 @@ public class BootstrapLogsIT {
 				return item.getLevel().isMoreSpecificThan( level )
 						// Ignore these, they are warning but are expected (just related to the testing infrastructure)
 						&& !( CONNECTION_POOL_WARNING_PATTERN.matcher( item.getMessage().getFormattedMessage() ).find()
-						|| HBM2DDL_WARNING_PATTERN.matcher( item.getMessage().getFormattedMessage() ).find()
-				);
+								|| HBM2DDL_WARNING_PATTERN.matcher( item.getMessage().getFormattedMessage() ).find() );
 			}
 		};
 	}

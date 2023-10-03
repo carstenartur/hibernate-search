@@ -10,8 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.List;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -33,6 +34,7 @@ public class FilteredAssociationIT {
 		return DocumentationSetupHelper.testParamsForBothAnnotationsAndProgrammatic(
 				BackendConfigurations.simple(),
 				mapping -> {
+				// @formatter:off
 					//tag::programmatic[]
 					TypeMappingStep bookMapping = mapping.type( Book.class );
 					bookMapping.indexed();
@@ -47,6 +49,7 @@ public class FilteredAssociationIT {
 					bookEditionMapping.property( "label" )
 							.fullTextField().analyzer( "english" );
 					//end::programmatic[]
+					// @formatter:on
 				} );
 	}
 

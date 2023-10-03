@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-parent-public</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
+        <version>7.0.0-SNAPSHOT</version>
         <relativePath>../build/parents/public</relativePath>
     </parent>
     <artifactId>hibernate-search-engine</artifactId>
@@ -13,6 +13,8 @@
     <description>Hibernate Search engine, always required</description>
 
     <properties>
+        <!-- This is a publicly distributed module that should be published: -->
+        <deploy.skip>false</deploy.skip>
         <java.module.name>org.hibernate.search.engine</java.module.name>
     </properties>
 
@@ -42,14 +44,6 @@
             <plugin>
                 <groupId>org.jboss.maven.plugins</groupId>
                 <artifactId>maven-injection-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>bytecode</goal>
-                        </goals>
-                    </execution>
-                </executions>
                 <configuration>
                     <bytecodeInjections>
                         <bytecodeInjection>

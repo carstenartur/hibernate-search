@@ -13,21 +13,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.OneToOne;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.AssociationInverseSide;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexingDependency;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.ObjectPath;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.PropertyValue;
-import org.hibernate.search.mapper.pojo.mapping.definition.annotation.AssociationInverseSide;
 
 @Entity
 @Indexed
@@ -102,10 +102,12 @@ public class ProductModel {
 
 	@Field
 	@IndexingDependency(derivedFrom = {
-			@ObjectPath({@PropertyValue(propertyName = "mainReferenceCode"),
-					@PropertyValue(propertyName = "rawValue")}),
-			@ObjectPath({@PropertyValue(propertyName = "additionalReferenceCodes"),
-					@PropertyValue(propertyName = "rawValue")})
+			@ObjectPath({
+					@PropertyValue(propertyName = "mainReferenceCode"),
+					@PropertyValue(propertyName = "rawValue") }),
+			@ObjectPath({
+					@PropertyValue(propertyName = "additionalReferenceCodes"),
+					@PropertyValue(propertyName = "rawValue") })
 	})
 	public Collection<String> getProductReferenceCodeCollection() {
 		Collection<String> productReferenceCodeCollection = new ArrayList<String>();

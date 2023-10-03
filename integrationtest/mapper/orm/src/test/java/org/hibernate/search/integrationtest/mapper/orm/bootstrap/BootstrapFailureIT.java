@@ -8,9 +8,9 @@ package org.hibernate.search.integrationtest.mapper.orm.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
@@ -38,7 +38,7 @@ public class BootstrapFailureIT {
 	@Test
 	public void propagateException() {
 		assertThatThrownBy( () -> ormSetupHelper.start()
-						.setup( FailingIndexedEntity.class, ContainedEntity.class )
+				.setup( FailingIndexedEntity.class, ContainedEntity.class )
 		)
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll(

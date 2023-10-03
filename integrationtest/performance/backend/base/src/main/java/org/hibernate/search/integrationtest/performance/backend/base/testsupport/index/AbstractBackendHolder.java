@@ -23,6 +23,7 @@ import org.hibernate.search.engine.common.spi.SearchIntegrationPartialBuildState
 import org.hibernate.search.engine.tenancy.spi.TenancyMode;
 import org.hibernate.search.integrationtest.performance.backend.base.testsupport.filesystem.TemporaryFileHolder;
 import org.hibernate.search.util.common.impl.SuppressingCloser;
+import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingBackendFeatures;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingImpl;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingInitiator;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingKey;
@@ -68,7 +69,8 @@ public abstract class AbstractBackendHolder {
 		SearchIntegration.Builder integrationBuilder =
 				SearchIntegration.builder( environment );
 
-		StubMappingInitiator initiator = new StubMappingInitiator( TenancyMode.SINGLE_TENANCY );
+		StubMappingInitiator initiator = new StubMappingInitiator( new StubMappingBackendFeatures() {},
+				TenancyMode.SINGLE_TENANCY );
 		StubMappingKey mappingKey = new StubMappingKey();
 		integrationBuilder.addMappingInitiator( mappingKey, initiator );
 
@@ -85,9 +87,8 @@ public abstract class AbstractBackendHolder {
 					integrationPartialBuildState.finalizer( propertySource, unusedPropertyChecker );
 			mapping = finalizer.finalizeMapping(
 					mappingKey,
-					(context, partialMapping) ->
-							partialMapping.finalizeMapping(
-									StubMappingSchemaManagementStrategy.DROP_AND_CREATE_AND_DROP )
+					(context, partialMapping) -> partialMapping.finalizeMapping(
+							StubMappingSchemaManagementStrategy.DROP_AND_CREATE_AND_DROP )
 			);
 			finalizer.finalizeIntegration();
 		}

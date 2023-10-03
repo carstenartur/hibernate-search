@@ -76,23 +76,38 @@ public interface SearchProjectionFactory<R, E> {
 	 * Project to the identifier of the referenced entity,
 	 * i.e. the value of the property marked as {@code @DocumentId}.
 	 *
-	 * @param <I> The expected type of the identifier
-	 * @param identifierType The expected type of the identifier
+	 * @param <I> The requested type for returned identifiers.
+	 * @param requestedIdentifierType The requested type for returned identifiers.
+	 * Must be exactly the type of identifiers of the entity types targeted by the search, or a supertype.
 	 * @return A DSL step where the "id" projection can be defined in more details.
 	 * @throws SearchException if the identifier type doesn't match
 	 */
-	<I> IdProjectionOptionsStep<?, I> id(Class<I> identifierType);
+	<I> IdProjectionOptionsStep<?, I> id(Class<I> requestedIdentifierType);
 
 	/**
-	 * Project to the entity was originally indexed.
+	 * Project to the entity that was originally indexed.
 	 * <p>
 	 * The actual type of the entity depends on the mapper used to create the query
 	 * and on the indexes targeted by your query:
-	 * the ORM mapper will return a managed entity loaded from the database, for example.
+	 * the Hibernate ORM mapper will return a managed entity loaded from the database, for example.
 	 *
 	 * @return A DSL step where the "entity" projection can be defined in more details.
 	 */
 	EntityProjectionOptionsStep<?, E> entity();
+
+	/**
+	 * Project to the entity that was originally indexed.
+	 * <p>
+	 * The expected type will be checked against the actual type of the entity,
+	 * which depends on the mapper used to create the query
+	 * and on the indexes targeted by your query:
+	 * the Hibernate ORM mapper will return a managed entity loaded from the database, for example.
+	 *
+	 * @param requestedEntityType The requested type for returned entities.
+	 * Must be exactly the type of entities targeted by the search, or a supertype.
+	 * @return A DSL step where the "entity" projection can be defined in more details.
+	 */
+	<T> EntityProjectionOptionsStep<?, T> entity(Class<T> requestedEntityType);
 
 	/**
 	 * Project to the value of a field in the indexed document.
@@ -169,7 +184,7 @@ public interface SearchProjectionFactory<R, E> {
 	 * <p>
 	 * Compared to the basic {@link #composite() composite projection},
 	 * an object projection is bound to a specific object field,
-	 * and thus it yield zero, one or many values, as many as there are objects in the targeted object field.
+	 * and thus it yields zero, one or many values, as many as there are objects in the targeted object field.
 	 * Therefore, you must take care of calling {@link CompositeProjectionValueStep#multi()}
 	 * if the object field is multi-valued.
 	 *
@@ -223,7 +238,8 @@ public interface SearchProjectionFactory<R, E> {
 	 * @deprecated Use {@code .composite().from( projections ).asList( transformer )} instead.
 	 */
 	@Deprecated
-	default <T> CompositeProjectionOptionsStep<?, T> composite(Function<List<?>, T> transformer, SearchProjection<?>... projections) {
+	default <T> CompositeProjectionOptionsStep<?, T> composite(Function<List<?>, T> transformer,
+			SearchProjection<?>... projections) {
 		return composite().from( projections ).asList( transformer );
 	}
 
@@ -269,7 +285,8 @@ public interface SearchProjectionFactory<R, E> {
 	 * @deprecated Use {@code .composite().from( dslFinalStep ).as( transformer )} instead.
 	 */
 	@Deprecated
-	default <P, T> CompositeProjectionOptionsStep<?, T> composite(Function<P, T> transformer, ProjectionFinalStep<P> dslFinalStep) {
+	default <P, T> CompositeProjectionOptionsStep<?, T> composite(Function<P, T> transformer,
+			ProjectionFinalStep<P> dslFinalStep) {
 		return composite().from( dslFinalStep ).as( transformer );
 	}
 

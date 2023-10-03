@@ -6,9 +6,9 @@
  */
 package org.hibernate.search.test.spatial;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.annotations.Latitude;
@@ -18,7 +18,7 @@ import org.hibernate.search.annotations.Spatial;
 @Spatial(name = "home")
 @Entity
 @Indexed
-@Table(name = "people")// User is a reserved name in most databases
+@Table(name = "people") // User is a reserved name in most databases
 public class User {
 
 	@Id

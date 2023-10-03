@@ -12,7 +12,8 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -342,9 +343,9 @@ public class SortDslIT {
 
 	private MySearchParameters getSearchParameters() {
 		return () -> Arrays.asList(
-			new MySort( MySortType.GENRE, SortOrder.ASC ),
-			new MySort( MySortType.TITLE, SortOrder.DESC ),
-			new MySort( MySortType.PAGE_COUNT, SortOrder.DESC )
+				new MySort( MySortType.GENRE, SortOrder.ASC ),
+				new MySort( MySortType.TITLE, SortOrder.DESC ),
+				new MySort( MySortType.PAGE_COUNT, SortOrder.DESC )
 		);
 	}
 

@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import org.hibernate.search.engine.cfg.EngineSettings;
 import org.hibernate.search.util.common.impl.Closer;
 import org.hibernate.search.util.impl.integrationtest.common.TestConfigurationProvider;
+import org.hibernate.search.util.impl.integrationtest.common.assertion.MappingAssertionHelper;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.BackendMappingHandle;
 
 import org.junit.rules.RuleChain;
@@ -26,7 +27,8 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
-public abstract class MappingSetupHelper<C extends MappingSetupHelper<C, B, BC, R>.AbstractSetupContext, B, BC, R> implements TestRule {
+public abstract class MappingSetupHelper<C extends MappingSetupHelper<C, B, BC, R>.AbstractSetupContext, B, BC, R>
+		implements TestRule {
 
 	private final TestConfigurationProvider configurationProvider;
 	private final BackendSetupStrategy backendSetupStrategy;
@@ -47,6 +49,8 @@ public abstract class MappingSetupHelper<C extends MappingSetupHelper<C, B, BC, 
 	public String toString() {
 		return backendSetupStrategy.toString();
 	}
+
+	public abstract MappingAssertionHelper<? super R> assertions();
 
 	public C start() {
 		C setupContext = createSetupContext();
@@ -154,7 +158,7 @@ public abstract class MappingSetupHelper<C extends MappingSetupHelper<C, B, BC, 
 		 * @return The setup context, for method chaining.
 		 */
 		public final C withConfiguration(Consumer<BC> beforeBuild) {
-			return withConfiguration( beforeBuild, ignored -> { } );
+			return withConfiguration( beforeBuild, ignored -> {} );
 		}
 
 		/**

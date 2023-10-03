@@ -8,21 +8,21 @@ package org.hibernate.search.test.embedded.update;
 
 import java.util.HashSet;
 import java.util.Set;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Transient;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Transient;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Store;
 import org.hibernate.search.mapper.pojo.automaticindexing.ReindexOnUpdate;
-import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexingDependency;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.AssociationInverseSide;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexingDependency;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.ObjectPath;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.PropertyValue;
-
 
 @Entity
 public class Dad {
@@ -69,7 +69,8 @@ public class Dad {
 	@Field(store = Store.YES)
 	@Transient
 	@IndexingDependency(derivedFrom = @ObjectPath({
-			@PropertyValue(propertyName = "grandpa"), @PropertyValue(propertyName = "id")
+			@PropertyValue(propertyName = "grandpa"),
+			@PropertyValue(propertyName = "id")
 	}))
 	public Long getGrandpaId() {
 		return grandpa != null ? grandpa.getId() : null;
@@ -90,5 +91,4 @@ public class Dad {
 		return sons.add( son );
 	}
 }
-
 

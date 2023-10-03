@@ -17,10 +17,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 
 import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
@@ -30,10 +31,10 @@ import org.hibernate.search.engine.search.projection.SearchProjection;
 import org.hibernate.search.engine.search.query.SearchQuery;
 import org.hibernate.search.engine.search.sort.SearchSort;
 import org.hibernate.search.mapper.orm.Search;
-import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReference;
 import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.scope.SearchScope;
 import org.hibernate.search.mapper.orm.session.SearchSession;
+import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReference;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
@@ -166,7 +167,7 @@ public class SearchQueryBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( Book.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							3L,
 							reference( Book.NAME, "1" ),
@@ -197,8 +198,7 @@ public class SearchQueryBaseIT {
 			for ( int i = 0; i < 3; i++ ) {
 				backendMock.expectSearchObjects(
 						Arrays.asList( Book.NAME ),
-						b -> {
-						},
+						b -> {},
 						StubSearchWorkBehavior.of(
 								3L,
 								reference( Book.NAME, "1" ),
@@ -227,7 +227,7 @@ public class SearchQueryBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( Book.NAME, Author.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							2L,
 							reference( Book.NAME, "1" ),
@@ -325,7 +325,7 @@ public class SearchQueryBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( Book.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							3L,
 							reference( Book.NAME, "1" ),
@@ -348,14 +348,14 @@ public class SearchQueryBaseIT {
 			SearchSession searchSession = Search.session( session );
 
 			SearchQuery<Object> query = searchSession.search( searchSession.scope(
-							Object.class, Arrays.asList( Book.NAME, Author.NAME )
-					) )
+					Object.class, Arrays.asList( Book.NAME, Author.NAME )
+			) )
 					.where( f -> f.matchAll() )
 					.toQuery();
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( Book.NAME, Author.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							2L,
 							reference( Book.NAME, "1" ),
@@ -426,7 +426,7 @@ public class SearchQueryBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( Book.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							3L,
 							reference( Book.NAME, "1" ),
@@ -499,21 +499,21 @@ public class SearchQueryBaseIT {
 							3L,
 							Arrays.asList(
 									TITLE_4_3_2_1,
-									reference( Book.NAME, "1" ),
+									"1",
 									reference( Book.NAME, "1" ),
 									reference( Book.NAME, "1" ),
 									AUTHOR_4_3_2_1
 							),
 							Arrays.asList(
 									TITLE_CIDER_HOUSE,
-									reference( Book.NAME, "2" ),
+									"2",
 									reference( Book.NAME, "2" ),
 									reference( Book.NAME, "2" ),
 									AUTHOR_CIDER_HOUSE
 							),
 							Arrays.asList(
 									TITLE_AVENUE_OF_MYSTERIES,
-									reference( Book.NAME, "3" ),
+									"3",
 									reference( Book.NAME, "3" ),
 									reference( Book.NAME, "3" ),
 									AUTHOR_AVENUE_OF_MYSTERIES
@@ -627,7 +627,8 @@ public class SearchQueryBaseIT {
 			assertThat( query.fetchAllHits() ).containsExactlyInAnyOrder(
 					new Book_Author_Score( new Book_Author( session.getReference( Book.class, 1 ), AUTHOR_4_3_2_1 ), 4.0F ),
 					new Book_Author_Score( new Book_Author( session.getReference( Book.class, 2 ), AUTHOR_CIDER_HOUSE ), 5.0F ),
-					new Book_Author_Score( new Book_Author( session.getReference( Book.class, 3 ), AUTHOR_AVENUE_OF_MYSTERIES ), 6.0F )
+					new Book_Author_Score( new Book_Author( session.getReference( Book.class, 3 ), AUTHOR_AVENUE_OF_MYSTERIES ),
+							6.0F )
 			);
 		} );
 	}
@@ -745,8 +746,10 @@ public class SearchQueryBaseIT {
 			);
 
 			assertThat( query.fetchAllHits() ).containsExactly(
-					org.hibernate.search.mapper.orm.common.impl.HibernateOrmEntityReference.withName( Book.class, Book.NAME, 1 ),
-					org.hibernate.search.mapper.orm.common.impl.HibernateOrmEntityReference.withName( Book.class, Book.NAME, 2 ),
+					org.hibernate.search.mapper.orm.common.impl.HibernateOrmEntityReference.withName( Book.class, Book.NAME,
+							1 ),
+					org.hibernate.search.mapper.orm.common.impl.HibernateOrmEntityReference.withName( Book.class, Book.NAME,
+							2 ),
 					org.hibernate.search.mapper.orm.common.impl.HibernateOrmEntityReference.withName( Book.class, Book.NAME, 3 )
 			);
 		} );
@@ -864,7 +867,7 @@ public class SearchQueryBaseIT {
 
 		@Override
 		public boolean equals(Object obj) {
-			if ( !(obj instanceof Book_Author) ) {
+			if ( !( obj instanceof Book_Author ) ) {
 				return false;
 			}
 			Book_Author other = (Book_Author) obj;
@@ -896,7 +899,7 @@ public class SearchQueryBaseIT {
 
 		@Override
 		public boolean equals(Object obj) {
-			if ( !(obj instanceof Book_Author_Score) ) {
+			if ( !( obj instanceof Book_Author_Score ) ) {
 				return false;
 			}
 			Book_Author_Score other = (Book_Author_Score) obj;

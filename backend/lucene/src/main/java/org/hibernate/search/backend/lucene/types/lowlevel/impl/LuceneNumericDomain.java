@@ -41,17 +41,19 @@ public interface LuceneNumericDomain<E extends Number> {
 	E sortedDocValueToTerm(long longValue);
 
 	Facets createTermsFacetCounts(String absoluteFieldPath, FacetsCollector facetsCollector,
-			NestedDocsProvider nestedDocsProvider) throws IOException;
+			NestedDocsProvider nestedDocsProvider)
+			throws IOException;
 
 	Facets createRangeFacetCounts(String absoluteFieldPath,
 			FacetsCollector facetsCollector, Collection<? extends Range<? extends E>> ranges,
-			NestedDocsProvider nestedDocsProvider) throws IOException;
+			NestedDocsProvider nestedDocsProvider)
+			throws IOException;
 
 	IndexableField createIndexField(String absoluteFieldPath, E numericValue);
 
 	IndexableField createSortedDocValuesField(String absoluteFieldPath, E numericValue);
 
 	FieldComparator<E> createFieldComparator(String absoluteFieldPath, int numHits,
-			E missingValue, boolean reversed, int sortPos, MultiValueMode multiValueMode,
+			E missingValue, boolean reversed, boolean enableSkipping, MultiValueMode multiValueMode,
 			NestedDocsProvider nestedDocsProvider);
 }

@@ -13,12 +13,12 @@ import static org.hibernate.search.util.impl.test.JsonHelper.assertJsonEqualsIgn
 
 import java.util.EnumSet;
 
-import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurer;
 import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurationContext;
+import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurer;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
+import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.impl.Futures;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
-import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingSchemaManagementStrategy;
 import org.hibernate.search.util.impl.test.annotation.PortedFromSearch5;
@@ -48,9 +48,8 @@ public class ElasticsearchIndexSchemaManagerCreationOrPreservationIT {
 	@Rule
 	public TestElasticsearchClient elasticSearchClient = new TestElasticsearchClient();
 
-	private final StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-		root.field( "field", f -> f.asString() )
-				.toReference()
+	private final StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "field", f -> f.asString() )
+			.toReference()
 	);
 
 	private final ElasticsearchIndexSchemaManagerOperation operation;
@@ -66,22 +65,22 @@ public class ElasticsearchIndexSchemaManagerCreationOrPreservationIT {
 		elasticSearchClient.index( index.name() ).type().putMapping(
 				simpleMappingForInitialization(
 						"'field': {"
-								+ "'type': 'keyword'"
-						+ "},"
-						+ "'NOTmyField': {" // Ignored during validation
-								+ "'type': 'date'"
-						+ "}"
+								+ "  'type': 'keyword'"
+								+ "},"
+								+ "'NOTmyField': {" // Ignored during validation
+								+ "  'type': 'date'"
+								+ "}"
 				)
 		);
 
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'field': {"
-								+ "'type': 'keyword'"
-						+ "},"
-						+ "'NOTmyField': {" // Ignored during validation
-								+ "'type': 'date'"
-						+ "}"
+								+ "  'type': 'keyword'"
+								+ "},"
+								+ "'NOTmyField': {" // Ignored during validation
+								+ "  'type': 'date'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -92,11 +91,11 @@ public class ElasticsearchIndexSchemaManagerCreationOrPreservationIT {
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'field': {"
-								+ "'type': 'keyword'"
-						+ "},"
-						+ "'NOTmyField': {" // Ignored during validation
-								+ "'type': 'date'"
-						+ "}"
+								+ "  'type': 'keyword'"
+								+ "},"
+								+ "'NOTmyField': {" // Ignored during validation
+								+ "  'type': 'date'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -106,7 +105,7 @@ public class ElasticsearchIndexSchemaManagerCreationOrPreservationIT {
 	@TestForIssue(jiraKey = "HSEARCH-2789")
 	public void doesNotExist() throws Exception {
 		elasticSearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndexIfMissingOnly();
 

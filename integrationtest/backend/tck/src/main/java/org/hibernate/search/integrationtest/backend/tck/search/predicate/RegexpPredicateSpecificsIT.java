@@ -40,15 +40,14 @@ public class RegexpPredicateSpecificsIT {
 	private static final String EMPTY = "empty";
 
 	// taken from the current project documentation:
-	private static final String TEXT_1 = "Hibernate Search will transparently index every entity persisted, updated or removed through Hibernate ORM";
+	private static final String TEXT_1 =
+			"Hibernate Search will transparently index every entity persisted, updated or removed through Hibernate ORM";
 	private static final String TEXT_2 = "The above paragraphs gave you an overview of Hibernate Search";
-	private static final String TEXT_3 = "Applications targeted by Hibernate search generally use an entity-based model to represent data.";
-	private static final String TEXT_4 = "     Hibernate        Search   will transparently index every entity persisted, updated or removed through Hibernate ORM";
+	private static final String TEXT_3 =
+			"Applications targeted by Hibernate search generally use an entity-based model to represent data.";
+	private static final String TEXT_4 =
+			"     Hibernate        Search   will transparently index every entity persisted, updated or removed through Hibernate ORM";
 	private static final String TEXT_5 = "7.39";
-
-	private static final String TEXT_COMPLEMENT = "a~bc";
-	private static final String TEXT_COMPLEMENT_MATCHING = "adc";
-	private static final String TEXT_COMPLEMENT_NOT_MATCHING = "abc";
 
 	private static final String TEXT_INTERVAL = "foo<1-100>";
 	private static final String TEXT_INTERVAL_MATCHING = "foo99";
@@ -86,11 +85,14 @@ public class RegexpPredicateSpecificsIT {
 				.where( f -> f.regexp().field( absoluteFieldPath ).matching( queryString ) );
 
 		assertThatQuery( createQuery.apply( "Hibernate.*" ) ).hasNoHits();
-		assertThatQuery( createQuery.apply( "hibernate.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2, DOCUMENT_3, DOCUMENT_4 );
+		assertThatQuery( createQuery.apply( "hibernate.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2,
+				DOCUMENT_3, DOCUMENT_4 );
 		assertThatQuery( createQuery.apply( "Hibernate Search.*" ) ).hasNoHits();
 		assertThatQuery( createQuery.apply( "hibernate search.*" ) ).hasNoHits();
-		assertThatQuery( createQuery.apply( "search.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2, DOCUMENT_3, DOCUMENT_4 );
-		assertThatQuery( createQuery.apply( ".*search" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2, DOCUMENT_3, DOCUMENT_4 );
+		assertThatQuery( createQuery.apply( "search.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2,
+				DOCUMENT_3, DOCUMENT_4 );
+		assertThatQuery( createQuery.apply( ".*search" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2,
+				DOCUMENT_3, DOCUMENT_4 );
 	}
 
 	@Test
@@ -138,7 +140,8 @@ public class RegexpPredicateSpecificsIT {
 				.where( f -> f.regexp().field( absoluteFieldPath ).matching( queryString ) );
 
 		assertThatQuery( createQuery.apply( "(\\ )+Hibernate.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_4 );
-		assertThatQuery( createQuery.apply( "(\\ )*Hibernate.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_4 );
+		assertThatQuery( createQuery.apply( "(\\ )*Hibernate.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1,
+				DOCUMENT_4 );
 		assertThatQuery( createQuery.apply( "(\\ )?Hibernate.*" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1 );
 
 		assertThatQuery( createQuery.apply( "[739]+\\.[739]+" ) ).hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_5 );
@@ -153,49 +156,6 @@ public class RegexpPredicateSpecificsIT {
 		assertThatQuery( index.query()
 				.where( f -> f.regexp().field( absoluteFieldPath ).matching( "" ) ) )
 				.hasNoHits();
-	}
-
-	@Test
-	public void flag_complement() {
-		StubMappingScope scope = index.createScope();
-		String absoluteFieldPath = index.binding().complementField.relativeFieldName;
-
-		// test the default
-		assertThatQuery( scope.query()
-				.where( f -> f.regexp().field( absoluteFieldPath )
-						.matching( TEXT_COMPLEMENT ) ) )
-				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1 );
-
-		// no flag at all (same as default)
-		assertThatQuery( scope.query()
-				.where( f -> f.regexp().field( absoluteFieldPath )
-						.matching( TEXT_COMPLEMENT )
-						.flags( Collections.emptySet() ) ) )
-				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1 );
-
-		// alone
-		assertThatQuery( scope.query()
-				.where( f -> f.regexp().field( absoluteFieldPath )
-						.matching( TEXT_COMPLEMENT )
-						.flags( RegexpQueryFlag.COMPLEMENT )
-				) )
-				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2 );
-
-		// more flags
-		assertThatQuery( scope.query()
-				.where( f -> f.regexp().field( absoluteFieldPath )
-						.matching( TEXT_COMPLEMENT )
-						.flags( RegexpQueryFlag.COMPLEMENT, RegexpQueryFlag.INTERSECTION, RegexpQueryFlag.ANY_STRING )
-				) )
-				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2 );
-
-		// other flags only
-		assertThatQuery( scope.query()
-				.where( f -> f.regexp().field( absoluteFieldPath )
-						.matching( TEXT_COMPLEMENT )
-						.flags( RegexpQueryFlag.INTERVAL, RegexpQueryFlag.INTERSECTION, RegexpQueryFlag.ANY_STRING )
-				) )
-				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1 );
 	}
 
 	@Test
@@ -228,7 +188,7 @@ public class RegexpPredicateSpecificsIT {
 		assertThatQuery( scope.query()
 				.where( f -> f.regexp().field( absoluteFieldPath )
 						.matching( TEXT_INTERVAL )
-						.flags( RegexpQueryFlag.COMPLEMENT, RegexpQueryFlag.INTERVAL, RegexpQueryFlag.ANY_STRING )
+						.flags( RegexpQueryFlag.INTERVAL, RegexpQueryFlag.ANY_STRING )
 				) )
 				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_2 );
 
@@ -236,7 +196,7 @@ public class RegexpPredicateSpecificsIT {
 		assertThatQuery( scope.query()
 				.where( f -> f.regexp().field( absoluteFieldPath )
 						.matching( TEXT_INTERVAL )
-						.flags( RegexpQueryFlag.COMPLEMENT, RegexpQueryFlag.INTERSECTION, RegexpQueryFlag.ANY_STRING )
+						.flags( RegexpQueryFlag.INTERSECTION, RegexpQueryFlag.ANY_STRING )
 				) )
 				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1 );
 	}
@@ -271,7 +231,7 @@ public class RegexpPredicateSpecificsIT {
 		assertThatQuery( scope.query()
 				.where( f -> f.regexp().field( absoluteFieldPath )
 						.matching( TEXT_INTERSECTION )
-						.flags( RegexpQueryFlag.COMPLEMENT, RegexpQueryFlag.INTERVAL, RegexpQueryFlag.INTERSECTION )
+						.flags( RegexpQueryFlag.INTERVAL, RegexpQueryFlag.INTERSECTION )
 				) )
 				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1, DOCUMENT_2 );
 
@@ -279,7 +239,7 @@ public class RegexpPredicateSpecificsIT {
 		assertThatQuery( scope.query()
 				.where( f -> f.regexp().field( absoluteFieldPath )
 						.matching( TEXT_INTERSECTION )
-						.flags( RegexpQueryFlag.COMPLEMENT, RegexpQueryFlag.INTERVAL, RegexpQueryFlag.ANY_STRING )
+						.flags( RegexpQueryFlag.INTERVAL, RegexpQueryFlag.ANY_STRING )
 				) )
 				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1 );
 	}
@@ -322,7 +282,7 @@ public class RegexpPredicateSpecificsIT {
 		assertThatQuery( scope.query()
 				.where( f -> f.regexp().field( absoluteFieldPath )
 						.matching( TEXT_ANYSTRING )
-						.flags( RegexpQueryFlag.COMPLEMENT, RegexpQueryFlag.INTERVAL, RegexpQueryFlag.INTERSECTION )
+						.flags( RegexpQueryFlag.INTERVAL, RegexpQueryFlag.INTERSECTION )
 				) )
 				.hasDocRefHitsAnyOrder( index.typeName(), DOCUMENT_1 );
 	}
@@ -333,7 +293,6 @@ public class RegexpPredicateSpecificsIT {
 		final SimpleFieldModel<String> nonAnalyzedField;
 
 		// fields to test optional flags:
-		final SimpleFieldModel<String> complementField;
 		final SimpleFieldModel<String> intervalField;
 		final SimpleFieldModel<String> intersectionField;
 		final SimpleFieldModel<String> anyStringField;
@@ -349,8 +308,6 @@ public class RegexpPredicateSpecificsIT {
 					.map( root, "nonAnalyzed" );
 
 			// fields to test optional flags:
-			complementField = SimpleFieldModel.mapper( KeywordStringFieldTypeDescriptor.INSTANCE )
-					.map( root, "complement" );
 			intervalField = SimpleFieldModel.mapper( KeywordStringFieldTypeDescriptor.INSTANCE )
 					.map( root, "interval" );
 			intersectionField = SimpleFieldModel.mapper( KeywordStringFieldTypeDescriptor.INSTANCE )
@@ -367,20 +324,18 @@ public class RegexpPredicateSpecificsIT {
 
 		public void contribute(BulkIndexer indexer) {
 			indexer.add( DOCUMENT_1, document -> {
-						document.addValue( index.binding().analyzedField.reference, TEXT_1 );
-						document.addValue( index.binding().normalizedField.reference, TEXT_1 );
-						document.addValue( index.binding().nonAnalyzedField.reference, TEXT_1 );
-						document.addValue( index.binding().complementField.reference, TEXT_COMPLEMENT );
-						document.addValue( index.binding().intervalField.reference, TEXT_INTERVAL );
-						document.addValue( index.binding().intersectionField.reference, TEXT_INTERSECTION );
-						document.addValue( index.binding().anyStringField.reference, TEXT_ANYSTRING );
+				document.addValue( index.binding().analyzedField.reference, TEXT_1 );
+				document.addValue( index.binding().normalizedField.reference, TEXT_1 );
+				document.addValue( index.binding().nonAnalyzedField.reference, TEXT_1 );
+				document.addValue( index.binding().intervalField.reference, TEXT_INTERVAL );
+				document.addValue( index.binding().intersectionField.reference, TEXT_INTERSECTION );
+				document.addValue( index.binding().anyStringField.reference, TEXT_ANYSTRING );
 
-					} )
+			} )
 					.add( DOCUMENT_2, document -> {
 						document.addValue( index.binding().analyzedField.reference, TEXT_2 );
 						document.addValue( index.binding().normalizedField.reference, TEXT_2 );
 						document.addValue( index.binding().nonAnalyzedField.reference, TEXT_2 );
-						document.addValue( index.binding().complementField.reference, TEXT_COMPLEMENT_MATCHING );
 						document.addValue( index.binding().intervalField.reference, TEXT_INTERVAL_MATCHING );
 						document.addValue( index.binding().intersectionField.reference, TEXT_INTERSECTION_MATCHING );
 						document.addValue( index.binding().anyStringField.reference, TEXT_ANYSTRING_MATCHING );
@@ -389,7 +344,6 @@ public class RegexpPredicateSpecificsIT {
 						document.addValue( index.binding().analyzedField.reference, TEXT_3 );
 						document.addValue( index.binding().normalizedField.reference, TEXT_3 );
 						document.addValue( index.binding().nonAnalyzedField.reference, TEXT_3 );
-						document.addValue( index.binding().complementField.reference, TEXT_COMPLEMENT_NOT_MATCHING );
 						document.addValue( index.binding().intervalField.reference, TEXT_INTERVAL_NOT_MATCHING );
 						document.addValue(
 								index.binding().intersectionField.reference, TEXT_INTERSECTION_NOT_MATCHING );
@@ -405,7 +359,7 @@ public class RegexpPredicateSpecificsIT {
 						document.addValue( index.binding().normalizedField.reference, TEXT_5 );
 						document.addValue( index.binding().nonAnalyzedField.reference, TEXT_5 );
 					} )
-					.add( EMPTY, document -> { } );
+					.add( EMPTY, document -> {} );
 		}
 	}
 }

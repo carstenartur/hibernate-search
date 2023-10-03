@@ -11,13 +11,11 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing.TypeMappingAnnotationProcessorContext;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.TypeMappingStep;
 
+@Deprecated
 public class IndexedAnnotationProcessor implements TypeMappingAnnotationProcessor<Indexed> {
 	@Override
 	public void process(TypeMappingStep mapping, Indexed annotation, TypeMappingAnnotationProcessorContext context) {
-		String indexName = annotation.index();
-		if ( indexName.isEmpty() ) {
-			indexName = null;
-		}
+		String indexName = context.toNullIfDefault( annotation.index(), "" );
 		mapping.indexed().index( indexName );
 	}
 }

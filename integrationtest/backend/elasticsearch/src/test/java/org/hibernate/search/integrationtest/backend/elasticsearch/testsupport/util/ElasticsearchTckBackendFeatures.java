@@ -11,30 +11,13 @@ import static org.hibernate.search.util.impl.integrationtest.backend.elasticsear
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import org.hibernate.search.engine.search.common.SortMode;
 import org.hibernate.search.engine.spatial.GeoPoint;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendFeatures;
-import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TestedFieldStructure;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 
-class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
+public class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 
 	ElasticsearchTckBackendFeatures() {
-	}
-
-	@Override
-	public boolean geoPointIndexNullAs() {
-		return isActualVersion(
-				esVersion -> !esVersion.isLessThan( "6.3.0" ),
-				osVersion -> true
-		);
-	}
-
-	@Override
-	public boolean worksFineWithStrictAboveRangedQueriesOnDecimalScaledField() {
-		return isActualVersion(
-				esVersion -> !esVersion.isLessThan( "6.0.0" ),
-				osVersion -> true
-		);
 	}
 
 	@Override
@@ -63,83 +46,14 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 	}
 
 	@Override
-	public boolean zonedDateTimeDocValueHasUTCZoneId() {
-		return isActualVersion(
-				esVersion -> esVersion.isAtMost( "6.8" ),
-				osVersion -> false
-		);
-	}
-
-	@Override
 	public boolean nonCanonicalRangeInAggregations() {
 		// Elasticsearch only supports [a, b), (-Infinity, b), [a, +Infinity), but not [a, b] for example.
 		return false;
 	}
 
 	@Override
-	public boolean sortByFieldValue(TestedFieldStructure fieldStructure, Class<?> fieldType, SortMode sortMode) {
-		if (
-				fieldStructure.isInNested()
-				&& sortMode == SortMode.MAX
-				&& ( Float.class.equals( fieldType )
-						|| Double.class.equals( fieldType )
-						|| BigInteger.class.equals( fieldType )
-						|| BigDecimal.class.equals( fieldType ) )
-		) {
-			// For some reason, ES 5.6 seems to evaluate the max to 0 when a nested document
-			// has a field with only negative floating-point values.
-			// This causes problems in our tests relative to field sorts
-			// because it brings a max from -42 to 0, which changes the relative order of documents.
-			// This is most likely a bug, though I couldn't find the bug report or fix,
-			// and it is fixed in ES 6.x.
-			// Since 5.6 is really old and EOL'd anyway, it's unlikely to ever get a fix.
-			// We'll just ignore tests that fail because of this.
-			return isActualVersion(
-					esVersion -> !esVersion.isLessThan( "6.0.0" ),
-					osVersion -> true
-			);
-		}
-		else {
-			return true;
-		}
-	}
-
-	@Override
-	public boolean supportsValuesForDynamicField(Class<?> javaType) {
-		if ( BigInteger.class.equals( javaType ) ) {
-			// For some reason, ES 5.6 to 7.2 fail to index BigInteger values
-			// with "No matching token for number_type [BIG_INTEGER]".
-			// It's fixed in Elasticsearch 7.3, though.
-			return isActualVersion(
-					esVersion -> !esVersion.isLessThan( "7.3.0" ),
-					osVersion -> true
-			);
-		}
-		else if ( BigDecimal.class.equals( javaType ) ) {
-			// For some reason, ES 5.6 and 6.x sometimes fails to index BigDecimal values
-			// in dynamic fields.
-			// See https://hibernate.atlassian.net/browse/HSEARCH-4310
-			return isActualVersion(
-					esVersion -> !esVersion.isAtMost( "6.8" ),
-					osVersion -> true
-			);
-		}
-		else {
-			return true;
-		}
-	}
-
-	@Override
 	public boolean fieldsProjectableByDefault() {
 		return true;
-	}
-
-	@Override
-	public boolean supportsTotalHitsThresholdForSearch() {
-		return isActualVersion(
-				esVersion -> !esVersion.isAtMost( "6.8" ),
-				osVersion -> true
-		);
 	}
 
 	@Override
@@ -158,11 +72,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 	@Override
 	public boolean supportsExistsForFieldWithoutDocValues(Class<?> fieldType) {
 		if ( GeoPoint.class.equals( fieldType ) ) {
-			// See https://github.com/elastic/elasticsearch/issues/65306
-			return isActualVersion(
-					esVersion -> esVersion.isAtMost( "7.9" ),
-					osVersion -> false
-			);
+			return false;
 		}
 		return true;
 	}
@@ -192,28 +102,6 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 	}
 
 	@Override
-	public boolean supportMoreThan1024TermsOnMatchingAny() {
-		return isActualVersion(
-				esVersion -> !esVersion.isLessThan( "6.0.0" ),
-				osVersion -> true
-		);
-	}
-
-	@Override
-	public boolean supportsDistanceSortWhenFieldMissingInSomeTargetIndexes() {
-		// Not supported in older versions of Elasticsearch
-		//
-		// Support for ignore_unmapped in geo_distance sorts added in 6.4:
-		// https://github.com/elastic/elasticsearch/pull/31153
-		// In 6.3 and below, we just can't ignore unmapped fields,
-		// which means sorts will fail when the geo_point field is not present in all indexes.
-		return isActualVersion(
-				esVersion -> !esVersion.isLessThan( "6.4.0" ),
-				osVersion -> true
-		);
-	}
-
-	@Override
 	public boolean supportsDistanceSortWhenNestedFieldMissingInSomeTargetIndexes() {
 		// Even with ignore_unmapped: true,
 		// the distance sort will fail if the nested field doesn't exist in one index.
@@ -230,25 +118,6 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 		// Elasticsearch complains it needs a scaling factor, but we don't have any way to provide it.
 		// See https://hibernate.atlassian.net/browse/HSEARCH-4176
 		return !BigInteger.class.equals( fieldType ) && !BigDecimal.class.equals( fieldType );
-	}
-
-	@Override
-	public boolean supportsFieldSortWhenNestedFieldMissingInSomeTargetIndexes() {
-		// Not supported in older versions of Elasticsearch
-		//
-		// Support for ignoring field sorts when a nested field is missing was added in 6.8.1/7.1.2:
-		// https://github.com/elastic/elasticsearch/pull/42451
-		// In 6.8.0 and below, we just can't ignore unmapped nested fields in field sorts,
-		// which means sorts will fail when the nested field is not present in all indexes.
-		// -----------------------------------------------------------------------------------------
-		// AWS apparently didn't apply this patch, which solves the problem in 6.8.1/7.1.2,
-		// to their 6.8 branch:
-		// https://github.com/elastic/elasticsearch/pull/42451
-
-		return isActualVersion(
-				esVersion -> !esVersion.isAtMost( "6.7" ) && ( !esVersion.isMatching( "6.8" ) || !esVersion.isAws() ),
-				osVersion -> true
-		);
 	}
 
 	@Override
@@ -272,7 +141,7 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 		// https://github.com/elastic/elasticsearch/issues/91246
 		// Hopefully this will get fixed in a future version.
 		return isActualVersion(
-				esVersion -> !esVersion.isBetween( "7.17.7", "7.17" ) && !esVersion.isBetween( "8.5.0", "8.7.1" ),
+				esVersion -> !esVersion.isBetween( "7.17.7", "7.17" ) && esVersion.isLessThan( "8.5.0" ),
 				osVersion -> true
 		);
 	}
@@ -308,6 +177,72 @@ class ElasticsearchTckBackendFeatures extends TckBackendFeatures {
 		return isActualVersion(
 				esVersion -> !esVersion.isBetween( "7.15", "8.3" ),
 				osVersion -> true
+		);
+	}
+
+	@Override
+	public boolean supportsHighlighterUnifiedPhraseMatching() {
+		return isActualVersion(
+				esVersion -> !esVersion.isAtMost( "8.9" ),
+				osVersion -> false
+		);
+	}
+
+	public static boolean supportsIndexClosingAndOpening() {
+		return isActualVersion(
+				// See https://docs.aws.amazon.com/opensearch-service/latest/developerguide/supported-operations.html#version_7_10
+				es -> true,
+				// See https://docs.aws.amazon.com/opensearch-service/latest/developerguide/supported-operations.html#version_opensearch_1.0
+				os -> true,
+				aoss -> false
+		);
+	}
+
+	public static boolean supportsVersionCheck() {
+		return isActualVersion(
+				es -> true,
+				os -> true,
+				aoss -> false
+		);
+	}
+
+	public static boolean supportsIndexStatusCheck() {
+		return isActualVersion(
+				es -> true,
+				os -> true,
+				aoss -> false
+		);
+	}
+
+	@Override
+	public boolean supportsExplicitPurge() {
+		return ElasticsearchTestDialect.get().supportsExplicitPurge();
+	}
+
+	@Override
+	public boolean supportsExplicitMergeSegments() {
+		return isActualVersion(
+				es -> true,
+				os -> true,
+				aoss -> false
+		);
+	}
+
+	@Override
+	public boolean supportsExplicitFlush() {
+		return isActualVersion(
+				es -> true,
+				os -> true,
+				aoss -> false
+		);
+	}
+
+	@Override
+	public boolean supportsExplicitRefresh() {
+		return isActualVersion(
+				es -> true,
+				os -> true,
+				aoss -> false
 		);
 	}
 }

@@ -11,7 +11,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hibernate.search.util.impl.integrationtest.common.assertion.SearchResultAssert.assertThatQuery;
 import static org.hibernate.search.util.impl.integrationtest.common.assertion.SearchResultAssert.assertThatResult;
 import static org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMapperUtils.documentProvider;
-import static org.junit.Assume.assumeTrue;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -33,12 +32,11 @@ import org.hibernate.search.engine.search.query.dsl.SearchQueryOptionsStep;
 import org.hibernate.search.engine.search.query.dsl.SearchQuerySelectStep;
 import org.hibernate.search.engine.search.query.dsl.SearchQueryWhereStep;
 import org.hibernate.search.engine.search.query.spi.SearchQueryIndexScope;
-import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckConfiguration;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.SimpleMappedIndex;
-import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubSearchLoadingContext;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingScope;
+import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubSearchLoadingContext;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Before;
@@ -96,11 +94,6 @@ public class SearchQueryBaseIT {
 
 	@Test
 	public void resultTotal_totalHitCountThreshold() {
-		assumeTrue(
-				"This backend doesn't take totalHitsThreshold() into account.",
-				TckConfiguration.get().getBackendFeatures().supportsTotalHitsThresholdForSearch()
-		);
-
 		initData( 5000 );
 
 		SearchResult<DocumentReference> fetch = matchAllWithConditionSortedByScoreQuery()
@@ -244,7 +237,8 @@ public class SearchQueryBaseIT {
 		}
 	}
 
-	private static class SupportedQueryDslExtension<R, E, LOS> implements
+	private static class SupportedQueryDslExtension<R, E, LOS>
+			implements
 			SearchQueryDslExtension<MyExtendedDslContext<E>, R, E, LOS> {
 		@Override
 		public Optional<MyExtendedDslContext<E>> extendOptional(SearchQuerySelectStep<?, R, E, LOS, ?, ?> original,
@@ -258,7 +252,8 @@ public class SearchQueryBaseIT {
 		}
 	}
 
-	private static class UnSupportedQueryDslExtension<R, E, LOS> implements
+	private static class UnSupportedQueryDslExtension<R, E, LOS>
+			implements
 			SearchQueryDslExtension<MyExtendedDslContext<E>, R, E, LOS> {
 		@Override
 		public Optional<MyExtendedDslContext<E>> extendOptional(SearchQuerySelectStep<?, R, E, LOS, ?, ?> original,
@@ -281,9 +276,9 @@ public class SearchQueryBaseIT {
 
 		public SearchQuery<T> extendedFeature(String fieldName, String value1, String value2) {
 			return delegate.where( f -> f.or(
-							f.match().field( fieldName ).matching( value1 ),
-							f.match().field( fieldName ).matching( value2 )
-					) )
+					f.match().field( fieldName ).matching( value1 ),
+					f.match().field( fieldName ).matching( value2 )
+			) )
 					.sort( f -> f.field( fieldName ) )
 					.toQuery();
 		}

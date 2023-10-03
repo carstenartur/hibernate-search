@@ -19,17 +19,18 @@ import org.hibernate.search.backend.elasticsearch.search.aggregation.impl.Elasti
 import org.hibernate.search.backend.elasticsearch.search.projection.impl.ElasticsearchSearchProjection;
 import org.hibernate.search.backend.elasticsearch.search.projection.impl.ProjectionExtractContext;
 import org.hibernate.search.backend.elasticsearch.work.impl.ElasticsearchSearchResultExtractor;
+import org.hibernate.search.engine.common.timing.Deadline;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.loading.spi.ProjectionHitMapper;
 import org.hibernate.search.engine.search.query.SearchResultTotal;
 import org.hibernate.search.engine.search.query.spi.SimpleSearchResultTotal;
-import org.hibernate.search.engine.common.timing.Deadline;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-class Elasticsearch7SearchResultExtractor<H> implements ElasticsearchSearchResultExtractor<ElasticsearchLoadableSearchResult<H>> {
+class Elasticsearch7SearchResultExtractor<H>
+		implements ElasticsearchSearchResultExtractor<ElasticsearchLoadableSearchResult<H>> {
 
 	protected static final JsonObjectAccessor HITS_ACCESSOR =
 			JsonAccessor.root().property( "hits" ).asObject();
@@ -91,11 +92,12 @@ class Elasticsearch7SearchResultExtractor<H> implements ElasticsearchSearchResul
 			total = SimpleSearchResultTotal.lowerBound( total.hitCountLowerBound() );
 		}
 
-		List<Object> extractedHits = ( total.isHitCountLowerBound() || total.hitCount() > 0 ) ?
-				extractHits( extractContext ) : Collections.emptyList();
+		List<Object> extractedHits = ( total.isHitCountLowerBound() || total.hitCount() > 0 )
+				? extractHits( extractContext )
+				: Collections.emptyList();
 
-		Map<AggregationKey<?>, ?> extractedAggregations = aggregations.isEmpty() ?
-				Collections.emptyMap() : extractAggregations( extractContext, responseBody );
+		Map<AggregationKey<?>, ?> extractedAggregations =
+				aggregations.isEmpty() ? Collections.emptyMap() : extractAggregations( extractContext, responseBody );
 
 		String scrollId = extractScrollId( responseBody );
 

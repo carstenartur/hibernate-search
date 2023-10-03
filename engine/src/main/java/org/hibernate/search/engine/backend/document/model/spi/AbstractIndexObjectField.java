@@ -13,17 +13,16 @@ import java.util.Map;
 
 import org.hibernate.search.engine.backend.common.spi.FieldPaths;
 import org.hibernate.search.engine.backend.types.spi.AbstractIndexCompositeNodeType;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.search.common.spi.SearchIndexSchemaElementContextHelper;
 import org.hibernate.search.engine.search.common.spi.SearchIndexScope;
 
-
 public abstract class AbstractIndexObjectField<
-				S extends AbstractIndexObjectField<S, SC, NT, C, F>,
-				SC extends SearchIndexScope<?>,
-				NT extends AbstractIndexCompositeNodeType<SC, ? super S>,
-				C extends IndexCompositeNode<SC, NT, F>,
-				F extends IndexField<SC, ?>
-		>
+		S extends AbstractIndexObjectField<S, SC, NT, C, F>,
+		SC extends SearchIndexScope<?>,
+		NT extends AbstractIndexCompositeNodeType<SC, ? super S>,
+		C extends IndexCompositeNode<SC, NT, F>,
+		F extends IndexField<SC, ?>>
 		extends AbstractIndexField<S, SC, NT, C>
 		implements IndexObjectField<SC, NT, C, F> {
 
@@ -31,7 +30,7 @@ public abstract class AbstractIndexObjectField<
 	private final Map<String, F> staticChildrenByName;
 
 	public AbstractIndexObjectField(C parent, String relativeFieldName,
-			NT type, IndexFieldInclusion inclusion, boolean multiValued,
+			NT type, TreeNodeInclusion inclusion, boolean multiValued,
 			Map<String, F> notYetInitializedStaticChildren) {
 		super( parent, relativeFieldName, type, inclusion, multiValued );
 		// at the root object level the nestedPathHierarchy is empty

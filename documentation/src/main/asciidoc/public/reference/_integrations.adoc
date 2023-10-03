@@ -1,0 +1,36 @@
+[[integrations]]
+= Standards and integrations
+
+[[other-integrations-jakarta]]
+== Jakarta EE
+
+Hibernate Search targets link:{jakartaUrl}[Jakarta EE] where relevant,
+in particular Jakarta Persistence {jakartaPersistenceVersion} with the <<mapper-orm,Hibernate ORM Mapper>>.
+
+[[other-integrations-javaee]]
+== Java EE
+
+Hibernate Search no longer supports link:{javaeeUrl}[Java EE].
+
+Use <<other-integrations-jakarta,Jakarta EE>> instead.
+
+[[other-integrations-orm6]]
+== Hibernate ORM 6
+
+In previous versions, Hibernate Search's main Maven artifacts used to target Hibernate ORM 5,
+while separate, dedicated Maven artifacts targeted Hibernate ORM 6.
+
+This is no longer the case: the main Maven artifacts now target Hibernate ORM 6,
+and Hibernate ORM 5 is no longer compatible.
+
+If your dependencies include references to artifacts ending with `-orm6`
+(e.g. `hibernate-search-mapper-orm-orm6`)
+just remove the `-orm6` (e.g. use `hibernate-search-mapper-orm` instead)
+when you upgrade to this version of Hibernate Search.
+
+[[other-integrations-orm5]]
+== Hibernate ORM 5
+
+Hibernate Search no longer supports Hibernate ORM 5.
+
+Use <<other-integrations-jakarta,Hibernate ORM 6>> instead.

@@ -8,10 +8,11 @@ package org.hibernate.search.integrationtest.showcase.library.repository.indexse
 
 import java.util.List;
 import java.util.Optional;
-import javax.persistence.EntityManager;
 
-import org.hibernate.search.engine.search.sort.dsl.SortOrder;
+import jakarta.persistence.EntityManager;
+
 import org.hibernate.search.engine.search.common.ValueConvert;
+import org.hibernate.search.engine.search.sort.dsl.SortOrder;
 import org.hibernate.search.engine.spatial.DistanceUnit;
 import org.hibernate.search.engine.spatial.GeoPoint;
 import org.hibernate.search.integrationtest.showcase.library.model.Book;
@@ -19,7 +20,6 @@ import org.hibernate.search.integrationtest.showcase.library.model.BookMedium;
 import org.hibernate.search.integrationtest.showcase.library.model.Document;
 import org.hibernate.search.integrationtest.showcase.library.model.LibraryServiceOption;
 import org.hibernate.search.mapper.orm.Search;
-import org.hibernate.search.mapper.orm.work.SearchWorkspace;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -149,9 +149,9 @@ public class IndexSearchDocumentRepositoryImpl implements IndexSearchDocumentRep
 
 	@Override
 	public void purge() {
-		SearchWorkspace workspace = Search.session( entityManager ).workspace( Document.class );
-		workspace.purge();
-		workspace.flush();
-		workspace.refresh();
+		// This is faster than a workspace(...).purge(),
+		// and works even on Amazon OpenSearch Serverless.
+		Search.session( entityManager ).schemaManager( Document.class )
+				.dropAndCreate();
 	}
 }

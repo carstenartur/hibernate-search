@@ -22,7 +22,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import org.hibernate.search.engine.backend.spi.BackendBuildContext;
 import org.hibernate.search.engine.common.timing.Deadline;
 import org.hibernate.search.engine.common.timing.spi.TimingSource;
 import org.hibernate.search.engine.reporting.spi.ContextualFailureCollector;
@@ -42,6 +41,8 @@ import org.hibernate.search.util.impl.integrationtest.common.stub.backend.docume
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.index.StubDocumentWork;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.index.StubIndexScaleWork;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.index.StubSchemaManagementWork;
+import org.hibernate.search.util.impl.integrationtest.common.stub.backend.index.impl.StubBackendBuildContext;
+import org.hibernate.search.util.impl.integrationtest.common.stub.backend.index.impl.StubIndexCreateContext;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.projection.impl.StubSearchProjection;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.projection.impl.StubSearchProjectionContext;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.query.impl.StubSearchScroll;
@@ -57,7 +58,11 @@ class VerifyingStubBackendBehavior extends StubBackendBehavior {
 
 	private final Map<IndexFieldKey, CallBehavior<Void>> indexFieldAddBehaviors = new ConcurrentHashMap<>();
 
-	private final List<ParameterizedCallBehavior<BackendBuildContext, Void>> createBackendBehaviors = Collections.synchronizedList( new ArrayList<>() );
+	private final List<ParameterizedCallBehavior<StubBackendBuildContext, Void>> createBackendBehaviors =
+			Collections.synchronizedList( new ArrayList<>() );
+
+	private final List<ParameterizedCallBehavior<StubIndexCreateContext, Void>> createIndexBehaviors =
+			Collections.synchronizedList( new ArrayList<>() );
 
 	private final List<CallBehavior<Void>> stopBackendBehaviors = Collections.synchronizedList( new ArrayList<>() );
 
@@ -110,8 +115,12 @@ class VerifyingStubBackendBehavior extends StubBackendBehavior {
 		this.ignoreSchema = ignoreSchema;
 	}
 
-	public void addCreateBackendBehavior(ParameterizedCallBehavior<BackendBuildContext, Void> createBackendBehavior) {
+	public void addCreateBackendBehavior(ParameterizedCallBehavior<StubBackendBuildContext, Void> createBackendBehavior) {
 		this.createBackendBehaviors.add( createBackendBehavior );
+	}
+
+	public void addCreateIndexBehavior(ParameterizedCallBehavior<StubIndexCreateContext, Void> createIndexBehavior) {
+		this.createIndexBehaviors.add( createIndexBehavior );
 	}
 
 	public void addStopBackendBehavior(CallBehavior<Void> stopBackendBehavior) {
@@ -280,9 +289,9 @@ class VerifyingStubBackendBehavior extends StubBackendBehavior {
 	}
 
 	@Override
-	public void onCreateBackend(BackendBuildContext context,
+	public void onCreateBackend(StubBackendBuildContext context,
 			CompletionStage<BackendMappingHandle> mappingHandlePromise) {
-		for ( ParameterizedCallBehavior<BackendBuildContext, Void> behavior : createBackendBehaviors ) {
+		for ( ParameterizedCallBehavior<StubBackendBuildContext, Void> behavior : createBackendBehaviors ) {
 			behavior.execute( context );
 		}
 		mappingHandlePromises.add( mappingHandlePromise );
@@ -292,6 +301,13 @@ class VerifyingStubBackendBehavior extends StubBackendBehavior {
 	public void onStopBackend() {
 		for ( CallBehavior<Void> behavior : stopBackendBehaviors ) {
 			behavior.execute();
+		}
+	}
+
+	@Override
+	public void onCreateIndex(StubIndexCreateContext context) {
+		for ( ParameterizedCallBehavior<StubIndexCreateContext, Void> behavior : createIndexBehaviors ) {
+			behavior.execute( context );
 		}
 	}
 
@@ -415,9 +431,8 @@ class VerifyingStubBackendBehavior extends StubBackendBehavior {
 				new NextScrollWorkCall<>( indexNames, work, projectionContext, loadingContext, rootProjection,
 						deadline ),
 				(call1, call2) -> call1.verify( call2 ),
-				noExpectationsBehavior( () ->
-						new SimpleSearchScrollResult<>( SimpleSearchResultTotal.exact( 0L ),
-								false, Collections.emptyList(), Duration.ZERO, false ) )
+				noExpectationsBehavior( () -> new SimpleSearchScrollResult<>( SimpleSearchResultTotal.exact( 0L ),
+						false, Collections.emptyList(), Duration.ZERO, false ) )
 		);
 	}
 
@@ -450,7 +465,7 @@ class VerifyingStubBackendBehavior extends StubBackendBehavior {
 
 		@Override
 		public boolean equals(Object obj) {
-			if ( ! (obj instanceof IndexFieldKey ) ) {
+			if ( !( obj instanceof IndexFieldKey ) ) {
 				return false;
 			}
 			IndexFieldKey other = (IndexFieldKey) obj;

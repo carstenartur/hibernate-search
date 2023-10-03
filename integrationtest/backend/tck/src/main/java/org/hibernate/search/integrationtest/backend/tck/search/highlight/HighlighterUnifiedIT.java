@@ -39,27 +39,22 @@ public class HighlighterUnifiedIT extends AbstractHighlighterIT {
 	}
 
 	@Override
-	protected boolean supportsMultipleFragmentsAsSeparateItems() {
-		return TckConfiguration.get().getBackendFeatures().supportsHighlighterUnifiedTypeMultipleFragmentsAsSeparateItems();
-	}
-
-	@Override
 	protected boolean supportsFragmentSize() {
 		return TckConfiguration.get().getBackendFeatures().supportsHighlighterUnifiedTypeFragmentSize();
 	}
 
+	@Override
+	protected boolean supportsPhraseMatching() {
+		return TckConfiguration.get().getBackendFeatures().supportsHighlighterUnifiedPhraseMatching();
+	}
+
 	@Test
 	public void boundaryScannerWord() {
-		assumeTrue(
-				"With Lucene the items will just be in a single string.",
-				TckConfiguration.get().getBackendFeatures()
-						.supportsHighlighterUnifiedTypeMultipleFragmentsAsSeparateItems()
-		);
 		StubMappingScope scope = index.createScope();
 
 		SearchQuery<List<String>> highlights = scope.query().select(
-						f -> f.highlight( "string" )
-				)
+				f -> f.highlight( "string" )
+		)
 				.where( f -> f.match().field( "string" ).matching( "rock" ) )
 				.highlighter( h -> h.unified()
 						.boundaryScanner()
@@ -77,14 +72,13 @@ public class HighlighterUnifiedIT extends AbstractHighlighterIT {
 	@Test
 	public void boundaryScannerSentenceExplicit() {
 		assumeTrue(
-				TckConfiguration.get().getBackendFeatures().supportsHighlighterUnifiedTypeFragmentSize() &&
-						TckConfiguration.get().getBackendFeatures().supportsHighlighterUnifiedTypeMultipleFragmentsAsSeparateItems()
+				TckConfiguration.get().getBackendFeatures().supportsHighlighterUnifiedTypeFragmentSize()
 		);
 		StubMappingScope scope = index.createScope();
 
 		SearchQuery<List<String>> highlights = scope.query().select(
-						f -> f.highlight( "string" )
-				)
+				f -> f.highlight( "string" )
+		)
 				.where( f -> f.match().field( "string" ).matching( "rock" ) )
 				.highlighter( h -> h.unified()
 						.boundaryScanner()

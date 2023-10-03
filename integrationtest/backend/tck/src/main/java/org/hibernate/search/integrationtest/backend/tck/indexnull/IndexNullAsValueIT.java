@@ -8,7 +8,6 @@ package org.hibernate.search.integrationtest.backend.tck.indexnull;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hibernate.search.util.impl.integrationtest.common.assertion.SearchResultAssert.assertThatQuery;
-import static org.junit.Assume.assumeTrue;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,7 +22,6 @@ import org.hibernate.search.integrationtest.backend.tck.testsupport.configuratio
 import org.hibernate.search.integrationtest.backend.tck.testsupport.types.FieldTypeDescriptor;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.types.expectations.IndexNullAsMatchPredicateExpectactions;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.StandardFieldMapper;
-import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckConfiguration;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.SimpleMappedIndex;
@@ -64,11 +62,6 @@ public class IndexNullAsValueIT {
 
 	@Test
 	public void indexNullAsValue_spatial() {
-		assumeTrue(
-				"indexNullAs on a GeoPoint field must be supported",
-				TckConfiguration.get().getBackendFeatures().geoPointIndexNullAs()
-		);
-
 		setUp();
 		SearchQuery<DocumentReference> query = index.createScope().query()
 				.where( f -> f.spatial().within().field( "geoPointField" ).circle( GeoPoint.of( 0.0, 0.0 ), 1 ) )
@@ -87,7 +80,7 @@ public class IndexNullAsValueIT {
 								c -> c.asString().analyzer( DefaultAnalysisDefinitions.ANALYZER_STANDARD_ENGLISH.name
 								)
 										.indexNullAs( "bla bla bla" ) )
-										.toReference()
+								.toReference()
 				) )
 				.setup()
 		)
@@ -149,22 +142,17 @@ public class IndexNullAsValueIT {
 					.map( typeDescriptor -> ByTypeFieldModel.mapper( root, typeDescriptor ) )
 					.collect( Collectors.toList() );
 
-			if ( TckConfiguration.get().getBackendFeatures().geoPointIndexNullAs() ) {
-				geoPointField = root.field(
-						"geoPointField",
-						c -> c.asGeoPoint().indexNullAs( GeoPoint.of( 0.0, 0.0 ) )
-				)
-						.toReference();
-			}
-			else {
-				geoPointField = null;
-			}
+			geoPointField = root.field(
+					"geoPointField",
+					c -> c.asGeoPoint().indexNullAs( GeoPoint.of( 0.0, 0.0 ) )
+			).toReference();
 		}
 	}
 
 	private static class ByTypeFieldModel<F> {
 		static <F> ByTypeFieldModel<F> mapper(IndexSchemaElement root, FieldTypeDescriptor<F> typeDescriptor) {
-			IndexNullAsMatchPredicateExpectactions<F> expectations = typeDescriptor.getIndexNullAsMatchPredicateExpectations().get();
+			IndexNullAsMatchPredicateExpectactions<F> expectations =
+					typeDescriptor.getIndexNullAsMatchPredicateExpectations().get();
 			F indexNullAsValue = expectations.getIndexNullAsValue();
 
 			return StandardFieldMapper.of(
@@ -178,7 +166,8 @@ public class IndexNullAsValueIT {
 		final ValueModel<F> differentValue;
 		final ValueModel<F> nullValue;
 
-		public ByTypeFieldModel(IndexFieldReference<F> reference, String relativeFieldName, IndexNullAsMatchPredicateExpectactions<F> expectations) {
+		public ByTypeFieldModel(IndexFieldReference<F> reference, String relativeFieldName,
+				IndexNullAsMatchPredicateExpectactions<F> expectations) {
 			this.relativeFieldName = relativeFieldName;
 			this.indexNullAsValue = new ValueModel<>( reference, expectations.getIndexNullAsValue() );
 			this.differentValue = new ValueModel<>( reference, expectations.getDifferentValue() );

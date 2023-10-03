@@ -19,7 +19,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.Session;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
@@ -31,9 +32,9 @@ import org.hibernate.search.engine.search.query.SearchResult;
 import org.hibernate.search.engine.spatial.DistanceUnit;
 import org.hibernate.search.engine.spatial.GeoPoint;
 import org.hibernate.search.mapper.orm.Search;
-import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReference;
 import org.hibernate.search.mapper.orm.scope.SearchScope;
 import org.hibernate.search.mapper.orm.session.SearchSession;
+import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReference;
 import org.hibernate.search.util.impl.integrationtest.common.assertion.TestComparators;
 
 import org.junit.Before;
@@ -187,6 +188,27 @@ public class ProjectionDslIT {
 					.where( f -> f.matchAll() )
 					.fetchHits( 20 );
 			// end::entity[]
+			Session session = searchSession.toOrmSession();
+			assertThat( hits ).containsExactlyInAnyOrder(
+					session.getReference( Book.class, BOOK1_ID ),
+					session.getReference( Book.class, BOOK2_ID ),
+					session.getReference( Book.class, BOOK3_ID ),
+					session.getReference( Book.class, BOOK4_ID )
+			);
+		} );
+	}
+
+	@Test
+	public void entity_requestedType() {
+		withinSearchSession( searchSession -> {
+			List<Book> hits = searchSession.search( Book.class )
+					.select( f ->
+			// tag::entity-requested-type[]
+			f.entity( Book.class )
+			// end::entity-requested-type[]
+					)
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 );
 			Session session = searchSession.toOrmSession();
 			assertThat( hits ).containsExactlyInAnyOrder(
 					session.getReference( Book.class, BOOK1_ID ),
@@ -375,6 +397,7 @@ public class ProjectionDslIT {
 		} );
 
 		withinSearchSession( searchSession -> {
+			// @formatter:off
 			// tag::composite-customObject-asList[]
 			List<MyTuple4<String, Genre, Integer, String>> hits = searchSession.search( Book.class )
 					.select( f -> f.composite() // <1>
@@ -388,6 +411,7 @@ public class ProjectionDslIT {
 					.where( f -> f.matchAll() )
 					.fetchHits( 20 ); // <7>
 			// end::composite-customObject-asList[]
+			// @formatter:on
 			Session session = searchSession.toOrmSession();
 			assertThat( hits ).containsExactlyInAnyOrder(
 					new MyTuple4<>(
@@ -563,34 +587,35 @@ public class ProjectionDslIT {
 			Session session = searchSession.toOrmSession();
 			assertThat( hits ).usingRecursiveFieldByFieldElementComparator()
 					.containsExactlyInAnyOrder(
-					Collections.singletonList(
-							new MyAuthorName(
-									session.getReference( Book.class, BOOK1_ID ).getAuthors().get( 0 ).getFirstName(),
-									session.getReference( Book.class, BOOK1_ID ).getAuthors().get( 0 ).getLastName()
+							Collections.singletonList(
+									new MyAuthorName(
+											session.getReference( Book.class, BOOK1_ID ).getAuthors().get( 0 ).getFirstName(),
+											session.getReference( Book.class, BOOK1_ID ).getAuthors().get( 0 ).getLastName()
+									)
+							),
+							Collections.singletonList(
+									new MyAuthorName(
+											session.getReference( Book.class, BOOK2_ID ).getAuthors().get( 0 ).getFirstName(),
+											session.getReference( Book.class, BOOK2_ID ).getAuthors().get( 0 ).getLastName()
+									)
+							),
+							Collections.singletonList(
+									new MyAuthorName(
+											session.getReference( Book.class, BOOK3_ID ).getAuthors().get( 0 ).getFirstName(),
+											session.getReference( Book.class, BOOK3_ID ).getAuthors().get( 0 ).getLastName()
+									)
+							),
+							Collections.singletonList(
+									new MyAuthorName(
+											session.getReference( Book.class, BOOK4_ID ).getAuthors().get( 0 ).getFirstName(),
+											session.getReference( Book.class, BOOK4_ID ).getAuthors().get( 0 ).getLastName()
+									)
 							)
-					),
-					Collections.singletonList(
-							new MyAuthorName(
-									session.getReference( Book.class, BOOK2_ID ).getAuthors().get( 0 ).getFirstName(),
-									session.getReference( Book.class, BOOK2_ID ).getAuthors().get( 0 ).getLastName()
-							)
-					),
-					Collections.singletonList(
-							new MyAuthorName(
-									session.getReference( Book.class, BOOK3_ID ).getAuthors().get( 0 ).getFirstName(),
-									session.getReference( Book.class, BOOK3_ID ).getAuthors().get( 0 ).getLastName()
-							)
-					),
-					Collections.singletonList(
-							new MyAuthorName(
-									session.getReference( Book.class, BOOK4_ID ).getAuthors().get( 0 ).getFirstName(),
-									session.getReference( Book.class, BOOK4_ID ).getAuthors().get( 0 ).getLastName()
-							)
-					)
-			);
+					);
 		} );
 
 		withinSearchSession( searchSession -> {
+			// @formatter:off
 			// tag::object-customObject-asList[]
 			GeoPoint center = GeoPoint.of( 53.970000, 32.150000 );
 			List<List<MyAuthorNameAndBirthDateAndPlaceOfBirthDistance>> hits = searchSession
@@ -609,6 +634,7 @@ public class ProjectionDslIT {
 					.where( f -> f.matchAll() )
 					.fetchHits( 20 ); // <8>
 			// end::object-customObject-asList[]
+			// @formatter:on
 			Session session = searchSession.toOrmSession();
 			assertThat( hits )
 					.usingRecursiveFieldByFieldElementComparator( RecursiveComparisonConfiguration.builder()
@@ -651,6 +677,7 @@ public class ProjectionDslIT {
 		} );
 
 		withinSearchSession( searchSession -> {
+			// @formatter:off
 			// tag::object-customObject-asArray[]
 			GeoPoint center = GeoPoint.of( 53.970000, 32.150000 );
 			List<List<MyAuthorNameAndBirthDateAndPlaceOfBirthDistance>> hits = searchSession
@@ -669,6 +696,7 @@ public class ProjectionDslIT {
 					.where( f -> f.matchAll() )
 					.fetchHits( 20 ); // <8>
 			// end::object-customObject-asArray[]
+			// @formatter:on
 			Session session = searchSession.toOrmSession();
 			assertThat( hits )
 					.usingRecursiveFieldByFieldElementComparator( RecursiveComparisonConfiguration.builder()
@@ -869,7 +897,10 @@ public class ProjectionDslIT {
 					).asList() )
 					.where( f -> f.match().field( "title" ).matching( "detective" ) )
 					.highlighter( f -> f.unified().tag( "<b>", "</b>" ) ) // <2>
-					.highlighter( "description-highlighter", f -> f.unified().tag( "<span>", "</span>" ) ) // <3>
+					.highlighter(
+							"description-highlighter",
+							f -> f.unified().tag( "<span>", "</span>" )
+					) // <3>
 					.fetchHits( 20 );
 			// end::highlighter-named[]
 			Session session = searchSession.toOrmSession();
@@ -986,7 +1017,8 @@ public class ProjectionDslIT {
 				return false;
 			}
 			MyTuple4<?, ?, ?, ?> other = (MyTuple4<?, ?, ?, ?>) obj;
-			return Objects.equals( first, other.first ) && Objects.equals( second, other.second )
+			return Objects.equals( first, other.first )
+					&& Objects.equals( second, other.second )
 					&& Objects.equals( third, other.third ) && Objects.equals( fourth, other.fourth );
 		}
 

@@ -7,6 +7,7 @@
 package org.hibernate.search.integrationtest.backend.tck.sharding;
 
 import static org.hibernate.search.util.impl.integrationtest.common.assertion.SearchResultAssert.assertThatQuery;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.engine.backend.work.execution.spi.UnsupportedOperationBehavior;
+import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckConfiguration;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.impl.test.annotation.PortedFromSearch5;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
@@ -102,17 +105,28 @@ public class ShardingHashDocumentIdIT extends AbstractShardingIT {
 	@Test
 	@TestForIssue(jiraKey = "HSEARCH-3824")
 	public void purgeWithRoutingKey() {
+		assumePurgeSupported();
+
 		Iterator<String> iterator = docIds.iterator();
 		String someDocumentId = iterator.next();
 
-		index.createWorkspace().purge( Collections.singleton( someDocumentId ), OperationSubmitter.blocking() ).join();
+		index.createWorkspace()
+				.purge( Collections.singleton( someDocumentId ), OperationSubmitter.blocking(),
+						UnsupportedOperationBehavior.FAIL )
+				.join();
 
 		// One or more explicit routing key => no document should be purged, since no documents was indexed with that routing key.
-		index.createWorkspace().refresh( OperationSubmitter.blocking() ).join();
-		assertThatQuery( index.createScope().query().where( f -> f.matchAll() ).toQuery() )
+		index.searchAfterIndexChanges( () -> assertThatQuery( index.query().where( f -> f.matchAll() ) )
 				.hits().asNormalizedDocRefs()
 				.hasSize( TOTAL_DOCUMENT_COUNT )
-				.containsExactlyInAnyOrder( allDocRefs( docIdByRoutingKey ) );
+				.containsExactlyInAnyOrder( allDocRefs( docIdByRoutingKey ) ) );
+	}
+
+	private void assumePurgeSupported() {
+		assumeTrue(
+				"This test only makes sense if the backend supports explicit purge",
+				TckConfiguration.get().getBackendFeatures().supportsExplicitPurge()
+		);
 	}
 
 }

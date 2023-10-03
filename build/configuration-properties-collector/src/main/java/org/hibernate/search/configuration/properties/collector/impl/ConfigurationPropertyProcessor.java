@@ -20,10 +20,12 @@ import java.util.function.Predicate;
 
 public class ConfigurationPropertyProcessor implements AutoCloseable {
 
-	private static final Predicate<Map.Entry<String, ConfigurationProperty>> API_FILTER = entry -> ConfigurationProperty.Type.API.equals(
-			entry.getValue().type() );
-	private static final Predicate<Map.Entry<String, ConfigurationProperty>> SPI_FILTER = entry -> ConfigurationProperty.Type.SPI.equals(
-			entry.getValue().type() );
+	private static final Predicate<Map.Entry<String, ConfigurationProperty>> API_FILTER =
+			entry -> ConfigurationProperty.Type.API.equals(
+					entry.getValue().type() );
+	private static final Predicate<Map.Entry<String, ConfigurationProperty>> SPI_FILTER =
+			entry -> ConfigurationProperty.Type.SPI.equals(
+					entry.getValue().type() );
 
 	private final ConfigurationPropertyCollector propertyCollector;
 	private final String fileName;
@@ -36,7 +38,7 @@ public class ConfigurationPropertyProcessor implements AutoCloseable {
 		this.javadocFolderName = javadocFolderName;
 		this.target = target;
 		this.output = output;
-		this.fileName = artifact;
+		this.fileName = artifact.startsWith( "_" ) ? artifact : "_" + artifact;
 
 		this.propertyCollector = new ConfigurationPropertyCollector( javadocsBaseLink, locateJavaDocFolder(), artifact,
 				moduleName
@@ -79,7 +81,7 @@ public class ConfigurationPropertyProcessor implements AutoCloseable {
 		if ( propertyCollector.hasProperties() ) {
 			if ( propertyCollector.hasProperties( API_FILTER ) ) {
 				writeProperties(
-						fileName + ".asciidoc",
+						fileName + ".adoc",
 						new AsciiDocWriter(
 								API_FILTER
 						)
@@ -87,9 +89,10 @@ public class ConfigurationPropertyProcessor implements AutoCloseable {
 			}
 			if ( propertyCollector.hasProperties( SPI_FILTER ) ) {
 				writeProperties(
-						fileName + "-spi.asciidoc",
+						fileName + "-spi.adoc",
 						new AsciiDocWriter(
-								SPI_FILTER
+								SPI_FILTER,
+								"-spi"
 						)
 				);
 			}

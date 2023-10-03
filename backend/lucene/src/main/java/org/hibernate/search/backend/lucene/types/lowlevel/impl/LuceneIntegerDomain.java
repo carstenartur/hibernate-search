@@ -84,7 +84,8 @@ public class LuceneIntegerDomain implements LuceneNumericDomain<Integer> {
 
 	@Override
 	public Facets createTermsFacetCounts(String absoluteFieldPath, FacetsCollector facetsCollector,
-			NestedDocsProvider nestedDocsProvider) throws IOException {
+			NestedDocsProvider nestedDocsProvider)
+			throws IOException {
 		JoiningLongMultiValuesSource source = JoiningLongMultiValuesSource.fromIntField(
 				absoluteFieldPath, nestedDocsProvider
 		);
@@ -97,7 +98,8 @@ public class LuceneIntegerDomain implements LuceneNumericDomain<Integer> {
 	@Override
 	public Facets createRangeFacetCounts(String absoluteFieldPath, FacetsCollector facetsCollector,
 			Collection<? extends Range<? extends Integer>> ranges,
-			NestedDocsProvider nestedDocsProvider) throws IOException {
+			NestedDocsProvider nestedDocsProvider)
+			throws IOException {
 		JoiningLongMultiValuesSource source = JoiningLongMultiValuesSource.fromIntField(
 				absoluteFieldPath, nestedDocsProvider
 		);
@@ -120,10 +122,10 @@ public class LuceneIntegerDomain implements LuceneNumericDomain<Integer> {
 
 	@Override
 	public FieldComparator<Integer> createFieldComparator(String fieldName, int numHits,
-			Integer missingValue, boolean reversed, int sortPos, MultiValueMode multiValueMode,
+			Integer missingValue, boolean reversed, boolean enableSkipping, MultiValueMode multiValueMode,
 			NestedDocsProvider nestedDocsProvider) {
 		LongMultiValuesToSingleValuesSource source =
 				LongMultiValuesToSingleValuesSource.fromIntField( fieldName, multiValueMode, nestedDocsProvider );
-		return new IntValuesSourceComparator( numHits, fieldName, missingValue, reversed, sortPos, source );
+		return new IntValuesSourceComparator( numHits, fieldName, missingValue, reversed, enableSkipping, source );
 	}
 }

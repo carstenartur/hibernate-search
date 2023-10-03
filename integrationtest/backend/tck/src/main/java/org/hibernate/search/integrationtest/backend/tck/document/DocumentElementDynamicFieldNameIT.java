@@ -11,19 +11,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import org.hibernate.search.engine.backend.document.DocumentElement;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.types.ObjectStructure;
-import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEmbeddedDefinition;
+import org.hibernate.search.engine.common.tree.TreeFilterDefinition;
 import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEntityBindingContext;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.types.FieldTypeDescriptor;
-import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckConfiguration;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.SimpleMappedIndex;
-import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubTypeModel;
+import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingElement;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.BeforeClass;
@@ -41,10 +39,7 @@ import org.junit.runners.Parameterized;
 public class DocumentElementDynamicFieldNameIT<F> {
 
 	private static List<FieldTypeDescriptor<?>> supportedTypeDescriptors() {
-		return FieldTypeDescriptor.getAll().stream()
-				.filter( fieldType -> TckConfiguration.get().getBackendFeatures()
-						.supportsValuesForDynamicField( fieldType.getJavaType() ) )
-				.collect( Collectors.toList() );
+		return FieldTypeDescriptor.getAll();
 	}
 
 	@Parameterized.Parameters(name = "{0}")
@@ -262,13 +257,12 @@ public class DocumentElementDynamicFieldNameIT<F> {
 					.multiValued();
 
 			// Simulate an embedded context which excludes every subfield
-			IndexedEmbeddedDefinition indexedEmbeddedDefinition = new IndexedEmbeddedDefinition(
-					new StubTypeModel( "embedded" ),
-					"excludingObject.", ObjectStructure.FLATTENED,
-					null, Collections.singleton( "pathThatDoesNotMatchAnything" )
-			);
+			TreeFilterDefinition filterDefinition =
+					new TreeFilterDefinition( null,
+							Collections.singleton( "pathThatDoesNotMatchAnything" ), Collections.emptySet() );
 			// Ignore the result, we'll just reference "excludingObject" by its name
-			ctx.addIndexedEmbeddedIfIncluded( indexedEmbeddedDefinition, true ).get();
+			ctx.addIndexedEmbeddedIfIncluded( new StubMappingElement(),
+					"excludingObject.", ObjectStructure.FLATTENED, filterDefinition, true ).get();
 		}
 	}
 }

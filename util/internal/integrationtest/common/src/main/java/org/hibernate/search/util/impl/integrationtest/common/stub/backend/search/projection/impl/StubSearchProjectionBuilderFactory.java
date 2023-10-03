@@ -28,7 +28,7 @@ public class StubSearchProjectionBuilderFactory implements SearchProjectionBuild
 
 	@Override
 	public SearchProjection<DocumentReference> documentReference() {
-		return StubDefaultProjection.get();
+		return StubDocumentReferenceProjection.INSTANCE;
 	}
 
 	@Override
@@ -42,15 +42,16 @@ public class StubSearchProjectionBuilderFactory implements SearchProjectionBuild
 	}
 
 	@Override
-	public <I> SearchProjection<I> id(Class<I> identifierType) {
+	public <I> SearchProjection<I> id(Class<I> requestedIdentifierType) {
 		SearchIndexIdentifierContext identifier = scope.identifier();
 		return new StubIdProjection<>(
-				identifier.projectionConverter().withConvertedType( identifierType, identifier ) );
+				requestedIdentifierType,
+				identifier.projectionConverter().withConvertedType( requestedIdentifierType, identifier ) );
 	}
 
 	@Override
 	public SearchProjection<Float> score() {
-		return StubDefaultProjection.get();
+		return StubScoreProjection.INSTANCE;
 	}
 
 	@Override

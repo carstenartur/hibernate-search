@@ -10,20 +10,20 @@ import java.lang.invoke.MethodHandles;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.hibernate.search.backend.lucene.document.impl.LuceneIndexObjectFieldReference;
+import org.hibernate.search.backend.lucene.document.model.impl.LuceneIndexCompositeNode;
 import org.hibernate.search.backend.lucene.document.model.impl.LuceneIndexField;
 import org.hibernate.search.backend.lucene.document.model.impl.LuceneIndexObjectField;
 import org.hibernate.search.backend.lucene.logging.impl.Log;
 import org.hibernate.search.backend.lucene.types.impl.LuceneIndexCompositeNodeType;
 import org.hibernate.search.engine.backend.common.spi.FieldPaths;
 import org.hibernate.search.engine.backend.document.IndexObjectFieldReference;
-import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.engine.backend.document.model.dsl.spi.IndexObjectFieldBuilder;
-import org.hibernate.search.backend.lucene.document.impl.LuceneIndexObjectFieldReference;
-import org.hibernate.search.backend.lucene.document.model.impl.LuceneIndexCompositeNode;
-import org.hibernate.search.engine.backend.document.model.spi.IndexFieldInclusion;
+import org.hibernate.search.engine.backend.types.ObjectStructure;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
+import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 import org.hibernate.search.util.common.reporting.EventContext;
-import org.hibernate.search.engine.reporting.spi.EventContexts;
 
 class LuceneIndexObjectFieldBuilder extends AbstractLuceneIndexCompositeNodeBuilder
 		implements IndexObjectFieldBuilder, LuceneIndexNodeContributor {
@@ -32,13 +32,13 @@ class LuceneIndexObjectFieldBuilder extends AbstractLuceneIndexCompositeNodeBuil
 	private final AbstractLuceneIndexCompositeNodeBuilder parent;
 	private final String absoluteFieldPath;
 	private final String relativeFieldName;
-	private final IndexFieldInclusion inclusion;
+	private final TreeNodeInclusion inclusion;
 	private boolean multiValued = false;
 
 	private LuceneIndexObjectFieldReference reference;
 
 	LuceneIndexObjectFieldBuilder(AbstractLuceneIndexCompositeNodeBuilder parent,
-			String relativeFieldName, IndexFieldInclusion inclusion, ObjectStructure structure) {
+			String relativeFieldName, TreeNodeInclusion inclusion, ObjectStructure structure) {
 		super( new LuceneIndexCompositeNodeType.Builder( structure ) );
 		this.parent = parent;
 		this.absoluteFieldPath = FieldPaths.compose( parent.getAbsolutePath(), relativeFieldName );

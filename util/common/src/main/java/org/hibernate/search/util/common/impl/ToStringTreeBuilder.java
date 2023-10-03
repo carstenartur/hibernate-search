@@ -13,18 +13,16 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.hibernate.search.util.common.AssertionFailure;
+import org.hibernate.search.util.common.spi.ToStringTreeAppendable;
+import org.hibernate.search.util.common.spi.ToStringTreeAppender;
 
-public class ToStringTreeBuilder {
+public class ToStringTreeBuilder implements ToStringTreeAppender {
 
 	private final ToStringStyle style;
 	private final StringBuilder builder = new StringBuilder();
 
 	private final Deque<StructureType> structureTypeStack = new ArrayDeque<>();
 	private boolean first = true;
-
-	public ToStringTreeBuilder() {
-		this( ToStringStyle.inlineDelimiterStructure() );
-	}
 
 	public ToStringTreeBuilder(ToStringStyle style) {
 		this.style = style;
@@ -35,6 +33,7 @@ public class ToStringTreeBuilder {
 		return builder.toString();
 	}
 
+	@Override
 	public ToStringTreeBuilder attribute(String name, Object value) {
 		if ( value instanceof ToStringTreeAppendable ) {
 			ToStringTreeAppendable appendable = ( (ToStringTreeAppendable) value );
@@ -78,36 +77,43 @@ public class ToStringTreeBuilder {
 		return this;
 	}
 
+	@Override
 	public ToStringTreeBuilder value(Object value) {
 		return attribute( null, value );
 	}
 
+	@Override
 	public ToStringTreeBuilder startObject() {
 		return startObject( null );
 	}
 
+	@Override
 	public ToStringTreeBuilder startObject(String name) {
 		startEntry( name, StructureType.OBJECT );
 		startStructure( StructureType.OBJECT, style.startObject );
 		return this;
 	}
 
+	@Override
 	public ToStringTreeBuilder endObject() {
 		endStructure( StructureType.OBJECT, style.endObject );
 		endEntry();
 		return this;
 	}
 
+	@Override
 	public ToStringTreeBuilder startList() {
 		return startList( null );
 	}
 
+	@Override
 	public ToStringTreeBuilder startList(String name) {
 		startEntry( name, StructureType.LIST );
 		startStructure( StructureType.LIST, style.startList );
 		return this;
 	}
 
+	@Override
 	public ToStringTreeBuilder endList() {
 		endStructure( StructureType.LIST, style.endList );
 		endEntry();
@@ -124,21 +130,17 @@ public class ToStringTreeBuilder {
 
 		// Add a new line
 		if (
-				// ... except for the very first element at the root
-				!( first && structureTypeStack.isEmpty() )
+			// ... except for the very first element at the root
+		!( first && structureTypeStack.isEmpty() )
 				// ... or for entries containing a squeezed structure
 				&& !shouldSqueeze( containedStructureType, entryType, structureTypeStack.peek() )
 				// ... or for structures without a name nor a start delimiter
-				&& !(
-						StructureType.UNNAMED_ENTRY.equals( entryType )
+				&& !( StructureType.UNNAMED_ENTRY.equals( entryType )
 						&& StructureType.OBJECT.equals( containedStructureType )
-						&& StringHelper.isEmpty( style.startObject )
-				)
-				&& !(
-						StructureType.UNNAMED_ENTRY.equals( entryType )
+						&& StringHelper.isEmpty( style.startObject ) )
+				&& !( StructureType.UNNAMED_ENTRY.equals( entryType )
 						&& StructureType.LIST.equals( containedStructureType )
-						&& StringHelper.isEmpty( style.startList )
-				)
+						&& StringHelper.isEmpty( style.startList ) )
 		) {
 			appendNewline();
 			appendIndentIfNecessary();
@@ -228,8 +230,8 @@ public class ToStringTreeBuilder {
 			case LIST:
 				// Display a bullet point if:
 				if (
-						// We are adding an element directly to the list
-						child == null
+					// We are adding an element directly to the list
+				child == null
 						// OR we are adding the first element to a squeezed element in the list
 						|| shouldSqueeze( grandChild, child, current ) && !hasParent && first
 				) {

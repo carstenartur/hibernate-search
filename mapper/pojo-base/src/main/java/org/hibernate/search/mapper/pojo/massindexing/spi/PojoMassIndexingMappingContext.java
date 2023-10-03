@@ -7,8 +7,8 @@
 package org.hibernate.search.mapper.pojo.massindexing.spi;
 
 import org.hibernate.search.engine.backend.mapping.spi.BackendMappingContext;
-import org.hibernate.search.engine.reporting.FailureHandler;
 import org.hibernate.search.engine.environment.thread.spi.ThreadPoolProvider;
+import org.hibernate.search.engine.reporting.FailureHandler;
 import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReferenceFactoryDelegate;
 
 /**
@@ -28,7 +28,7 @@ public interface PojoMassIndexingMappingContext extends BackendMappingContext {
 
 	/**
 	 * Creates a {@link PojoMassIndexerAgent},
-	 * able to exert control over other agents that could perform indexing concurrently (e.g. automatic indexing).
+	 * able to exert control over other agents that could perform indexing concurrently (e.g. indexing plans).
 	 *
 	 * @param context A context with information about the mass indexing that is about to start.
 	 * @return An agent.

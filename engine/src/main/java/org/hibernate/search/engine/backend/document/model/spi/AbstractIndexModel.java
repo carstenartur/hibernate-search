@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import org.hibernate.search.engine.backend.metamodel.IndexDescriptor;
 import org.hibernate.search.engine.backend.metamodel.IndexFieldDescriptor;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.logging.impl.Log;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.util.common.SearchException;
@@ -25,12 +26,10 @@ import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 import org.hibernate.search.util.common.reporting.EventContext;
 import org.hibernate.search.util.common.reporting.spi.EventContextProvider;
 
-
 public abstract class AbstractIndexModel<
-				S extends AbstractIndexModel<?, R, F>,
-				R extends IndexCompositeNode<?, ?, ?>,
-				F extends IndexField<?, ?>
-		>
+		S extends AbstractIndexModel<?, R, F>,
+		R extends IndexCompositeNode<?, ?, ?>,
+		F extends IndexField<?, ?>>
 		implements EventContextProvider, IndexDescriptor {
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
@@ -58,7 +57,7 @@ public abstract class AbstractIndexModel<
 		this.root = root;
 		this.staticFields = CollectionHelper.toImmutableMap( staticFields );
 		this.includedStaticFields = CollectionHelper.toImmutableList( staticFields.values().stream()
-				.filter( field -> IndexFieldInclusion.INCLUDED.equals( field.inclusion() ) )
+				.filter( field -> TreeNodeInclusion.INCLUDED.equals( field.inclusion() ) )
 				.collect( Collectors.toList() ) );
 		this.fieldTemplates = fieldTemplates;
 	}

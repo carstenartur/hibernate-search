@@ -36,7 +36,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -56,7 +55,7 @@ public class BeanResolverImplBaseTest {
 	@Mock
 	private BeanProvider beanManagerBeanProviderMock;
 
-	@Mock(answer = Answers.CALLS_REAL_METHODS)
+	@Mock
 	private ConfigurationPropertySource configurationSourceMock;
 
 	@Mock
@@ -99,7 +98,11 @@ public class BeanResolverImplBaseTest {
 
 		when( serviceResolverMock.loadJavaServices( BeanConfigurer.class ) )
 				.thenReturn( Collections.singletonList( beanConfigurer1 ) );
-		when( configurationSourceMock.get( EngineSpiSettings.Radicals.BEAN_CONFIGURERS ) )
+		when( configurationSourceMock.withMask( any() ) )
+				.thenCallRealMethod();
+		when( configurationSourceMock.withFallback( any() ) )
+				.thenCallRealMethod();
+		when( configurationSourceMock.get( EngineSpiSettings.BEAN_CONFIGURERS ) )
 				.thenReturn( (Optional) Optional.of( Collections.singletonList( beanConfigurer2 ) ) );
 		beanResolver = BeanResolverImpl.create( classResolverMock, serviceResolverMock, beanManagerBeanProviderMock,
 				configurationSourceMock );
@@ -337,7 +340,7 @@ public class BeanResolverImplBaseTest {
 		assertThatThrownBy( () -> beanResolver.resolve( InvalidType.class, "someName", BeanRetrieval.ANY ) )
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll( "Unable to resolve bean reference to type '" + InvalidType.class.getName()
-								+ "' and name 'someName'",
+						+ "' and name 'someName'",
 						"No beans defined for type", "in Hibernate Search's internal registry",
 						beanManagerNotFoundException.getMessage(),
 						classNotFoundException.getMessage() )
@@ -352,7 +355,7 @@ public class BeanResolverImplBaseTest {
 		assertThatThrownBy( () -> beanResolver.resolve( BeanReference.of( InvalidType.class, "someName" ) ) )
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll( "Unable to resolve bean reference to type '" + InvalidType.class.getName()
-								+ "' and name 'someName'",
+						+ "' and name 'someName'",
 						"No beans defined for type", "in Hibernate Search's internal registry",
 						beanManagerNotFoundException.getMessage(),
 						classNotFoundException.getMessage() )
@@ -467,7 +470,7 @@ public class BeanResolverImplBaseTest {
 
 	private void verifyNoOtherInteractionsAndReset() {
 		verifyNoMoreInteractions( classResolverMock, serviceResolverMock, beanManagerBeanProviderMock,
-				configurationSourceMock,
+				configurationSourceMock, configurationSourceMock,
 				type1InternalBeanFactoryMock, type2InternalBeanFactoryMock,
 				type3InternalBean1FactoryMock, type3InternalBean2FactoryMock,
 				roleInternalBean1FactoryMock, roleInternalBean2FactoryMock,

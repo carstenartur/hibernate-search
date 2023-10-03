@@ -12,9 +12,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.List;
 
-import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
-import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
-import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.mapper.pojo.extractor.ContainerExtractionContext;
 import org.hibernate.search.mapper.pojo.extractor.ContainerExtractor;
 import org.hibernate.search.mapper.pojo.extractor.ValueProcessor;
@@ -25,9 +22,12 @@ import org.hibernate.search.mapper.pojo.extractor.mapping.annotation.ContainerEx
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
+import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.common.reporting.FailureReportUtils;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
+import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Rule;
@@ -48,7 +48,8 @@ public class FieldContainerExtractorBaseIT {
 	public BackendMock backendMock = new BackendMock();
 
 	@Rule
-	public StandalonePojoMappingSetupHelper setupHelper = StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public StandalonePojoMappingSetupHelper setupHelper =
+			StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
 
 	@Test
 	public void custom() {
@@ -88,7 +89,7 @@ public class FieldContainerExtractorBaseIT {
 		private final List<T> elements;
 
 		@SafeVarargs
-		private MyContainer(T ... elements) {
+		private MyContainer(T... elements) {
 			this.elements = Arrays.asList( elements );
 		}
 
@@ -129,9 +130,10 @@ public class FieldContainerExtractorBaseIT {
 						.pathContext( ".id" )
 						.failure(
 								"No container extractor with name 'some-undefined-name'."
-								+ " Check that this name matches a container extractor,"
-								+ " either a builtin one whose name is a constant in '" + BuiltinContainerExtractors.class.getName() + "'"
-								+ " or a custom one that was properly registered."
+										+ " Check that this name matches a container extractor,"
+										+ " either a builtin one whose name is a constant in '"
+										+ BuiltinContainerExtractors.class.getName() + "'"
+										+ " or a custom one that was properly registered."
 						) );
 	}
 
@@ -164,6 +166,7 @@ public class FieldContainerExtractorBaseIT {
 	@SuppressWarnings("rawtypes")
 	private static class RawContainerExtractor implements ContainerExtractor {
 		public static final String NAME = "raw-container-extractor";
+
 		@Override
 		public void extract(Object container, ValueProcessor perValueProcessor, Object target, Object context,
 				ContainerExtractionContext extractionContext) {

@@ -44,13 +44,18 @@ public class HighlighterPlainIT extends AbstractHighlighterIT {
 		return TckConfiguration.get().getBackendFeatures().supportsHighlighterPlainOrderByScoreMultivaluedField();
 	}
 
+	@Override
+	protected boolean supportsPhraseMatching() {
+		return false;
+	}
+
 	@Test
 	public void plainFragmenterSimple() {
 		StubMappingScope scope = index.createScope();
 
 		SearchQuery<List<String>> highlights = scope.query().select(
-						f -> f.highlight( "string" )
-				)
+				f -> f.highlight( "string" )
+		)
 				.where( f -> f.match().field( "string" ).matching( "foo" ) )
 				.highlighter( h -> h.plain()
 						.fragmenter( HighlighterFragmenter.SIMPLE )
@@ -69,8 +74,8 @@ public class HighlighterPlainIT extends AbstractHighlighterIT {
 		StubMappingScope scope = index.createScope();
 
 		SearchQuery<List<String>> highlights = scope.query().select(
-						f -> f.highlight( "string" )
-				)
+				f -> f.highlight( "string" )
+		)
 				.where( f -> f.match().field( "string" ).matching( "foo" ) )
 				.highlighter( h -> h.plain()
 						.fragmenter( HighlighterFragmenter.SPAN )

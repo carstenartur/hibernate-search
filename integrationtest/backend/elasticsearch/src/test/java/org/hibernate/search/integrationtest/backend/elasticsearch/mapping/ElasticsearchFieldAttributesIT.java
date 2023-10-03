@@ -17,10 +17,11 @@ import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchReques
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.types.Norms;
 import org.hibernate.search.engine.backend.types.TermVector;
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchClientSpy;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchRequestAssertionMode;
+import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendFeatures;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 
 import org.junit.Rule;
@@ -66,7 +67,9 @@ public class ElasticsearchFieldAttributesIT {
 			root.field( "no", f -> f.asString().analyzer( "standard" ).termVector( TermVector.NO ) ).toReference();
 			root.field( "yes", f -> f.asString().analyzer( "standard" ).termVector( TermVector.YES ) ).toReference();
 			root.field( "implicit", f -> f.asString().analyzer( "standard" ) ).toReference();
-			root.field( "moreOptions", f -> f.asString().analyzer( "standard" ).termVector( TermVector.WITH_POSITIONS_OFFSETS_PAYLOADS ) ).toReference();
+			root.field( "moreOptions",
+					f -> f.asString().analyzer( "standard" ).termVector( TermVector.WITH_POSITIONS_OFFSETS_PAYLOADS ) )
+					.toReference();
 		}, properties );
 	}
 
@@ -91,10 +94,12 @@ public class ElasticsearchFieldAttributesIT {
 
 	private void matchMapping(Consumer<IndexSchemaElement> mapping, JsonObject properties) {
 		StubMappedIndex index = StubMappedIndex.ofNonRetrievable( mapping );
-		clientSpy.expectNext(
-				ElasticsearchRequest.get().build(),
-				ElasticsearchRequestAssertionMode.STRICT
-		);
+		if ( ElasticsearchTckBackendFeatures.supportsVersionCheck() ) {
+			clientSpy.expectNext(
+					ElasticsearchRequest.get().build(),
+					ElasticsearchRequestAssertionMode.STRICT
+			);
+		}
 		clientSpy.expectNext(
 				ElasticsearchRequest.get()
 						.multiValuedPathComponent( defaultAliases( index.name() ) )
@@ -123,17 +128,7 @@ public class ElasticsearchFieldAttributesIT {
 		JsonObject mappings = new JsonObject();
 		payload.add( "mappings", mappings );
 
-		JsonObject mapping = dialect.getTypeNameForMappingAndBulkApi()
-				// ES6 and below: the mapping has its own object node, child of "mappings"
-				.map( name -> {
-					JsonObject doc = new JsonObject();
-					mappings.add( name.original, doc );
-					return doc;
-				} )
-				// ES7 and below: the mapping is the "mappings" node
-				.orElse( mappings );
-
-		mapping.add( "properties", properties );
+		mappings.add( "properties", properties );
 		return payload;
 	}
 

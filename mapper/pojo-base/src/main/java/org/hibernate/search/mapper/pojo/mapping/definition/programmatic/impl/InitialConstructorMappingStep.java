@@ -6,20 +6,26 @@
  */
 package org.hibernate.search.mapper.pojo.mapping.definition.programmatic.impl;
 
-import org.hibernate.search.mapper.pojo.mapping.building.spi.ErrorCollectingPojoConstructorMetadataContributor;
-import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoSearchMappingCollectorTypeNode;
-import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoTypeMetadataContributor;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoSearchMappingConstructorNode;
+import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoSearchMappingMethodParameterNode;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.ConstructorMappingStep;
+import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.MethodParameterMappingStep;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.TypeMappingStep;
 import org.hibernate.search.mapper.pojo.model.spi.PojoConstructorModel;
+import org.hibernate.search.mapper.pojo.model.spi.PojoMethodParameterModel;
 
-public class InitialConstructorMappingStep implements ConstructorMappingStep, PojoTypeMetadataContributor {
+class InitialConstructorMappingStep
+		implements ConstructorMappingStep, PojoSearchMappingConstructorNode {
 
 	private final TypeMappingStepImpl parent;
 	private final PojoConstructorModel<?> constructorModel;
 
-	private final ErrorCollectingPojoConstructorMetadataContributor children =
-			new ErrorCollectingPojoConstructorMetadataContributor();
+	private boolean projectionConstructor = false;
+	private Map<Integer, InitialMethodParameterMappingStep> parameters;
 
 	InitialConstructorMappingStep(TypeMappingStepImpl parent, PojoConstructorModel<?> constructorModel) {
 		this.parent = parent;
@@ -32,19 +38,37 @@ public class InitialConstructorMappingStep implements ConstructorMappingStep, Po
 	}
 
 	@Override
-	public void contributeSearchMapping(PojoSearchMappingCollectorTypeNode collector) {
-		// Constructor mapping is not inherited
-		if ( !constructorModel.typeModel().typeIdentifier().equals( collector.typeIdentifier() ) ) {
-			return;
-		}
-		if ( children.hasContent() ) {
-			children.contributeSearchMapping( collector.constructor( constructorModel.parametersJavaTypes() ) );
-		}
+	public Class<?>[] parametersJavaTypes() {
+		return constructorModel.parametersJavaTypes();
 	}
 
 	@Override
 	public ConstructorMappingStep projectionConstructor() {
-		children.add( new ProjectionConstructorMappingContributor() );
+		this.projectionConstructor = true;
 		return this;
+	}
+
+	@Override
+	public boolean isProjectionConstructor() {
+		return projectionConstructor;
+	}
+
+	@Override
+	public MethodParameterMappingStep parameter(int index) {
+		if ( parameters == null ) {
+			parameters = new HashMap<>();
+		}
+		InitialMethodParameterMappingStep parameter = parameters.get( index );
+		if ( parameter == null ) {
+			PojoMethodParameterModel<?> parameterModel = constructorModel.parameter( index );
+			parameter = new InitialMethodParameterMappingStep( this, parameterModel );
+			parameters.put( index, parameter );
+		}
+		return parameter;
+	}
+
+	@Override
+	public Optional<PojoSearchMappingMethodParameterNode> parameterNode(int index) {
+		return Optional.ofNullable( parameters == null ? null : parameters.get( index ) );
 	}
 }

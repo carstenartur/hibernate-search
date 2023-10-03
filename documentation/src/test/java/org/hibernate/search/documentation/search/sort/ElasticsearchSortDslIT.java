@@ -11,7 +11,8 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 
 import java.util.List;
 import java.util.function.Consumer;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
@@ -55,12 +56,12 @@ public class ElasticsearchSortDslIT {
 					// end::elasticsearch-fromJson-jsonObject[]
 					new Gson().fromJson(
 							"{"
-									+ "\"title_sort\": \"asc\""
-							+ "}",
+									+ "    \"title_sort\": \"asc\""
+									+ "}",
 							JsonObject.class
 					)
-					// tag::elasticsearch-fromJson-jsonObject[]
-					/* ... */;
+			// tag::elasticsearch-fromJson-jsonObject[]
+			/* ... */;
 			List<Book> hits = searchSession.search( Book.class )
 					.extension( ElasticsearchExtension.get() )
 					.where( f -> f.matchAll() )
@@ -78,7 +79,7 @@ public class ElasticsearchSortDslIT {
 					.extension( ElasticsearchExtension.get() )
 					.where( f -> f.matchAll() )
 					.sort( f -> f.fromJson( "{"
-									+ "\"title_sort\": \"asc\""
+							+ "     \"title_sort\": \"asc\""
 							+ "}" ) )
 					.fetchHits( 20 );
 			// end::elasticsearch-fromJson-string[]

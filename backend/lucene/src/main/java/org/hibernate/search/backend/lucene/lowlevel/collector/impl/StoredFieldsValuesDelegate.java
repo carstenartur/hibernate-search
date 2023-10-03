@@ -16,6 +16,7 @@ import org.hibernate.search.util.common.AssertionFailure;
 
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.IntObjectMap;
+
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
@@ -68,7 +69,8 @@ public class StoredFieldsValuesDelegate {
 
 	public StoredFieldsValuesDelegate(NestedDocsProvider nestedDocsProvider,
 			ReusableDocumentStoredFieldVisitor storedFieldVisitor,
-			IndexSearcher indexSearcher) throws IOException {
+			IndexSearcher indexSearcher)
+			throws IOException {
 		this.childrenWeight = nestedDocsProvider == null ? null : nestedDocsProvider.childDocsWeight( indexSearcher );
 		this.nestedDocsProvider = nestedDocsProvider;
 		this.storedFieldVisitor = storedFieldVisitor;
@@ -84,7 +86,8 @@ public class StoredFieldsValuesDelegate {
 
 	void context(LeafReaderContext context) throws IOException {
 		this.currentLeafReader = context.reader();
-		this.currentLeafChildDocs = nestedDocsProvider == null ? null
+		this.currentLeafChildDocs = nestedDocsProvider == null
+				? null
 				: nestedDocsProvider.childDocs( childrenWeight, context, null );
 
 		this.currentRootDoc = -1;
@@ -101,13 +104,13 @@ public class StoredFieldsValuesDelegate {
 		if ( currentLeafChildDocs != null && currentLeafChildDocs.advanceExactParent( parentDoc ) ) {
 			for ( int childDoc = currentLeafChildDocs.nextChild(); childDoc != DocIdSetIterator.NO_MORE_DOCS;
 					childDoc = currentLeafChildDocs.nextChild() ) {
-				currentLeafReader.document( childDoc, storedFieldVisitor );
+				currentLeafReader.storedFields().document( childDoc, storedFieldVisitor );
 				currentChildDocValues.put( childDoc, storedFieldVisitor.getDocumentAndReset() );
 			}
 		}
 
 		// collect root document
-		currentLeafReader.document( parentDoc, storedFieldVisitor );
+		currentLeafReader.storedFields().document( parentDoc, storedFieldVisitor );
 		this.currentRootDocValue = storedFieldVisitor.getDocumentAndReset();
 	}
 

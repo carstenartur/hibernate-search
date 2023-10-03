@@ -10,11 +10,11 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.Transient;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 
 import org.hibernate.search.annotations.Analyze;
 import org.hibernate.search.annotations.DateBridge;
@@ -89,9 +89,9 @@ public class Book {
 	@DocumentId
 	@Field(store = Store.YES)
 	@Field(
-		name = "id_forIntegerSort",
-		store = Store.NO,
-		index = Index.NO
+			name = "id_forIntegerSort",
+			store = Store.NO,
+			index = Index.NO
 	)
 	@NumericField
 	@SortableField(forField = "id_forIntegerSort")

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchBackendSettings;
@@ -33,15 +34,16 @@ import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchReques
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchResponse;
 import org.hibernate.search.backend.elasticsearch.gson.spi.GsonProvider;
 import org.hibernate.search.backend.elasticsearch.util.spi.URLEncodedString;
-import org.hibernate.search.engine.common.execution.spi.DelegatingSimpleScheduledExecutor;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.cfg.spi.AllAwareConfigurationPropertySource;
+import org.hibernate.search.engine.common.execution.spi.DelegatingSimpleScheduledExecutor;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
 import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.environment.thread.impl.EmbeddedThreadProvider;
 import org.hibernate.search.engine.environment.thread.impl.ThreadPoolProviderImpl;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendHelper;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchTestHostConnectionConfiguration;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.util.impl.integrationtest.common.TestConfigurationProvider;
 import org.hibernate.search.util.impl.test.annotation.PortedFromSearch5;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
@@ -123,7 +125,7 @@ public class ElasticsearchContentLengthIT {
 					postRequestedFor( urlPathLike( "/myIndex/myType" ) )
 							.withoutHeader( "Transfer-Encoding" )
 							.withHeader( "Content-length", equalTo( String.valueOf( BODY_PART_BYTE_SIZE ) ) )
-					);
+			);
 		}
 	}
 
@@ -140,7 +142,7 @@ public class ElasticsearchContentLengthIT {
 					postRequestedFor( urlPathLike( "/myIndex/myType" ) )
 							.withoutHeader( "Transfer-Encoding" )
 							.withHeader( "Content-length", equalTo( String.valueOf( bodyPartCount * BODY_PART_BYTE_SIZE ) ) )
-					);
+			);
 		}
 	}
 
@@ -194,7 +196,7 @@ public class ElasticsearchContentLengthIT {
 					postRequestedFor( urlPathLike( "/myIndex/myType" ) )
 							.withoutHeader( "Transfer-Encoding" )
 							.withHeader( "Content-length", equalTo( String.valueOf( bodyPartCount * BODY_PART_BYTE_SIZE ) ) )
-					);
+			);
 		}
 	}
 
@@ -219,14 +221,16 @@ public class ElasticsearchContentLengthIT {
 		return new ElasticsearchClientFactoryImpl().create( beanResolver, clientPropertySource,
 				threadPoolProvider.threadProvider(), "Client",
 				new DelegatingSimpleScheduledExecutor( timeoutExecutorService, true ),
-				GsonProvider.create( GsonBuilder::new, true ) );
+				GsonProvider.create( GsonBuilder::new, true ),
+				Optional.of( ElasticsearchTestDialect.getActualVersion() ) );
 	}
 
 	private ElasticsearchResponse doPost(ElasticsearchClient client, String path, Collection<JsonObject> bodyParts) {
 		return client.submit( buildRequest( ElasticsearchRequest.post(), path, bodyParts ) ).join();
 	}
 
-	private ElasticsearchRequest buildRequest(ElasticsearchRequest.Builder builder, String path, Collection<JsonObject> bodyParts) {
+	private ElasticsearchRequest buildRequest(ElasticsearchRequest.Builder builder, String path,
+			Collection<JsonObject> bodyParts) {
 		for ( String pathComponent : path.split( "/" ) ) {
 			if ( !pathComponent.isEmpty() ) {
 				URLEncodedString fromString = URLEncodedString.fromString( pathComponent );

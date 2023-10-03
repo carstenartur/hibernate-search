@@ -10,9 +10,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.hibernate.CacheMode;
+import org.hibernate.search.mapper.pojo.massindexing.MassIndexingEnvironment;
 import org.hibernate.search.mapper.pojo.massindexing.MassIndexingFailureHandler;
 import org.hibernate.search.mapper.pojo.massindexing.MassIndexingMonitor;
-import org.hibernate.search.mapper.pojo.massindexing.MassIndexingEnvironment;
 import org.hibernate.search.util.common.annotation.Incubating;
 
 /**
@@ -79,7 +79,7 @@ public interface MassIndexer {
 	/**
 	 * Merges each index into a single segment after the initial index purge, just before indexing.
 	 * <p>
-	 * Defaults to {@code true}.
+	 * Defaults to {@code true} for indexes that support it, {@code false} for other indexes.
 	 * <p>
 	 * This setting has no effect if {@code purgeAllOnStart} is set to false.
 	 * @param enable {@code true} to enable this operation, {@code false} to disable it.
@@ -91,7 +91,7 @@ public interface MassIndexer {
 	 * Drops the indexes and their schema (if they exist) and re-creates them before indexing.
 	 * <p>
 	 * Indexes will be unavailable for a short time during the dropping and re-creation,
-	 * so this should only be used when failures of concurrent operations on the indexes (automatic indexing, ...)
+	 * so this should only be used when failures of concurrent operations on the indexes (indexing caused by entity changes, ...)
 	 * are acceptable.
 	 * <p>
 	 * This should be used when the existing schema is known to be obsolete, for example when the Hibernate Search mapping

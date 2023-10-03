@@ -11,8 +11,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.function.Consumer;
-import javax.persistence.Entity;
-import javax.persistence.Id;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -63,11 +64,10 @@ public class RealBackendDatabaseMultitenancyIT {
 
 	@Test
 	public void multiTenancyStrategy_none() {
-		assertThatThrownBy( () ->
-				setupHelper.start()
-						.withProperty( "hibernate.search.backend.multi_tenancy.strategy", "none" )
-						.tenants( TENANT_ID_1, TENANT_ID_2 )
-						.setup( IndexedEntity.class ) )
+		assertThatThrownBy( () -> setupHelper.start()
+				.withProperty( "hibernate.search.backend.multi_tenancy.strategy", "none" )
+				.tenants( TENANT_ID_1, TENANT_ID_2 )
+				.setup( IndexedEntity.class ) )
 				// This is necessary to correctly rethrow assumption failures (when not using H2)
 				.satisfies( AssertionAndAssumptionViolationFallThrough.get() )
 				.isInstanceOf( SearchException.class )

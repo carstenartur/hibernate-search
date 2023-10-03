@@ -9,11 +9,11 @@ package org.hibernate.search.backend.elasticsearch.document.impl;
 import java.lang.invoke.MethodHandles;
 import java.util.Objects;
 
+import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexCompositeNode;
 import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexField;
 import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexModel;
 import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexObjectField;
 import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexValueField;
-import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexCompositeNode;
 import org.hibernate.search.backend.elasticsearch.gson.impl.GsonUtils;
 import org.hibernate.search.backend.elasticsearch.logging.impl.Log;
 import org.hibernate.search.backend.elasticsearch.types.impl.ElasticsearchIndexValueFieldType;
@@ -22,12 +22,11 @@ import org.hibernate.search.engine.backend.document.DocumentElement;
 import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.IndexObjectFieldReference;
 import org.hibernate.search.engine.backend.document.model.spi.IndexFieldFilter;
-import org.hibernate.search.engine.backend.document.model.spi.IndexFieldInclusion;
 import org.hibernate.search.engine.backend.document.spi.NoOpDocumentElement;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 import com.google.gson.JsonObject;
-
 
 public class ElasticsearchDocumentObjectBuilder implements DocumentElement {
 
@@ -58,7 +57,8 @@ public class ElasticsearchDocumentObjectBuilder implements DocumentElement {
 
 	@Override
 	public DocumentElement addObject(IndexObjectFieldReference fieldReference) {
-		ElasticsearchIndexObjectFieldReference elasticsearchFieldReference = (ElasticsearchIndexObjectFieldReference) fieldReference;
+		ElasticsearchIndexObjectFieldReference elasticsearchFieldReference =
+				(ElasticsearchIndexObjectFieldReference) fieldReference;
 
 		ElasticsearchIndexObjectField fieldSchemaNode = elasticsearchFieldReference.getSchemaNode();
 
@@ -68,7 +68,8 @@ public class ElasticsearchDocumentObjectBuilder implements DocumentElement {
 
 	@Override
 	public void addNullObject(IndexObjectFieldReference fieldReference) {
-		ElasticsearchIndexObjectFieldReference elasticsearchFieldReference = (ElasticsearchIndexObjectFieldReference) fieldReference;
+		ElasticsearchIndexObjectFieldReference elasticsearchFieldReference =
+				(ElasticsearchIndexObjectFieldReference) fieldReference;
 
 		ElasticsearchIndexObjectField fieldSchemaNode = elasticsearchFieldReference.getSchemaNode();
 
@@ -128,7 +129,7 @@ public class ElasticsearchDocumentObjectBuilder implements DocumentElement {
 		ElasticsearchIndexCompositeNode expectedParentNode = node.parent();
 		checkTreeConsistency( expectedParentNode );
 
-		if ( IndexFieldInclusion.EXCLUDED.equals( node.inclusion() ) ) {
+		if ( TreeNodeInclusion.EXCLUDED.equals( node.inclusion() ) ) {
 			return;
 		}
 
@@ -158,7 +159,7 @@ public class ElasticsearchDocumentObjectBuilder implements DocumentElement {
 		ElasticsearchIndexCompositeNode expectedParentNode = node.parent();
 		checkTreeConsistency( expectedParentNode );
 
-		if ( IndexFieldInclusion.EXCLUDED.equals( node.inclusion() ) ) {
+		if ( TreeNodeInclusion.EXCLUDED.equals( node.inclusion() ) ) {
 			return NoOpDocumentElement.get();
 		}
 

@@ -15,9 +15,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Query;
-
 import org.hibernate.Hibernate;
 import org.hibernate.ScrollableResults;
 import org.hibernate.Transaction;
@@ -30,8 +27,12 @@ import org.hibernate.search.test.SearchTestBase;
 import org.hibernate.search.testsupport.TestConstants;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.stat.Statistics;
+
 import org.junit.Before;
 import org.junit.Test;
+
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Query;
 
 /**
  * @author Emmanuel Bernard
@@ -236,7 +237,7 @@ public class LuceneQueryTest extends SearchTestBase {
 
 		ScrollableResults projections = hibQuery.scroll();
 		projections.beforeFirst();
-		Object[] projection = projections.get();
+		Object[] projection = (Object[]) projections.get();
 		assertNull( projection );
 
 		projections.next();
@@ -262,7 +263,7 @@ public class LuceneQueryTest extends SearchTestBase {
 		ScrollableResults results = hibQuery.scroll();
 		results.beforeFirst();
 		results.next();
-		Object[] result = results.get();
+		Object[] result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1000, result[0] );
 
 		tx.commit();
@@ -285,14 +286,14 @@ public class LuceneQueryTest extends SearchTestBase {
 		ScrollableResults results = hibQuery.scroll();
 		results.beforeFirst();
 		results.next();
-		Object[] result = results.get();
+		Object[] result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1000, result[0] );
 		results.scroll( 2 );
-		result = results.get();
+		result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1003, result[0] );
 		// check cache addition
 		results.next();
-		result = results.get();
+		result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1004, result[0] );
 
 		tx.commit();
@@ -316,19 +317,19 @@ public class LuceneQueryTest extends SearchTestBase {
 		ScrollableResults results = hibQuery.scroll();
 		results.beforeFirst();
 		results.next();
-		Object[] result = results.get();
+		Object[] result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1000, result[0] );
 
 		results.next();
-		result = results.get();
+		result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1002, result[0] );
 
 		results.scroll( 2 );
-		result = results.get();
+		result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1004, result[0] );
 
 		results.next();
-		result = results.get();
+		result = (Object[]) results.get();
 		assertNull( result );
 
 		results.close();
@@ -337,12 +338,12 @@ public class LuceneQueryTest extends SearchTestBase {
 
 		results.beforeFirst();
 		results.next();
-		result = results.get();
+		result = (Object[]) results.get();
 		assertEquals( "incorrect entityInfo returned", 1000, result[0] );
 
 		// And test a bad forward scroll.
 		results.scroll( 10 );
-		result = results.get();
+		result = (Object[]) results.get();
 		assertNull( result );
 
 		tx.commit();
@@ -363,7 +364,7 @@ public class LuceneQueryTest extends SearchTestBase {
 
 		ScrollableResults results = hibQuery.scroll();
 		results.beforeFirst();
-		Object[] result = results.get();
+		Object[] result = (Object[]) results.get();
 		assertNull( "non-null entity infos returned", result );
 
 		tx.commit();
@@ -426,11 +427,11 @@ public class LuceneQueryTest extends SearchTestBase {
 
 		results = hibQuery.scroll();
 		results.scroll( 4 );
-		Object[] result = results.get();
+		Object[] result = (Object[]) results.get();
 		assertEquals( 1004, result[0] );
 
 		results.last();
-		result = results.get();
+		result = (Object[]) results.get();
 		assertEquals( 1004, result[0] );
 
 		tx.commit();
@@ -538,7 +539,7 @@ public class LuceneQueryTest extends SearchTestBase {
 		graph.addAttributeNodes( "authors" );
 
 		List result = fullTextSession.createFullTextQuery( query, Book.class )
-				.setHint( "javax.persistence.loadgraph", graph )
+				.setHint( "jakarta.persistence.loadgraph", graph )
 				.list();
 		assertNotNull( result );
 		assertEquals( "Query with explicit entity graph", 1, result.size() );
@@ -562,7 +563,7 @@ public class LuceneQueryTest extends SearchTestBase {
 		graph.addAttributeNodes( "authors" );
 
 		List result = fullTextSession.createFullTextQuery( query, Book.class )
-				.setHint( "javax.persistence.fetchgraph", graph )
+				.setHint( "jakarta.persistence.fetchgraph", graph )
 				.list();
 		assertNotNull( result );
 		assertEquals( "Query with explicit entity graph", 1, result.size() );
@@ -586,7 +587,7 @@ public class LuceneQueryTest extends SearchTestBase {
 		ScrollableResults projections = hibQuery.scroll();
 		projections.beforeFirst();
 		projections.next();
-		Object[] projection = projections.get();
+		Object[] projection = (Object[]) projections.get();
 		assertNull( projection );
 
 		hibQuery = fullTextSession.createFullTextQuery( query, Employee.class ).setMaxResults( 20 );
@@ -594,7 +595,7 @@ public class LuceneQueryTest extends SearchTestBase {
 		projections = hibQuery.scroll();
 		projections.beforeFirst();
 		projections.next();
-		projection = projections.get();
+		projection = (Object[]) projections.get();
 		assertNull( projection );
 
 		tx.commit();

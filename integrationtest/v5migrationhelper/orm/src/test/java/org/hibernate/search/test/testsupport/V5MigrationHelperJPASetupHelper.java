@@ -10,7 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.backend.lucene.cfg.LuceneBackendSettings;
 import org.hibernate.search.engine.cfg.BackendSettings;
@@ -23,10 +24,15 @@ import org.hibernate.search.util.impl.integrationtest.common.rule.BackendSetupSt
 import org.hibernate.search.util.impl.integrationtest.common.rule.MappingSetupHelper;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.BackendMappingHandle;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.HibernateOrmMappingHandle;
+import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmAssertionHelper;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.SimpleEntityManagerFactoryBuilder;
 
 public final class V5MigrationHelperJPASetupHelper
-		extends MappingSetupHelper<V5MigrationHelperJPASetupHelper.SetupContext, SimpleEntityManagerFactoryBuilder, SimpleEntityManagerFactoryBuilder, EntityManagerFactory> {
+		extends
+		MappingSetupHelper<V5MigrationHelperJPASetupHelper.SetupContext,
+				SimpleEntityManagerFactoryBuilder,
+				SimpleEntityManagerFactoryBuilder,
+				EntityManagerFactory> {
 
 	public static V5MigrationHelperJPASetupHelper create() {
 		return new V5MigrationHelperJPASetupHelper(
@@ -34,8 +40,16 @@ public final class V5MigrationHelperJPASetupHelper
 		);
 	}
 
+	private final OrmAssertionHelper assertionHelper;
+
 	private V5MigrationHelperJPASetupHelper(BackendSetupStrategy backendSetupStrategy) {
 		super( backendSetupStrategy );
+		this.assertionHelper = new OrmAssertionHelper( backendSetupStrategy );
+	}
+
+	@Override
+	public OrmAssertionHelper assertions() {
+		return assertionHelper;
 	}
 
 	@Override
@@ -49,7 +63,11 @@ public final class V5MigrationHelperJPASetupHelper
 	}
 
 	public final class SetupContext
-			extends MappingSetupHelper<SetupContext, SimpleEntityManagerFactoryBuilder, SimpleEntityManagerFactoryBuilder, EntityManagerFactory>.AbstractSetupContext {
+			extends
+			MappingSetupHelper<SetupContext,
+					SimpleEntityManagerFactoryBuilder,
+					SimpleEntityManagerFactoryBuilder,
+					EntityManagerFactory>.AbstractSetupContext {
 
 		// Use a LinkedHashMap for deterministic iteration
 		private final Map<String, Object> overriddenProperties = new LinkedHashMap<>();

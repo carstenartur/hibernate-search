@@ -21,8 +21,8 @@ import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.backend.common.spi.MultiEntityOperationExecutionReport;
 import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
-import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
 import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
+import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexingPlan;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.configuration.DefaultAnalysisDefinitions;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendHelper;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.TckBackendSetupStrategy;
@@ -57,12 +57,14 @@ public class IndexIndexingPlanIT {
 		return new Object[][] {
 				{
 						NO_MULTI_TENANCY_LABEL,
-						(Function<TckBackendHelper, TckBackendSetupStrategy<?>>) TckBackendHelper::createDefaultBackendSetupStrategy,
+						(Function<TckBackendHelper,
+								TckBackendSetupStrategy<?>>) TckBackendHelper::createDefaultBackendSetupStrategy,
 						null
 				},
 				{
 						MULTI_TENANCY_LABEL,
-						(Function<TckBackendHelper, TckBackendSetupStrategy<?>>) TckBackendHelper::createMultiTenancyBackendSetupStrategy,
+						(Function<TckBackendHelper,
+								TckBackendSetupStrategy<?>>) TckBackendHelper::createMultiTenancyBackendSetupStrategy,
 						"tenant_1"
 				}
 		};
@@ -103,9 +105,12 @@ public class IndexIndexingPlanIT {
 		IndexIndexingPlan plan = index.createIndexingPlan( sessionContext );
 
 		// Add
-		plan.add( referenceProvider( "1" ), document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 1" ) );
-		plan.add( referenceProvider( "2" ), document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 2" ) );
-		plan.add( referenceProvider( "3" ), document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 3" ) );
+		plan.add( referenceProvider( "1" ),
+				document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 1" ) );
+		plan.add( referenceProvider( "2" ),
+				document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 2" ) );
+		plan.add( referenceProvider( "3" ),
+				document -> document.addValue( index.binding().title, "The Lord of the Rings chap. 3" ) );
 		CompletableFuture<?> future = plan.execute( OperationSubmitter.blocking() );
 		Awaitility.await().until( future::isDone );
 		// The operations should succeed.
@@ -117,7 +122,8 @@ public class IndexIndexingPlanIT {
 				.hasDocRefHitsAnyOrder( index.typeName(), "1", "2", "3" );
 
 		// Update
-		plan.addOrUpdate( referenceProvider( "2" ), document -> document.addValue( index.binding().title, "The Boss of the Rings chap. 2" ) );
+		plan.addOrUpdate( referenceProvider( "2" ),
+				document -> document.addValue( index.binding().title, "The Boss of the Rings chap. 2" ) );
 		future = plan.execute( OperationSubmitter.blocking() );
 		Awaitility.await().until( future::isDone );
 		// The operations should succeed.

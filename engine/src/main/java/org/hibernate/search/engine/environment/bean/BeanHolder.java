@@ -6,7 +6,6 @@
  */
 package org.hibernate.search.engine.environment.bean;
 
-import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
 
@@ -43,7 +42,7 @@ public interface BeanHolder<T> extends AutoCloseable {
 	 * @return A bean holder that wraps the current bean holder, and ensures the dependencies are also
 	 * closed when its {@link #close()} method is called.
 	 */
-	default BeanHolder<T> withDependencyAutoClosing(BeanHolder<?> ... dependencies) {
+	default BeanHolder<T> withDependencyAutoClosing(BeanHolder<?>... dependencies) {
 		return new DependencyClosingBeanHolder<>( this, Arrays.asList( dependencies ) );
 	}
 
@@ -61,10 +60,10 @@ public interface BeanHolder<T> extends AutoCloseable {
 	 * @param instance The bean instance.
 	 * @param <T> The type of the bean instance.
 	 * @return A {@link BeanHolder} whose {@link #get()} method returns the given instance,
-	 * and whose {@link #close()} method calls {@link Closeable#close()} on the given instance.
+	 * and whose {@link #close()} method calls {@link AutoCloseable#close()} on the given instance.
 	 */
-	static <T extends Closeable> BeanHolder<T> ofCloseable(T instance) {
-		return new CloseableBeanHolder<>( instance );
+	static <T extends AutoCloseable> BeanHolder<T> ofCloseable(T instance) {
+		return new AutoCloseableBeanHolder<>( instance );
 	}
 
 	/**

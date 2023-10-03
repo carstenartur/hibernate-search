@@ -9,22 +9,21 @@ package org.hibernate.search.engine.backend.document.model.spi;
 import java.util.List;
 
 import org.hibernate.search.engine.backend.types.spi.AbstractIndexValueFieldType;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.search.common.spi.SearchIndexSchemaElementContextHelper;
 import org.hibernate.search.engine.search.common.spi.SearchIndexScope;
 import org.hibernate.search.engine.search.common.spi.SearchIndexValueFieldContext;
 
-
 public abstract class AbstractIndexValueField<
-				S extends AbstractIndexValueField<S, SC, FT, C, F>,
-				SC extends SearchIndexScope<?>,
-				FT extends AbstractIndexValueFieldType<SC, ? super S, F>,
-				C extends IndexCompositeNode<SC, ?, ?>,
-				F
-		>
+		S extends AbstractIndexValueField<S, SC, FT, C, F>,
+		SC extends SearchIndexScope<?>,
+		FT extends AbstractIndexValueFieldType<SC, ? super S, F>,
+		C extends IndexCompositeNode<SC, ?, ?>,
+		F>
 		extends AbstractIndexField<S, SC, FT, C>
 		implements IndexValueField<SC, FT, C>, SearchIndexValueFieldContext<SC> {
 
-	public AbstractIndexValueField(C parent, String relativeFieldName, FT type, IndexFieldInclusion inclusion,
+	public AbstractIndexValueField(C parent, String relativeFieldName, FT type, TreeNodeInclusion inclusion,
 			boolean multiValued) {
 		super( parent, relativeFieldName, type, inclusion, multiValued );
 	}

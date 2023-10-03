@@ -19,6 +19,7 @@ import org.hibernate.search.integrationtest.mapper.pojo.testsupport.loading.Stub
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IdProjection;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.ProjectionConstructor;
 import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
@@ -81,8 +82,10 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 
 			assertThatThrownBy( () -> session.search( IndexedEntity.class ).where( f -> f.matchAll() ).fetchAllHits() )
 					.hasMessageContainingAll(
-							"Cannot project on entity type '" + ENTITY_NAME + "': this type cannot be loaded from an external datasource,"
-									+ " and the documents from the index cannot be projected to its Java class '" + IndexedEntity.class.getName() + "'",
+							"Cannot project on entity type '" + ENTITY_NAME
+									+ "': this type cannot be loaded from an external datasource,"
+									+ " and the documents from the index cannot be projected to its Java class '"
+									+ IndexedEntity.class.getName() + "'",
 							"To enable loading of entity instances from an external source, provide a SelectionLoadingStrategy"
 									+ " when registering the entity type to the mapping builder",
 							"To enable projections turning taking index data into entity instances,"
@@ -97,15 +100,12 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 		@Indexed
 		class IndexedEntity {
 			@DocumentId
-			// Necessary because there's no way to project on the id with @ProjectionConstructor yet
-			// TODO HSEARCH-4574 remove this field and use @IdProjection or similar in the constructor instead
-			@GenericField
 			public Integer id;
 			@FullTextField
 			public String text;
 
 			@ProjectionConstructor
-			public IndexedEntity(Integer id, String text) {
+			public IndexedEntity(@IdProjection Integer id, String text) {
 				this.id = id;
 				this.text = text;
 			}
@@ -127,9 +127,9 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 					ENTITY_NAME,
 					StubSearchWorkBehavior.of(
 							3,
-							Arrays.asList( instance1.id, instance1.text ),
-							Arrays.asList( instance2.id, instance2.text ),
-							Arrays.asList( instance3.id, instance3.text )
+							Arrays.asList( String.valueOf( instance1.id ), instance1.text ),
+							Arrays.asList( String.valueOf( instance2.id ), instance2.text ),
+							Arrays.asList( String.valueOf( instance3.id ), instance3.text )
 					)
 			);
 
@@ -148,15 +148,12 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 		@Indexed
 		class IndexedEntity {
 			@DocumentId
-			// Necessary because there's no way to project on the id with @ProjectionConstructor yet
-			// TODO HSEARCH-4574 remove this field and use @IdProjection or similar in the constructor instead
-			@GenericField
 			public Integer id;
 			@FullTextField
 			public String text;
 
 			@ProjectionConstructor
-			public IndexedEntity(Integer id, String text) {
+			public IndexedEntity(@IdProjection Integer id, String text) {
 				this.id = id;
 				this.text = text;
 			}
@@ -221,9 +218,9 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 		class Model {
 			@Indexed
 			class IndexedEntityWithLoadingStrategy {
+				public static final String NAME = "WithLoad";
+
 				@DocumentId
-				// Necessary because there's no way to project on the id with @ProjectionConstructor yet
-				// TODO HSEARCH-4574 remove this field and use @IdProjection or similar in the constructor instead
 				@GenericField
 				public Integer id;
 				@FullTextField
@@ -241,7 +238,7 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 
 				// A projection constructor unlike the parent class, but the loading strategy is inherited
 				@ProjectionConstructor
-				public IndexedEntityWithLoadingStrategyChild(Integer id, String text) {
+				public IndexedEntityWithLoadingStrategyChild(@IdProjection Integer id, String text) {
 					super( id, text );
 				}
 			}
@@ -250,15 +247,12 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 			class IndexedEntityWithProjectionConstructor {
 				public static final String NAME = "WithProj";
 				@DocumentId
-				// Necessary because there's no way to project on the id with @ProjectionConstructor yet
-				// TODO HSEARCH-4574 remove this field and use @IdProjection or similar in the constructor instead
-				@GenericField
 				public Integer id;
 				@FullTextField
 				public String text;
 
 				@ProjectionConstructor
-				public IndexedEntityWithProjectionConstructor(Integer id, String text) {
+				public IndexedEntityWithProjectionConstructor(@IdProjection Integer id, String text) {
 					this.id = id;
 					this.text = text;
 				}
@@ -275,38 +269,35 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 			}
 		}
 
-		String entityWithLoadingStrategyName = "WithLoad";
 		PersistenceTypeKey<Model.IndexedEntityWithLoadingStrategy, Integer> entityWithLoadingStrategyTypeKey =
 				new PersistenceTypeKey<>( Model.IndexedEntityWithLoadingStrategy.class, Integer.class );
-		String entityWithLoadingStrategyChildName = "WithLoadChild";
-		String entityWithProjectionConstructorName = "WithProj";
-		String entityWithProjectionConstructorChildName = "WithProjChild";
-		PersistenceTypeKey<Model.IndexedEntityWithProjectionConstructorChild, Integer> entityWithProjectionConstructorChildTypeKey =
-				new PersistenceTypeKey<>( Model.IndexedEntityWithProjectionConstructorChild.class, Integer.class );
+		PersistenceTypeKey<Model.IndexedEntityWithProjectionConstructorChild,
+				Integer> entityWithProjectionConstructorChildTypeKey =
+						new PersistenceTypeKey<>( Model.IndexedEntityWithProjectionConstructorChild.class, Integer.class );
 
-		backendMock.expectAnySchema( entityWithLoadingStrategyName );
-		backendMock.expectAnySchema( entityWithLoadingStrategyChildName );
-		backendMock.expectAnySchema( entityWithProjectionConstructorName );
-		backendMock.expectAnySchema( entityWithProjectionConstructorChildName );
+		backendMock.expectAnySchema( Model.IndexedEntityWithLoadingStrategy.NAME );
+		backendMock.expectAnySchema( Model.IndexedEntityWithLoadingStrategyChild.NAME );
+		backendMock.expectAnySchema( Model.IndexedEntityWithProjectionConstructor.NAME );
+		backendMock.expectAnySchema( Model.IndexedEntityWithProjectionConstructorChild.NAME );
 		SearchMapping mapping = setupHelper.start()
 				.withConfiguration( b -> b
 						.addEntityType(
 								Model.IndexedEntityWithLoadingStrategy.class,
-								entityWithLoadingStrategyName,
+								Model.IndexedEntityWithLoadingStrategy.NAME,
 								c -> c.selectionLoadingStrategy(
 										new StubSelectionLoadingStrategy<>( entityWithLoadingStrategyTypeKey ) )
 						)
 						.addEntityType(
 								Model.IndexedEntityWithLoadingStrategyChild.class,
-								entityWithLoadingStrategyChildName
+								Model.IndexedEntityWithLoadingStrategyChild.NAME
 						)
 						.addEntityType(
 								Model.IndexedEntityWithProjectionConstructor.class,
-								entityWithProjectionConstructorName
+								Model.IndexedEntityWithProjectionConstructor.NAME
 						)
 						.addEntityType(
 								Model.IndexedEntityWithProjectionConstructorChild.class,
-								entityWithProjectionConstructorChildName,
+								Model.IndexedEntityWithProjectionConstructorChild.NAME,
 								c -> c.selectionLoadingStrategy( new StubSelectionLoadingStrategy<>(
 										entityWithProjectionConstructorChildTypeKey ) )
 						)
@@ -342,26 +333,31 @@ public class SearchQueryEntityLoadingFallbackToProjectionConstructorIT {
 				.loading( o -> o.context( StubLoadingContext.class, loadingContext ) )
 				.build() ) {
 			backendMock.expectSearchProjection(
-					Arrays.asList( entityWithLoadingStrategyName, entityWithLoadingStrategyChildName,
-							entityWithProjectionConstructorName, entityWithProjectionConstructorChildName ),
+					Arrays.asList( Model.IndexedEntityWithLoadingStrategy.NAME,
+							Model.IndexedEntityWithLoadingStrategyChild.NAME,
+							Model.IndexedEntityWithProjectionConstructor.NAME,
+							Model.IndexedEntityWithProjectionConstructorChild.NAME ),
 					StubSearchWorkBehavior.of(
 							4,
-							reference( entityWithLoadingStrategyName, String.valueOf( withLoadingStrategyInstance.id ) ),
+							reference( Model.IndexedEntityWithLoadingStrategy.NAME,
+									String.valueOf( withLoadingStrategyInstance.id ) ),
 							// The loading strategy takes precedence over the projection constructor,
 							// so expect IndexedEntityWithLoadingStrategyChild to be loaded.
-							reference( entityWithLoadingStrategyChildName, String.valueOf( withLoadingStrategyChildInstance.id ) ),
-							new Pair<>( entityWithProjectionConstructorName,
-									Arrays.asList( withProjectionConstructorInstance.id, withProjectionConstructorInstance.text ) ),
+							reference( Model.IndexedEntityWithLoadingStrategyChild.NAME,
+									String.valueOf( withLoadingStrategyChildInstance.id ) ),
+							new Pair<>( Model.IndexedEntityWithProjectionConstructor.NAME,
+									Arrays.asList( String.valueOf( withProjectionConstructorInstance.id ),
+											withProjectionConstructorInstance.text ) ),
 							// The loading strategy takes precedence over the projection constructor,
 							// so expect IndexedEntityWithProjectionConstructorChild to be loaded.
-							reference( entityWithProjectionConstructorChildName,
+							reference( Model.IndexedEntityWithProjectionConstructorChild.NAME,
 									String.valueOf( withProjectionConstructorChildInstance.id ) )
 					)
 			);
 
 			assertThat( session.search( Arrays.asList( Model.IndexedEntityWithLoadingStrategy.class,
-							Model.IndexedEntityWithProjectionConstructor.class
-					) )
+					Model.IndexedEntityWithProjectionConstructor.class
+			) )
 					.where( f -> f.matchAll() )
 					.fetchAllHits() )
 					.usingRecursiveComparison()

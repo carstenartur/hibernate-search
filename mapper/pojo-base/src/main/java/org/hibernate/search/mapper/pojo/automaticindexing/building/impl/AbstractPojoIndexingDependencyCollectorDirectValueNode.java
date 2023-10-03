@@ -19,9 +19,9 @@ import org.hibernate.search.mapper.pojo.automaticindexing.impl.PojoImplicitReind
 import org.hibernate.search.mapper.pojo.extractor.mapping.programmatic.ContainerExtractorPath;
 import org.hibernate.search.mapper.pojo.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.model.path.PojoModelPathValueNode;
-import org.hibernate.search.mapper.pojo.model.path.spi.PojoModelPathBinder;
 import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPath;
 import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPathValueNode;
+import org.hibernate.search.mapper.pojo.model.path.spi.PojoModelPathBinder;
 import org.hibernate.search.mapper.pojo.model.spi.PojoRawTypeModel;
 import org.hibernate.search.mapper.pojo.model.spi.PojoTypeModel;
 import org.hibernate.search.util.common.AssertionFailure;
@@ -149,8 +149,8 @@ public abstract class AbstractPojoIndexingDependencyCollectorDirectValueNode<P, 
 				// Use a LinkedHashMap for deterministic iteration
 				result = new LinkedHashMap<>();
 
-				for ( PojoRawTypeModel<?> concreteEntityType :
-						buildingHelper.getConcreteEntitySubTypesForEntitySuperType( originalSideRawEntityType ) ) {
+				for ( PojoRawTypeModel<?> concreteEntityType : buildingHelper
+						.getConcreteEntitySubTypesForEntitySuperType( originalSideRawEntityType ) ) {
 					BoundPojoModelPathValueNode<?, ?, ?> modelPathFromConcreteEntitySubType =
 							applyProcessingPathToSubType( concreteEntityType, modelPathFromLastEntityNode );
 					PojoModelPathValueNode inverseAssociationPath = buildingHelper.pathInverter()

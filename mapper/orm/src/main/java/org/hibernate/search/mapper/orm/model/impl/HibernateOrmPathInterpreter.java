@@ -17,6 +17,7 @@ import java.util.Set;
 import org.hibernate.MappingException;
 import org.hibernate.event.spi.PostUpdateEvent;
 import org.hibernate.mapping.Any;
+import org.hibernate.mapping.BasicValue;
 import org.hibernate.mapping.Component;
 import org.hibernate.mapping.ManyToOne;
 import org.hibernate.mapping.OneToMany;
@@ -33,9 +34,9 @@ import org.hibernate.search.mapper.pojo.extractor.mapping.programmatic.Container
 import org.hibernate.search.mapper.pojo.model.path.PojoModelPath;
 import org.hibernate.search.mapper.pojo.model.path.PojoModelPathPropertyNode;
 import org.hibernate.search.mapper.pojo.model.path.PojoModelPathValueNode;
+import org.hibernate.search.mapper.pojo.model.path.spi.BindablePojoModelPath;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoModelPathBinder;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoModelPathWalker;
-import org.hibernate.search.mapper.pojo.model.path.spi.BindablePojoModelPath;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoPathDefinition;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoPathDefinitionProvider;
 import org.hibernate.search.mapper.pojo.model.path.spi.PojoPathEntityStateRepresentation;
@@ -153,7 +154,7 @@ import org.hibernate.search.util.common.logging.impl.LoggerFactory;
  *     </li>
  *     <li>
  *         Otherwise, no string representation can be assigned and an exception will be thrown.
- *         This includes in particular all cases when the path points to a {@link javax.persistence.Transient} property,
+ *         This includes in particular all cases when the path points to a {@link jakarta.persistence.Transient} property,
  *         or when a custom or {@link Optional} value extractor
  *         is used before we can detect a prefix matching the conditions described above.
  *     </li>
@@ -195,7 +196,7 @@ final class HibernateOrmPathInterpreter
 			this.wholePath = wholePath;
 		}
 
-		public void resolvedStringRepresentation(String ... stringRepresentationArray) {
+		public void resolvedStringRepresentation(String... stringRepresentationArray) {
 			found = true;
 			Collections.addAll( stringRepresentations, stringRepresentationArray );
 		}
@@ -329,7 +330,7 @@ final class HibernateOrmPathInterpreter
 		if ( extractorPath.isDefault() ) {
 			throw new AssertionFailure(
 					"Expected a non-default extractor path as per the "
-					+ PojoPathDefinitionProvider.class.getSimpleName() + " contract"
+							+ PojoPathDefinitionProvider.class.getSimpleName() + " contract"
 			);
 		}
 
@@ -352,7 +353,7 @@ final class HibernateOrmPathInterpreter
 				return baseValue;
 			}
 		}
-		else if ( SimpleValue.class.equals( valueClass ) ) { // equals() and not isAssignableFrom(), we mean it.
+		else if ( BasicValue.class.isAssignableFrom( valueClass ) ) {
 			// The path as a whole (and not just a prefix) was resolved to a non-component, non-association value
 			context.resolvedStringRepresentation( propertyNode.toPropertyString() );
 			// We don't need state extraction in this case
@@ -414,7 +415,7 @@ final class HibernateOrmPathInterpreter
 		if ( !extractorNameIterator.hasNext() ) {
 			// We managed to resolve the whole container value extractor list
 			Class<? extends Value> containedValueClass = containedValue.getClass();
-			if ( SimpleValue.class.equals( containedValueClass ) // equals() and not isAssignableFrom(), we mean it.
+			if ( BasicValue.class.isAssignableFrom( containedValueClass )
 					|| Component.class.isAssignableFrom( containedValueClass )
 					|| isWholePath && isAssociation( containedValueClass ) ) {
 				String stringRepresentationAsProperty = propertyNode.toPropertyString();

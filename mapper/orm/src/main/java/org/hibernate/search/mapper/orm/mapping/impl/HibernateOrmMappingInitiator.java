@@ -6,19 +6,20 @@
  */
 package org.hibernate.search.mapper.orm.mapping.impl;
 
+import static org.hibernate.search.mapper.orm.common.impl.HibernateOrmUtils.isDiscriminatorMultiTenancyEnabled;
+
 import java.util.List;
 
-import org.hibernate.MultiTenancyStrategy;
 import org.hibernate.annotations.common.reflection.ReflectionManager;
 import org.hibernate.boot.Metadata;
-import org.hibernate.engine.config.spi.ConfigurationService;
+import org.hibernate.boot.spi.MetadataImplementor;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
 import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.spi.OptionalConfigurationProperty;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
-import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.environment.bean.BeanReference;
+import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.mapper.mapping.building.spi.MappingBuildContext;
 import org.hibernate.search.engine.mapper.mapping.building.spi.MappingConfigurationCollector;
 import org.hibernate.search.engine.tenancy.spi.TenancyMode;
@@ -26,11 +27,11 @@ import org.hibernate.search.mapper.orm.bootstrap.impl.HibernateSearchPreIntegrat
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
 import org.hibernate.search.mapper.orm.common.impl.HibernateOrmUtils;
 import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrategy;
+import org.hibernate.search.mapper.orm.coordination.impl.CoordinationConfigurationContextImpl;
 import org.hibernate.search.mapper.orm.mapping.HibernateOrmMappingConfigurationContext;
 import org.hibernate.search.mapper.orm.mapping.HibernateOrmSearchMappingConfigurer;
 import org.hibernate.search.mapper.orm.model.impl.HibernateOrmBasicTypeMetadataProvider;
 import org.hibernate.search.mapper.orm.model.impl.HibernateOrmBootstrapIntrospector;
-import org.hibernate.search.mapper.orm.coordination.impl.CoordinationConfigurationContextImpl;
 import org.hibernate.search.mapper.orm.session.impl.ConfiguredAutomaticIndexingStrategy;
 import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoMapperDelegate;
 import org.hibernate.search.mapper.pojo.mapping.building.spi.PojoTypeMetadataContributor;
@@ -57,11 +58,12 @@ public class HibernateOrmMappingInitiator extends AbstractPojoMappingInitiator<H
 					.withDefault( HibernateOrmMapperSettings.Defaults.MAPPING_BUILD_MISSING_DISCOVERED_JANDEX_INDEXES )
 					.build();
 
-	private static final OptionalConfigurationProperty<List<BeanReference<? extends HibernateOrmSearchMappingConfigurer>>> MAPPING_CONFIGURER =
-			ConfigurationProperty.forKey( HibernateOrmMapperSettings.Radicals.MAPPING_CONFIGURER )
-					.asBeanReference( HibernateOrmSearchMappingConfigurer.class )
-					.multivalued()
-					.build();
+	private static final OptionalConfigurationProperty<
+			List<BeanReference<? extends HibernateOrmSearchMappingConfigurer>>> MAPPING_CONFIGURER =
+					ConfigurationProperty.forKey( HibernateOrmMapperSettings.Radicals.MAPPING_CONFIGURER )
+							.asBeanReference( HibernateOrmSearchMappingConfigurer.class )
+							.multivalued()
+							.build();
 
 	public static HibernateOrmMappingInitiator create(Metadata metadata, IndexView jandexIndex,
 			ReflectionManager reflectionManager,
@@ -70,13 +72,14 @@ public class HibernateOrmMappingInitiator extends AbstractPojoMappingInitiator<H
 				HibernateOrmBasicTypeMetadataProvider.create( metadata );
 		HibernateOrmBootstrapIntrospector introspector = HibernateOrmBootstrapIntrospector.create(
 				basicTypeMetadataProvider, reflectionManager, valueHandleFactory );
-		ConfigurationService ormConfigurationService =
-				HibernateOrmUtils.getServiceOrFail( serviceRegistry, ConfigurationService.class );
 		HibernateSearchPreIntegrationService preIntegrationService =
 				HibernateOrmUtils.getServiceOrFail( serviceRegistry, HibernateSearchPreIntegrationService.class );
 
+		boolean multiTenancyEnabled = ( (MetadataImplementor) metadata ).getMetadataBuildingOptions().isMultiTenancyEnabled()
+				|| isDiscriminatorMultiTenancyEnabled( metadata );
+
 		return new HibernateOrmMappingInitiator( basicTypeMetadataProvider, jandexIndex, introspector,
-				ormConfigurationService, preIntegrationService );
+				preIntegrationService, multiTenancyEnabled );
 	}
 
 	private final HibernateOrmBasicTypeMetadataProvider basicTypeMetadataProvider;
@@ -86,30 +89,19 @@ public class HibernateOrmMappingInitiator extends AbstractPojoMappingInitiator<H
 	private BeanHolder<? extends CoordinationStrategy> coordinationStrategyHolder;
 	private ConfiguredAutomaticIndexingStrategy configuredAutomaticIndexingStrategy;
 
-	private HibernateOrmMappingInitiator(HibernateOrmBasicTypeMetadataProvider basicTypeMetadataProvider,
+	private HibernateOrmMappingInitiator(
+			HibernateOrmBasicTypeMetadataProvider basicTypeMetadataProvider,
 			IndexView jandexIndex, HibernateOrmBootstrapIntrospector introspector,
-			ConfigurationService ormConfigurationService,
-			HibernateSearchPreIntegrationService preIntegrationService) {
+			HibernateSearchPreIntegrationService preIntegrationService, boolean multiTenancyEnabled) {
 		super( introspector );
 
 		this.basicTypeMetadataProvider = basicTypeMetadataProvider;
 		if ( jandexIndex != null ) {
-			annotationMapping().add( jandexIndex );
+			annotationMapping().addJandexIndex( jandexIndex );
 		}
 		this.introspector = introspector;
 
-		/*
-		 * This method is called when the session factory is created, and once again when HSearch boots.
-		 * It logs a warning when the configuration property is invalid,
-		 * so the warning will be logged twice.
-		 * Since it only happens when the configuration is invalid,
-		 * we can live with this quirk.
-		 */
-		MultiTenancyStrategy multiTenancyStrategy =
-				MultiTenancyStrategy.determineMultiTenancyStrategy( ormConfigurationService.getSettings() );
-
-		tenancyMode( MultiTenancyStrategy.NONE.equals( multiTenancyStrategy ) ? TenancyMode.SINGLE_TENANCY
-				: TenancyMode.MULTI_TENANCY );
+		tenancyMode( multiTenancyEnabled ? TenancyMode.MULTI_TENANCY : TenancyMode.SINGLE_TENANCY );
 
 		this.preIntegrationService = preIntegrationService;
 	}
@@ -137,7 +129,7 @@ public class HibernateOrmMappingInitiator extends AbstractPojoMappingInitiator<H
 		coordinationStrategyHolder = coordinationStrategyConfiguration.strategyHolder();
 		configuredAutomaticIndexingStrategy = coordinationStrategyConfiguration.createAutomaticIndexingStrategy();
 
-		// If the automatic indexing strategy uses an event queue,
+		// If the underlying coordination strategy uses an event queue,
 		// it will need to send events relative to contained entities,
 		// and thus contained entities need to have an identity mapping.
 		containedEntityIdentityMappingRequired( configuredAutomaticIndexingStrategy.usesAsyncProcessing() );
@@ -148,7 +140,8 @@ public class HibernateOrmMappingInitiator extends AbstractPojoMappingInitiator<H
 			annotationMapping()
 					.discoverAnnotatedTypesFromRootMappingAnnotations( true )
 					.discoverJandexIndexesFromAddedTypes( true )
-					.buildMissingDiscoveredJandexIndexes( MAPPING_BUILD_MISSING_DISCOVERED_JANDEX_INDEXES.get( propertySource ) )
+					.buildMissingDiscoveredJandexIndexes(
+							MAPPING_BUILD_MISSING_DISCOVERED_JANDEX_INDEXES.get( propertySource ) )
 					.discoverAnnotationsFromReferencedTypes( true );
 
 			AnnotationMappingConfigurationContext annotationMapping = annotationMapping();

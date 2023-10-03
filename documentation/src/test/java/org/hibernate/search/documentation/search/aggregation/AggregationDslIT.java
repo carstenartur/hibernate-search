@@ -18,7 +18,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -307,8 +308,8 @@ public class AggregationDslIT {
 							Range.canonical( 10.0, 20.0 ),
 							Range.atLeast( 20.0 )
 					)
-					// tag::range-objects-collection[]
-					/* ... */;
+			// tag::range-objects-collection[]
+			/* ... */;
 
 			AggregationKey<Map<Range<Double>, Long>> countsByPriceKey = AggregationKey.of( "countsByPrice" );
 			SearchResult<Book> result = searchSession.search( Book.class )
@@ -329,6 +330,7 @@ public class AggregationDslIT {
 		} );
 
 		withinSearchSession( searchSession -> {
+			// @formatter:off
 			// tag::range-noConverter[]
 			AggregationKey<Map<Range<Instant>, Long>> countsByPriceKey = AggregationKey.of( "countsByPrice" );
 			SearchResult<Book> result = searchSession.search( Book.class )
@@ -350,6 +352,7 @@ public class AggregationDslIT {
 					.fetch( 20 );
 			Map<Range<Instant>, Long> countsByPrice = result.aggregation( countsByPriceKey );
 			// end::range-noConverter[]
+			// @formatter:on
 			assertThat( countsByPrice )
 					.containsExactly(
 							entry(

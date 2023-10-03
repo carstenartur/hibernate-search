@@ -1,0 +1,277 @@
+[[compatibility]]
+= [[getting-started-compatibility]] Compatibility
+
+[[compatibility-dependencies]]
+== Dependencies
+
+.Compatible versions of dependencies
+[cols="h,^1,1", stripes=none]
+|===============
+| h|Version h|Note
+|Java Runtime
+|8, 11 or 17
+|
+|Hibernate ORM (for the <<mapper-orm,Hibernate ORM mapper>>
+|{hibernateVersion}
+|
+|Jakarta Persistence (for the <<mapper-orm,Hibernate ORM mapper>>
+|{jakartaPersistenceVersion}
+|
+|Apache Lucene (for the <<backend-lucene,Lucene backend>>)
+|{luceneVersion}
+|
+|Elasticsearch server (for the <<backend-elasticsearch,Elasticsearch backend>>)
+|{elasticsearchCompatibleVersions}
+|Most of older minor versions (e.g. {elasticsearchOtherPotentiallyCompatibleVersions}) are not given priority for bugfixes and new features.
+|OpenSearch server (for the <<backend-elasticsearch,Elasticsearch backend>>)
+|{openSearchCompatibleVersions}
+|Other minor versions may work
+but are not given priority for bugfixes and new features.
+|===============
+
+[TIP]
+====
+Find more information for all versions of Hibernate Search on our
+https://hibernate.org/search/releases/#compatibility-matrix[compatibility matrix].
+
+The https://hibernate.org/community/compatibility-policy/[compatibility policy] may also be of interest.
+====
+
+[TIP]
+====
+If you get Hibernate Search from Maven, it is recommended to import Hibernate Search BOM
+as part of your dependency management to keep all its artifact versions aligned:
+[source, XML, subs="+attributes"]
+----
+<dependencyManagement>
+    <dependencies>
+        <!--
+            Import Hibernate Search BOM
+            to get all of its artifact versions aligned:
+        -->
+        <dependency>
+            <groupId>org.hibernate.search</groupId>
+            <artifactId>hibernate-search-bom</artifactId>
+            <version>{hibernateSearchVersion}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <!-- Any other dependency management entries -->
+    </dependencies>
+</dependencyManagement>
+----
+====
+
+[NOTE]
+.Elasticsearch 7.11+ licensing
+====
+While Elasticsearch up to 7.10 was distributed under the Apache License 2.0,
+be aware that Elasticsearch 7.11 and later are distributed under the Elastic License and the SSPL,
+which are https://opensource.org/node/1099[not considered open-source by the Open Source Initiative].
+
+Only the low-level Java REST client, which Hibernate Search depends on, remains open-source.
+====
+
+[NOTE]
+.OpenSearch
+====
+While it historically targeted link:{elasticsearchUrl}[Elastic's Elasticsearch distribution],
+Hibernate Search is also compatible with link:{openSearchUrl}[OpenSearch] and regularly tested against it;
+see <<backend-elasticsearch-compatibility>> for more information.
+
+Every section of this documentation referring to Elasticsearch
+is also relevant for the OpenSearch distribution.
+====
+
+[[compatibility-framework]]
+== [[gettingstarted-framework]] Framework support
+
+[[compatibility-framework-quarkus]]
+=== [[gettingstarted-framework-quarkus]] [[_quarkus]] Quarkus
+
+link:{quarkusUrl}[Quarkus] has an official extension for Hibernate Search with Hibernate ORM and Elasticsearch,
+which is a tight integration with additional features, different dependencies, and different configuration properties.
+
+As your first step to using Hibernate Search within Quarkus,
+we recommend you follow Quarkus's https://quarkus.io/guides/hibernate-search-orm-elasticsearch[Hibernate Search Guide]:
+it is a great hands-on introduction to Hibernate Search,
+_and_ it covers the specifics of Quarkus.
+
+[[compatibility-framework-spring-boot]]
+=== [[gettingstarted-framework-spring-boot]] [[_spring_boot]] Spring Boot
+
+Hibernate Search can easily be integrated into a link:{springBootUrl}[Spring Boot] application.
+Just read about Spring Boot's specifics below, then follow the xref:../getting-started/orm/index.adoc#mapper-orm-getting-started[getting started guide].
+
+[[compatibility-framework-spring-boot-configuration-properties]]
+==== [[gettingstarted-framework-spring-boot-configuration-properties]] [[_configuration_properties]] Configuration properties
+
+`application.properties`/`application.yaml` are Spring Boot configuration files,
+not JPA or Hibernate Search configuration files.
+Adding Hibernate Search properties starting with `hibernate.search.` directly in that file will not work.
+
+When <<mapper-orm,integrating Hibernate Search with Hibernate ORM>>::
+Prefix your Hibernate Search properties with
+https://docs.spring.io/spring-boot/docs/2.5.1/reference/html/application-properties.html#application-properties.data.spring.jpa.properties[`spring.jpa.properties.`],
+so that Spring Boot passes along the properties to Hibernate ORM, which will pass them along to Hibernate Search.
++
+For example:
++
+[source]
+----
+spring.jpa.properties.hibernate.search.backend.hosts = elasticsearch.mycompany.com
+----
+When using the <<mapper-pojo-standalone,Standalone POJO mapper>>::
+You can pass properties programmatically to `SearchMappingBuilder#property`.
+
+[[compatibility-framework-spring-boot-dependency-versions]]
+==== [[gettingstarted-framework-spring-boot-dependency-versions]] [[_dependency_versions]] Dependency versions
+
+Spring Boot automatically sets the version of dependencies without your knowledge.
+While this is ordinarily a good thing, from time to time Spring Boot dependencies will be a little out of date.
+Thus, it is recommended to override Spring Boot's defaults at least for some key dependencies.
+
+With Maven, there are a few ways to override these versions depending on how Spring is added to the application.
+If your application's POM file is using `spring-boot-starter-parent` as its parent POM
+then simply adding version properties to your POM's `<properties>` should help:
+
+[source, XML, subs="+attributes"]
+----
+<properties>
+    <hibernate.version>{hibernateVersion}</hibernate.version>
+    <elasticsearch-client.version>{elasticsearchClientVersions}</elasticsearch-client.version>
+    <!-- ... plus any other properties of yours ... -->
+</properties>
+----
+
+[TIP]
+====
+If, after setting the properties above,
+you still are getting the same version of the libraries,
+check if property names in the Spring Boot's BOM have changed, and if so use the new property name.
+====
+
+Alternatively, if either the `spring-boot-dependencies` or the `spring-boot-starter-parent` is imported into the dependency management (`<dependencyManagement>`)
+then overriding the versions can be done either by importing a BOM listing the dependencies we want to override,
+or by explicitly listing a dependency with its version that we want to be used:
+
+.Override dependencies either with another BOM or explicitly
+[source, XML, subs="+attributes"]
+----
+<dependencyManagement>
+    <dependencies>
+        <!--
+            Overriding Hibernate ORM version by importing the BOM.
+            Alternatively, can be done by adding specific dependencies
+            as shown below for Elasticsearch dependencies.
+        -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-platform</artifactId>
+            <version>${version.org.hibernate.orm}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-dependencies</artifactId>
+            <version>{testSpringBootVersion}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <!--
+            Since there is no BOM for the Elasticsearch REST client,
+            these dependencies have to be listed explicitly:
+        -->
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-client</artifactId>
+            <version>{elasticsearchClientVersions}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-client-sniffer</artifactId>
+            <version>{elasticsearchClientVersions}</version>
+        </dependency>
+        <!-- Other dependency management entries -->
+    </dependencies>
+</dependencyManagement>
+----
+
+For other build tools refer to their documentation for details.
+
+[TIP]
+====
+Maven's `dependency` plugin (or your build tool corresponding alternative)
+can be used to verify that the version override was correctly applied, e.g.:
+[source, bash, subs="+attributes"]
+----
+# Show the dependency tree filtering for Hibernate and Elasticsearch dependencies to reduce the output:
+mvn dependency:tree "-Dincludes=org.hibernate.*,org.elasticsearch.*"
+----
+====
+
+[TIP]
+====
+If, after setting the properties above,
+you still have problems (e.g. `NoClassDefFoundError`) with some of Hibernate Search's dependencies,
+look for the version of that dependency in
+https://search.maven.org/artifact/org.springframework.boot/spring-boot-dependencies/{testSpringBootVersion}/pom[Spring Boot's POM]
+and https://search.maven.org/artifact/org.hibernate.search/hibernate-search-parent/{hibernateSearchVersion}/pom[Hibernate Search's POM]:
+there will probably be a mismatch,
+and generally overriding Spring Boot's version to match Hibernate Search's version will work fine.
+====
+
+[[compatibility-framework-spring-boot-application-hanging]]
+==== [[gettingstarted-framework-spring-boot-application-hanging]] [[_application_hanging_on_startup]] Application hanging on startup
+
+Spring Boot 2.3.x and above is affected by a bug that causes the application to hang on startup
+when using Hibernate Search, particularly when using custom components (custom bridges, analysis configurers, ...).
+
+The problem, which is not limited to just Hibernate Search,
+https://github.com/spring-projects/spring-framework/issues/25111[has been reported],
+but hasn't been fixed yet in Spring Boot 2.5.1.
+
+As a workaround, you can set the property `spring.data.jpa.repositories.bootstrap-mode` to `deferred` or,
+if that doesn't work, `default`.
+Interestingly, using `@EnableJpaRepositories(bootstrapMode = BootstrapMode.DEFERRED)` has been reported to work
+even in situations where setting `spring.data.jpa.repositories.bootstrap-mode` to `deferred` didn't work.
+
+Alternatively, if you do not need dependency injection in your custom components,
+you can refer to those components with the prefix `constructor:`
+so that Hibernate Search doesn't even try to use Spring to retrieve the components,
+and thus avoids the deadlock in Spring.
+See <<configuration-bean-reference-parsing,this section>> for more information.
+
+[[compatibility-framework-spring-boot-elasticsearch-auto-configuration]]
+==== Spring Boot's Elasticsearch client and auto-configuration
+
+As you may know, Spring Boot includes "auto-configuration" that triggers as soon as a dependency is detected in the classpath.
+
+This may lead to problems in some cases when dependencies are used by the application, but not through Spring Boot.
+
+In particular, Hibernate Search transitively brings in a dependency to Elasticsearch's low-level REST Client.
+Spring Boot, through link:https://docs.spring.io/spring-boot/docs/{testSpringBootVersion}/api/org/springframework/boot/autoconfigure/elasticsearch/ElasticsearchRestClientAutoConfiguration.html[`ElasticsearchRestClientAutoConfiguration`],
+will automatically set up an Elasticsearch REST client targeting (by default) `http://localhost:9200`
+as soon as it detects that dependency to the Elasticsearch REST Client JAR.
+
+If your Elasticsearch cluster is not reachable at `http://localhost:9200`,
+this might lead to errors on startup.
+
+To get rid of these errors, either
+link:https://docs.spring.io/spring-boot/docs/{testSpringBootVersion}/reference/html/features.html#features.nosql.elasticsearch.connecting-using-rest[configure Spring's Elasticsearch client manually],
+or https://www.baeldung.com/spring-data-disable-auto-config[disable this specific auto-configuration].
+
+[NOTE]
+====
+Spring Boot's Elasticsearch client is completely separate from Hibernate Search:
+the configuration of one won't affect the other.
+====
+
+[[compatibility-framework-other]]
+=== [[gettingstarted-framework-other]] Other
+
+If your framework of choice is not mentioned in the previous sections, don't worry:
+Hibernate Search works just fine with plenty of other frameworks.
+
+Just follow the xref:../getting-started/orm/index.adoc#mapper-orm-getting-started[getting started guide] to try it out.

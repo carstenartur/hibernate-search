@@ -40,7 +40,6 @@ import org.hibernate.search.backend.elasticsearch.work.impl.WaitForIndexStatusWo
 
 import com.google.gson.JsonObject;
 
-
 public interface ElasticsearchWorkFactory {
 
 	IndexWork.Builder index(String entityTypeName, Object entityIdentifier,
@@ -51,11 +50,19 @@ public interface ElasticsearchWorkFactory {
 			URLEncodedString elasticsearchIndexName,
 			String documentIdentifier, String routingKey);
 
+	boolean isDeleteByQuerySupported();
+
 	DeleteByQueryWork.Builder deleteByQuery(URLEncodedString indexName, JsonObject payload);
+
+	boolean isFlushSupported();
 
 	FlushWork.Builder flush();
 
+	boolean isRefreshSupported();
+
 	RefreshWork.Builder refresh();
+
+	boolean isMergeSegmentsSupported();
 
 	ForceMergeWork.Builder mergeSegments();
 
@@ -86,7 +93,9 @@ public interface ElasticsearchWorkFactory {
 
 	PutIndexMappingWork.Builder putIndexTypeMapping(URLEncodedString indexName, RootTypeMapping mapping);
 
-	WaitForIndexStatusWork.Builder waitForIndexStatusWork(URLEncodedString indexName, IndexStatus requiredStatus,
+	boolean isWaitForIndexStatusSupported();
+
+	WaitForIndexStatusWork.Builder waitForIndexStatus(URLEncodedString indexName, IndexStatus requiredStatus,
 			int requiredStatusTimeoutInMs);
 
 	PutIndexAliasesWork.Builder putIndexAliases(URLEncodedString indexName, Map<String, IndexAliasDefinition> aliases);

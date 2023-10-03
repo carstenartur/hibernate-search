@@ -6,12 +6,12 @@
  */
 package org.hibernate.search.documentation.mapper.orm.directfieldmapping;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.List;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -46,6 +46,7 @@ public class HibernateOrmSimpleMappingIT {
 		return DocumentationSetupHelper.testParamsForBothAnnotationsAndProgrammatic(
 				BackendConfigurations.simple(),
 				mapping -> {
+				// @formatter:off
 					//tag::programmatic[]
 					TypeMappingStep bookMapping = mapping.type( Book.class );
 					bookMapping.indexed();
@@ -57,6 +58,7 @@ public class HibernateOrmSimpleMappingIT {
 					bookMapping.property( "pageCount" )
 							.genericField().projectable( Projectable.YES ).sortable( Sortable.YES );
 					//end::programmatic[]
+					// @formatter:on
 				} );
 	}
 

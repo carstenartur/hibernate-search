@@ -16,8 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -52,7 +53,7 @@ public class HibernateOrmSchemaManagerIT {
 		this.entityManagerFactory = setupHelper.start()
 				.withProperty( HibernateOrmMapperSettings.SCHEMA_MANAGEMENT_STRATEGY,
 						SchemaManagementStrategyName.NONE )
-				.withProperty( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_ENABLED, false )
+				.withProperty( HibernateOrmMapperSettings.INDEXING_LISTENERS_ENABLED, false )
 				.setup( Book.class, Author.class );
 		initData();
 	}
@@ -68,14 +69,15 @@ public class HibernateOrmSchemaManagerIT {
 				// tag::simple[]
 				SearchSchemaManager schemaManager = searchSession.schemaManager(); // <2>
 				schemaManager.dropAndCreate(); // <3>
-				searchSession.massIndexer().startAndWait(); // <4>
+				searchSession.massIndexer()
+						.purgeAllOnStart( false )
+						.startAndWait(); // <4>
 				// end::simple[]
 			}
 			catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
-			assertBookCount( entityManager, NUMBER_OF_BOOKS );
-			assertAuthorCount( entityManager, NUMBER_OF_BOOKS );
+			assertBookAndAuthorCount( entityManager, NUMBER_OF_BOOKS, NUMBER_OF_BOOKS );
 		} );
 	}
 
@@ -88,12 +90,14 @@ public class HibernateOrmSchemaManagerIT {
 				SearchSchemaManager schemaManager = searchSession.schemaManager( Book.class ); // <1>
 				schemaManager.dropAndCreate(); // <2>
 				// end::select-type[]
-				searchSession.massIndexer( Book.class ).startAndWait();
+				searchSession.massIndexer( Book.class )
+						.purgeAllOnStart( false )
+						.startAndWait();
 			}
 			catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
-			assertBookCount( entityManager, NUMBER_OF_BOOKS );
+			assertBookAndAuthorCount( entityManager, NUMBER_OF_BOOKS, null );
 		} );
 	}
 
@@ -133,8 +137,8 @@ public class HibernateOrmSchemaManagerIT {
 			// end::schema-export[]
 
 			assertThat( Files.list( targetDirectory.resolve( "backend" )
-							.resolve( "indexes" )
-							.resolve( Book.class.getSimpleName() ) )
+					.resolve( "indexes" )
+					.resolve( Book.class.getSimpleName() ) )
 					.map( f -> f.getFileName().toString() )
 					.collect( Collectors.toSet() ) )
 					.containsAnyOf(
@@ -144,8 +148,8 @@ public class HibernateOrmSchemaManagerIT {
 					);
 
 			assertThat( Files.list( targetDirectory.resolve( "backend" )
-							.resolve( "indexes" )
-							.resolve( Author.class.getSimpleName() ) )
+					.resolve( "indexes" )
+					.resolve( Author.class.getSimpleName() ) )
 					.map( f -> f.getFileName().toString() )
 					.collect( Collectors.toSet() ) )
 					.containsAnyOf(
@@ -156,24 +160,20 @@ public class HibernateOrmSchemaManagerIT {
 		} );
 	}
 
-	private void assertBookCount(EntityManager entityManager, int expectedCount) {
-		SearchSession searchSession = Search.session( entityManager );
-		assertThat(
-				searchSession.search( Book.class )
+	void assertBookAndAuthorCount(EntityManager entityManager, int expectedBookCount, Integer expectedAuthorCount) {
+		setupHelper.assertions().searchAfterIndexChangesAndPotentialRefresh( () -> {
+			SearchSession searchSession = Search.session( entityManager );
+			assertThat( searchSession.search( Book.class )
+					.where( f -> f.matchAll() )
+					.fetchTotalHitCount() )
+					.isEqualTo( expectedBookCount );
+			if ( expectedAuthorCount != null ) {
+				assertThat( searchSession.search( Author.class )
 						.where( f -> f.matchAll() )
-						.fetchTotalHitCount()
-		)
-				.isEqualTo( expectedCount );
-	}
-
-	private void assertAuthorCount(EntityManager entityManager, int expectedCount) {
-		SearchSession searchSession = Search.session( entityManager );
-		assertThat(
-				searchSession.search( Author.class )
-						.where( f -> f.matchAll() )
-						.fetchTotalHitCount()
-		)
-				.isEqualTo( expectedCount );
+						.fetchTotalHitCount() )
+						.isEqualTo( (int) expectedAuthorCount );
+			}
+		} );
 	}
 
 	private Book newBook(int id) {

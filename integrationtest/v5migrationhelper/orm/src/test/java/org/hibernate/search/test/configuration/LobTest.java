@@ -6,19 +6,18 @@
  */
 package org.hibernate.search.test.configuration;
 
-import java.util.List;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Lob;
+import static org.junit.Assert.assertEquals;
 
-import org.apache.lucene.search.Query;
+import java.util.List;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-
-import org.hibernate.dialect.Sybase11Dialect;
-import org.hibernate.dialect.SybaseASE15Dialect;
+import org.hibernate.dialect.SybaseDialect;
 import org.hibernate.search.FullTextQuery;
 import org.hibernate.search.FullTextSession;
 import org.hibernate.search.Search;
@@ -27,10 +26,12 @@ import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.query.dsl.QueryBuilder;
 import org.hibernate.search.test.SearchTestBase;
 import org.hibernate.search.testsupport.TestForIssue;
+
 import org.hibernate.testing.SkipForDialect;
+
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.lucene.search.Query;
 
 /**
  * Tests that a field can be mapped as {@code @Lob}.
@@ -41,7 +42,7 @@ import static org.junit.Assert.assertEquals;
 public class LobTest extends SearchTestBase {
 
 	@Test
-	@SkipForDialect(value = { SybaseASE15Dialect.class, Sybase11Dialect.class },
+	@SkipForDialect(value = SybaseDialect.class,
 			comment = "Sybase does not support @Lob")
 	public void testCreateIndexSearchEntityWithLobField() {
 		// create and index
@@ -98,5 +99,4 @@ public class LobTest extends SearchTestBase {
 		}
 	}
 }
-
 

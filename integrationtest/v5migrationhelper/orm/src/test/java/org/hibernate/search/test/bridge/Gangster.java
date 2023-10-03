@@ -8,8 +8,8 @@ package org.hibernate.search.test.bridge;
 
 import java.io.Serializable;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.DocumentId;
 import org.hibernate.search.annotations.Indexed;
@@ -20,7 +20,8 @@ import org.hibernate.search.annotations.Indexed;
 @Entity
 @Indexed
 public class Gangster {
-	@Id @DocumentId
+	@Id
+	@DocumentId
 	private Serializable id;
 	private String name;
 

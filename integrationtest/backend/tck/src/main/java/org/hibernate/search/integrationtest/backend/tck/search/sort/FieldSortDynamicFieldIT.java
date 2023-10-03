@@ -44,9 +44,7 @@ public class FieldSortDynamicFieldIT<F> {
 		supportedFieldTypes = new ArrayList<>();
 		List<Object[]> parameters = new ArrayList<>();
 		for ( FieldTypeDescriptor<?> fieldType : FieldTypeDescriptor.getAll() ) {
-			if ( fieldType.isFieldSortSupported()
-					&& TckConfiguration.get().getBackendFeatures()
-							.supportsValuesForDynamicField( fieldType.getJavaType() ) ) {
+			if ( fieldType.isFieldSortSupported() ) {
 				supportedFieldTypes.add( fieldType );
 				parameters.add( new Object[] { fieldType } );
 			}
@@ -179,7 +177,7 @@ public class FieldSortDynamicFieldIT<F> {
 		IndexBinding(IndexSchemaElement root) {
 			for ( FieldTypeDescriptor<?> type : supportedFieldTypes ) {
 				root.fieldTemplate( "myTemplate" + type.getUniqueName(),
-								f -> type.configure( f ).sortable( Sortable.YES ) )
+						f -> type.configure( f ).sortable( Sortable.YES ) )
 						.matchingPathGlob( fieldPath( type, "*" ) );
 			}
 		}

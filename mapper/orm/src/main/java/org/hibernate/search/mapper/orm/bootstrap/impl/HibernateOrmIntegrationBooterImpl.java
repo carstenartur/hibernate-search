@@ -50,9 +50,11 @@ public class HibernateOrmIntegrationBooterImpl implements HibernateOrmIntegratio
 		ServiceRegistry serviceRegistry = builder.bootstrapContext.getServiceRegistry();
 		this.jandexIndex = builder.bootstrapContext.getJandexView();
 		this.reflectionManager = builder.bootstrapContext.getReflectionManager();
-		this.valueHandleFactory = builder.valueHandleFactory != null ? builder.valueHandleFactory
+		this.valueHandleFactory = builder.valueHandleFactory != null
+				? builder.valueHandleFactory
 				: ValueHandleFactory.usingMethodHandle( MethodHandles.publicLookup() );
-		this.preIntegrationService = HibernateOrmUtils.getServiceOrFail( serviceRegistry, HibernateSearchPreIntegrationService.class );
+		this.preIntegrationService =
+				HibernateOrmUtils.getServiceOrFail( serviceRegistry, HibernateSearchPreIntegrationService.class );
 
 		Optional<EnvironmentSynchronizer> providedEnvironmentSynchronizer =
 				HibernateOrmUtils.getServiceOrEmpty( serviceRegistry, EnvironmentSynchronizer.class );
@@ -86,7 +88,7 @@ public class HibernateOrmIntegrationBooterImpl implements HibernateOrmIntegratio
 		if ( environmentSynchronizer.isPresent() ) {
 			throw new AssertionFailure(
 					"Cannot pre-boot when an environment synchronizer is used to delay Hibernate Search's bootstrap: "
-					+ " we cannot both delay bootstrap and perform it earlier."
+							+ " we cannot both delay bootstrap and perform it earlier."
 			);
 		}
 
@@ -178,7 +180,7 @@ public class HibernateOrmIntegrationBooterImpl implements HibernateOrmIntegratio
 
 		try {
 			return partialBuildState.doBootSecondPhase( sessionFactoryImplementor,
-					preIntegrationService.propertySource(), preIntegrationService.propertyChecker() );
+					preIntegrationService.rawPropertySource(), preIntegrationService.propertyChecker() );
 		}
 		catch (RuntimeException e) {
 			new SuppressingCloser( e )

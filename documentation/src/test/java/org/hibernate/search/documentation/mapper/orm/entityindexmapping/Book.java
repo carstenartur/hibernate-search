@@ -6,9 +6,9 @@
  */
 package org.hibernate.search.documentation.mapper.orm.entityindexmapping;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 
@@ -16,7 +16,7 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 @Entity
 @Indexed
 public class Book {
-// end::indexed-default[]
+	// end::indexed-default[]
 
 	@Id
 	@GeneratedValue

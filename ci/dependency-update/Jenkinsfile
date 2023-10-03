@@ -10,38 +10,40 @@
 // NOTE: Remember to update the matrix axes below when adding/removing entries here.
 Map settings() {
 	switch (env.DEPENDENCY_UPDATE_NAME) {
-		case 'jandex3':
-			return [
-					onlyRunTestDependingOn: ['hibernate-search-mapper-pojo-base'],
-					// Need to rebuild this module in order to insert the Jandex 3 dependency in tests
-					additionalMavenArgs: '-pl :hibernate-search-util-internal-test-common'
-			]
-		case 'orm5.6':
-			return [
-					updateProperties: ['version.org.hibernate'],
-					onlyRunTestDependingOn: ['hibernate-search-mapper-orm', 'hibernate-search-mapper-orm-jakarta']
-			]
-		case 'orm6.2':
-			return [
-					updateProperties: ['version.org.hibernate.orm'],
-					onlyRunTestDependingOn: ['hibernate-search-mapper-orm-orm6']
-			]
 		case 'orm6.3':
 			return [
 					updateProperties: ['version.org.hibernate.orm'],
-					onlyRunTestDependingOn: ['hibernate-search-mapper-orm-orm6']
+					onlyRunTestDependingOn: ['hibernate-search-mapper-orm'],
+					// we need to recompile this module since it has incompatible return type and will result in a build error:
+					additionalMavenArgs: '-pl :hibernate-search-util-internal-integrationtest-mapper-orm'
 			]
-		case 'orm6-in-main-code':
+		case 'lucene9.8':
 			return [
-					updateProperties: ['version.org.hibernate.orm']
-					// In this case we'll rebuild and test everything.
+					updateProperties: ['version.org.apache.lucene'],
+					onlyRunTestDependingOn: ['hibernate-search-backend-lucene'],
 			]
 		case 'lucene9':
 			return [
-					updateProperties: ['version.org.apache.lucene']
-					// In this case we'll rebuild and test everything. Since we have some JDK 11 changes as well as
-					// some driver updates. These changes spans across multiple modules and we would either need to
-					// closely monitor which ones are affected and add them to the build, or ... build everything.
+					updateProperties: ['version.org.apache.lucene'],
+					onlyRunTestDependingOn: ['hibernate-search-backend-lucene'],
+					additionalMavenArgs: '-Dtest.elasticsearch.skip=true'
+			]
+		case 'lucene10':
+			return [
+					updateProperties: ['version.org.apache.lucene'],
+					onlyRunTestDependingOn: ['hibernate-search-backend-lucene'],
+					additionalMavenArgs: '-Dtest.elasticsearch.skip=true'
+			]
+		case 'elasticsearch-latest':
+			return [
+					// There are no properties to update in this case.
+					updateProperties: [],
+					onlyRunTestDependingOn: ['hibernate-search-backend-elasticsearch'],
+					// We want to use the snapshot version of an image from the ES registry since that's where they are publishing their snapshots.
+					additionalMavenArgs: '-Dtest.elasticsearch.run.elastic.image.name=docker.elastic.co/elasticsearch/elasticsearch -Dtest.elasticsearch.run.elastic.image.tag=master-SNAPSHOT',
+					// This job won't change the versions in the pom. We are passing the latest Elasticsearch version through an additional maven argument `-D`
+					skipSourceModifiedCheck: true,
+					additionalMavenArgs: '-Dtest.lucene.skip=true'
 			]
 		default:
 			return [:]
@@ -67,7 +69,7 @@ def pullContainerImages() {
 }
 
 def withMavenWorkspace(Closure body) {
-	withMaven(jdk: 'OpenJDK 17 Latest', maven: 'Apache Maven 3.8',
+	withMaven(jdk: 'OpenJDK 17 Latest', maven: 'Apache Maven 3.9',
 			mavenLocalRepo: env.WORKSPACE_TMP + '/.m2repository',
 			options: [artifactsPublisher(disabled: true)]) {
 		body()
@@ -140,7 +142,7 @@ pipeline {
 					axis {
 						name 'DEPENDENCY_UPDATE_NAME'
 						// NOTE: Remember to update the settings() method above when changing this.
-						values 'jandex3', 'orm5.6', 'orm6.2', 'orm6.3', 'orm6-in-main-code', 'lucene9'
+						values 'orm6.3', 'lucene9.8','lucene9', 'lucene10', 'elasticsearch-latest'
 					}
 				}
 				stages {
@@ -166,7 +168,7 @@ pipeline {
 								sh "ci/dependency-update/perform-update.sh ${env.DEPENDENCY_UPDATE_NAME} '${settings().updateProperties?.join(",") ?: ''}'"
 							}
 							script {
-								if (0 != sh(script: "git diff origin/${BRANCH_NAME} | grep -q '.'", returnStatus: true)) {
+								if (!settings().skipSourceModifiedCheck && 0 != sh(script: "git diff origin/${BRANCH_NAME} | grep -q '.'", returnStatus: true)) {
 									error "This job does not seem to update any dependency; perhaps it is misconfigured? The source code has not been updated, neither by merging a WIP branch nor by updating version properties."
 								}
 							}

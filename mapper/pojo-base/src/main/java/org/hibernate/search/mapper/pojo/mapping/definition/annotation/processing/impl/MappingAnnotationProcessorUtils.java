@@ -8,9 +8,12 @@ package org.hibernate.search.mapper.pojo.mapping.definition.annotation.processin
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.hibernate.search.engine.environment.bean.BeanReference;
 import org.hibernate.search.engine.environment.bean.BeanRetrieval;
@@ -63,7 +66,7 @@ public final class MappingAnnotationProcessorUtils {
 				}
 			default:
 				throw new AssertionFailure(
-					"Unexpected " + ContainerExtract.class.getSimpleName() + " value: " + extract
+						"Unexpected " + ContainerExtract.class.getSimpleName() + " value: " + extract
 				);
 		}
 	}
@@ -84,6 +87,10 @@ public final class MappingAnnotationProcessorUtils {
 	public static Map<String, Object> toMap(Param[] params) {
 		Contracts.assertNotNull( params, "params" );
 
+		if ( params.length == 0 ) {
+			return Collections.emptyMap();
+		}
+
 		Map<String, Object> map = new LinkedHashMap<>();
 		for ( Param param : params ) {
 			Object previous = map.put( param.name(), param.value() );
@@ -92,5 +99,17 @@ public final class MappingAnnotationProcessorUtils {
 			}
 		}
 		return map;
+	}
+
+	public static Set<String> cleanUpPaths(String[] pathsArray) {
+		Set<String> paths;
+		if ( pathsArray.length > 0 ) {
+			paths = new HashSet<>();
+			Collections.addAll( paths, pathsArray );
+		}
+		else {
+			paths = Collections.emptySet();
+		}
+		return paths;
 	}
 }

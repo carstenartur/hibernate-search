@@ -18,15 +18,15 @@ import org.hibernate.search.engine.backend.document.IndexObjectFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaObjectField;
 import org.hibernate.search.engine.backend.types.ObjectStructure;
-import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEmbeddedDefinition;
+import org.hibernate.search.engine.common.tree.TreeFilterDefinition;
 import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEmbeddedBindingContext;
 import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEntityBindingContext;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.types.FieldTypeDescriptor;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.SimpleFieldModelsByType;
-import org.hibernate.search.util.impl.integrationtest.mapper.stub.SimpleMappedIndex;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
-import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubTypeModel;
+import org.hibernate.search.util.impl.integrationtest.mapper.stub.SimpleMappedIndex;
+import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingElement;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -160,7 +160,8 @@ public class DocumentElementFieldReferenceIT<F> {
 			flattenedSecondLevelObject = excludingObject.addObject( index.binding().excludingObject.flattenedObject.self );
 			setNullValue( index.binding().excludingObject.flattenedObject, flattenedSecondLevelObject );
 
-			DocumentElement nestedSecondLevelObject = excludingObject.addObject( index.binding().excludingObject.nestedObject.self );
+			DocumentElement nestedSecondLevelObject =
+					excludingObject.addObject( index.binding().excludingObject.nestedObject.self );
 			setNullValue( index.binding().excludingObject.nestedObject, nestedSecondLevelObject );
 			nestedSecondLevelObject = excludingObject.addObject( index.binding().excludingObject.nestedObject.self );
 			setNullValue( index.binding().excludingObject.nestedObject, nestedSecondLevelObject );
@@ -250,13 +251,12 @@ public class DocumentElementFieldReferenceIT<F> {
 			nestedObject = new FirstLevelObjectBinding( nestedObjectField );
 
 			// Simulate an embedded context which excludes every subfield
-			IndexedEmbeddedDefinition indexedEmbeddedDefinition = new IndexedEmbeddedDefinition(
-					new StubTypeModel( "embedded" ),
-					"excludingObject.", ObjectStructure.FLATTENED,
-					null, Collections.singleton( "pathThatDoesNotMatchAnything" )
-			);
+			TreeFilterDefinition filterDefinition =
+					new TreeFilterDefinition( null,
+							Collections.singleton( "pathThatDoesNotMatchAnything" ), Collections.emptySet() );
 			IndexedEmbeddedBindingContext excludingEmbeddedContext =
-					ctx.addIndexedEmbeddedIfIncluded( indexedEmbeddedDefinition, true ).get();
+					ctx.addIndexedEmbeddedIfIncluded( new StubMappingElement(),
+							"excludingObject.", ObjectStructure.FLATTENED, filterDefinition, true ).get();
 			excludingObject = new FirstLevelObjectBinding(
 					excludingEmbeddedContext.schemaElement(),
 					excludingEmbeddedContext.parentIndexObjectReferences().iterator().next()
@@ -277,8 +277,9 @@ public class DocumentElementFieldReferenceIT<F> {
 		FirstLevelObjectBinding(IndexSchemaElement objectField, IndexObjectFieldReference objectFieldReference) {
 			super( objectField );
 			self = objectFieldReference;
-			IndexSchemaObjectField flattenedObjectField = objectField.objectField( "flattenedObject", ObjectStructure.FLATTENED )
-					.multiValued();
+			IndexSchemaObjectField flattenedObjectField =
+					objectField.objectField( "flattenedObject", ObjectStructure.FLATTENED )
+							.multiValued();
 			flattenedObject = new SecondLevelObjectBinding( flattenedObjectField );
 			IndexSchemaObjectField nestedObjectField = objectField.objectField( "nestedObject", ObjectStructure.NESTED )
 					.multiValued();

@@ -51,7 +51,6 @@ import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 import com.google.gson.JsonPrimitive;
 
-
 class ElasticsearchStringIndexFieldTypeOptionsStep
 		extends AbstractElasticsearchStandardIndexFieldTypeOptionsStep<ElasticsearchStringIndexFieldTypeOptionsStep, String>
 		implements StringIndexFieldTypeOptionsStep<ElasticsearchStringIndexFieldTypeOptionsStep> {
@@ -254,8 +253,9 @@ class ElasticsearchStringIndexFieldTypeOptionsStep
 	}
 
 	private String resolveTermVector() {
-		if ( highlightable != null && ( highlightable.contains( Highlightable.FAST_VECTOR )
-				|| highlightable.contains( Highlightable.ANY ) ) ) {
+		if ( highlightable != null
+				&& ( highlightable.contains( Highlightable.FAST_VECTOR )
+						|| highlightable.contains( Highlightable.ANY ) ) ) {
 			if ( TermVector.DEFAULT.equals( termVector ) ) {
 				return TermVector.WITH_POSITIONS_OFFSETS.name().toLowerCase( Locale.ROOT );
 			}
@@ -286,8 +286,8 @@ class ElasticsearchStringIndexFieldTypeOptionsStep
 			throw log.noHighlightableProvided();
 		}
 		if ( highlightable.contains( Highlightable.DEFAULT ) ) {
-			if ( TermVector.WITH_POSITIONS_OFFSETS.equals( termVector ) ||
-					TermVector.WITH_POSITIONS_OFFSETS_PAYLOADS.equals( termVector ) ) {
+			if ( TermVector.WITH_POSITIONS_OFFSETS.equals( termVector )
+					|| TermVector.WITH_POSITIONS_OFFSETS_PAYLOADS.equals( termVector ) ) {
 				highlightable = EnumSet.of( Highlightable.ANY );
 			}
 			else {

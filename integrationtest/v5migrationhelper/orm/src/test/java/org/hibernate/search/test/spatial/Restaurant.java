@@ -6,8 +6,8 @@
  */
 package org.hibernate.search.test.spatial;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
@@ -31,7 +31,7 @@ public class Restaurant {
 	@IndexedEmbedded
 	Position position;
 
-	public Restaurant(Integer id, String name, String address,double latitude, double longitude) {
+	public Restaurant(Integer id, String name, String address, double latitude, double longitude) {
 		this.id = id;
 		this.name = name;
 		this.position = new Position();

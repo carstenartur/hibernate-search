@@ -7,6 +7,7 @@
 
 package org.hibernate.search.query.dsl.impl;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -19,7 +20,6 @@ import org.hibernate.search.util.common.data.Range;
 import org.hibernate.search.util.common.data.RangeBoundInclusion;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
-import java.lang.invoke.MethodHandles;
 
 /**
  * @author Hardy Ferentschik
@@ -37,7 +37,7 @@ class FacetBuildingContext<T> {
 			Double.class.getName(),
 			Float.class.getName(),
 			Date.class.getName()
-		);
+	);
 
 	private final QueryBuildingContext context;
 
@@ -168,5 +168,4 @@ class FacetBuildingContext<T> {
 		return sb.toString();
 	}
 }
-
 

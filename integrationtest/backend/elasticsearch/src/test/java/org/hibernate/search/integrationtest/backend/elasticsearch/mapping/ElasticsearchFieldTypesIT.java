@@ -13,10 +13,11 @@ import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.backend.elasticsearch.cfg.impl.ElasticsearchBackendImplSettings;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchClientSpy;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchRequestAssertionMode;
+import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendFeatures;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 
 import org.junit.Rule;
@@ -41,10 +42,12 @@ public class ElasticsearchFieldTypesIT {
 
 	@Test
 	public void test() {
-		clientSpy.expectNext(
-				ElasticsearchRequest.get().build(),
-				ElasticsearchRequestAssertionMode.STRICT
-		);
+		if ( ElasticsearchTckBackendFeatures.supportsVersionCheck() ) {
+			clientSpy.expectNext(
+					ElasticsearchRequest.get().build(),
+					ElasticsearchRequestAssertionMode.STRICT
+			);
+		}
 		clientSpy.expectNext(
 				ElasticsearchRequest.get()
 						.multiValuedPathComponent( defaultAliases( index.name() ) )
@@ -75,18 +78,8 @@ public class ElasticsearchFieldTypesIT {
 		JsonObject mappings = new JsonObject();
 		payload.add( "mappings", mappings );
 
-		JsonObject mapping = dialect.getTypeNameForMappingAndBulkApi()
-				// ES6 and below: the mapping has its own object node, child of "mappings"
-				.map( name -> {
-					JsonObject doc = new JsonObject();
-					mappings.add( name.original, doc );
-					return doc;
-				} )
-				// ES7 and below: the mapping is the "mappings" node
-				.orElse( mappings );
-
 		JsonObject properties = new JsonObject();
-		mapping.add( "properties", properties );
+		mappings.add( "properties", properties );
 
 		properties.add( "keyword", type( "keyword" ) );
 		properties.add( "text", type( "text" ) );

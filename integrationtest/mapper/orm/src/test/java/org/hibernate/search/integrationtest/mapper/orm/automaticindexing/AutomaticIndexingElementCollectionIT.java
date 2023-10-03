@@ -9,12 +9,13 @@ package org.hibernate.search.integrationtest.mapper.orm.automaticindexing;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.persistence.CollectionTable;
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OrderColumn;
+
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.OrderColumn;
 
 import org.hibernate.search.mapper.pojo.automaticindexing.ReindexOnUpdate;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
@@ -169,7 +170,7 @@ public class AutomaticIndexingElementCollectionIT {
 			session.persist( entity1 );
 
 			backendMock.expectWorks( IndexedEntity.INDEX )
-					.add( "1", b -> { } );
+					.add( "1", b -> {} );
 		} );
 		backendMock.verifyExpectationsMet();
 
@@ -210,7 +211,7 @@ public class AutomaticIndexingElementCollectionIT {
 			session.persist( entity1 );
 
 			backendMock.expectWorks( IndexedEntity.INDEX )
-					.add( "1", b -> { } );
+					.add( "1", b -> {} );
 		} );
 		backendMock.verifyExpectationsMet();
 
@@ -222,7 +223,7 @@ public class AutomaticIndexingElementCollectionIT {
 
 			// TODO HSEARCH-3204: remove the statement below to not expect any work
 			backendMock.expectWorks( IndexedEntity.INDEX )
-					.addOrUpdate( "1", b -> { } );
+					.addOrUpdate( "1", b -> {} );
 		} );
 		backendMock.verifyExpectationsMet();
 	}

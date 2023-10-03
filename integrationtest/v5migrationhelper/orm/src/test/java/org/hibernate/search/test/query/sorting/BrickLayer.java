@@ -6,8 +6,8 @@
  */
 package org.hibernate.search.test.query.sorting;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.Analyze;
 import org.hibernate.search.annotations.Field;
@@ -27,15 +27,15 @@ public class BrickLayer {
 
 	@SortableField(forField = "sortName")
 	@Fields({
-		@Field,
-		@Field(name = "sortName", analyze = Analyze.NO)
+			@Field,
+			@Field(name = "sortName", analyze = Analyze.NO)
 	})
 	private String name;
 
 	@SortableField(forField = "sortLastName")
 	@Fields({
-		@Field,
-		@Field(name = "sortLastName", analyze = Analyze.NO)
+			@Field,
+			@Field(name = "sortLastName", analyze = Analyze.NO)
 	})
 	private String lastName;
 

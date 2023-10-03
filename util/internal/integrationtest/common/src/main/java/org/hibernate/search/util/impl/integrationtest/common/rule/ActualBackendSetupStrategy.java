@@ -37,7 +37,8 @@ class ActualBackendSetupStrategy implements BackendSetupStrategy {
 
 	@Override
 	public String toString() {
-		return namedBackendConfigurations.isEmpty() ? defaultBackendConfiguration.toString()
+		return namedBackendConfigurations.isEmpty()
+				? defaultBackendConfiguration.toString()
 				: allConfigurations.toString();
 	}
 
@@ -71,5 +72,10 @@ class ActualBackendSetupStrategy implements BackendSetupStrategy {
 			setupContext = configuration.setup( setupContext, name, configurationProvider );
 		}
 		return setupContext;
+	}
+
+	@Override
+	public boolean supportsExplicitRefresh() {
+		return allConfigurations.stream().allMatch( BackendConfiguration::supportsExplicitRefresh );
 	}
 }

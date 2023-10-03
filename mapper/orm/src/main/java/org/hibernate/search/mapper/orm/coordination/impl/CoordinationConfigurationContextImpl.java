@@ -15,19 +15,19 @@ import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
 import org.hibernate.search.engine.environment.bean.BeanReference;
 import org.hibernate.search.engine.environment.bean.BeanResolver;
-import org.hibernate.search.mapper.orm.bootstrap.spi.HibernateSearchOrmMappingProducer;
-import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
-import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrategy;
-import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationConfigurationContext;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingEventSendingSessionContext;
 import org.hibernate.search.mapper.orm.automaticindexing.spi.AutomaticIndexingQueueEventSendingPlan;
+import org.hibernate.search.mapper.orm.bootstrap.spi.HibernateSearchOrmMappingProducer;
+import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
+import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationConfigurationContext;
+import org.hibernate.search.mapper.orm.coordination.common.spi.CoordinationStrategy;
 import org.hibernate.search.mapper.orm.session.impl.ConfiguredAutomaticIndexingStrategy;
 import org.hibernate.search.util.common.impl.SuppressingCloser;
 
 public final class CoordinationConfigurationContextImpl implements CoordinationConfigurationContext, AutoCloseable {
 
 	private static final ConfigurationProperty<BeanReference<? extends CoordinationStrategy>> COORDINATION_STRATEGY =
-			ConfigurationProperty.forKey( HibernateOrmMapperSettings.COORDINATION_STRATEGY )
+			ConfigurationProperty.forKey( HibernateOrmMapperSettings.Radicals.COORDINATION_STRATEGY )
 					.asBeanReference( CoordinationStrategy.class )
 					.withDefault( HibernateOrmMapperSettings.Defaults.COORDINATION_STRATEGY )
 					.build();

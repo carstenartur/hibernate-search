@@ -6,13 +6,11 @@
  */
 package org.hibernate.search.test.embedded.update;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.List;
 
-import org.apache.lucene.index.Term;
-import org.apache.lucene.search.TermQuery;
-
 import org.hibernate.Transaction;
-
 import org.hibernate.search.FullTextQuery;
 import org.hibernate.search.FullTextSession;
 import org.hibernate.search.Search;
@@ -20,7 +18,8 @@ import org.hibernate.search.test.SearchTestBase;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.TermQuery;
 
 /**
  * @author Hardy Ferentschik
@@ -113,7 +112,9 @@ public class ContainedInReindexPropagationTest extends SearchTestBase {
 	@Override
 	public Class<?>[] getAnnotatedClasses() {
 		return new Class[] {
-				Dad.class, Grandpa.class, Son.class
+				Dad.class,
+				Grandpa.class,
+				Son.class
 		};
 	}
 }

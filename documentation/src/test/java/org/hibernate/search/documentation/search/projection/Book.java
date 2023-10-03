@@ -8,18 +8,24 @@ package org.hibernate.search.documentation.search.projection;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Transient;
 
 import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.engine.backend.types.Projectable;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.AssociationInverseSide;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexingDependency;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.KeywordField;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.ObjectPath;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.PropertyValue;
 
 @Entity(name = Book.NAME)
 @Indexed
@@ -116,5 +122,13 @@ public class Book {
 
 		author.getBooks().add( this );
 		author.getFlattenedBooks().add( this );
+	}
+
+	@Transient
+	@IndexedEmbedded
+	@IndexingDependency(derivedFrom = @ObjectPath(@PropertyValue(propertyName = "authors")))
+	@AssociationInverseSide(inversePath = @ObjectPath(@PropertyValue(propertyName = "books")))
+	public Author getMainAuthor() {
+		return getAuthors().isEmpty() ? null : getAuthors().get( 0 );
 	}
 }

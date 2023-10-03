@@ -11,23 +11,22 @@ import java.util.Map;
 import org.hibernate.search.backend.lucene.search.common.impl.LuceneSearchIndexScope;
 import org.hibernate.search.backend.lucene.types.impl.LuceneIndexCompositeNodeType;
 import org.hibernate.search.engine.backend.document.model.spi.AbstractIndexObjectField;
-import org.hibernate.search.engine.backend.document.model.spi.IndexFieldInclusion;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.search.common.spi.SearchIndexSchemaElementContextHelper;
 
 public final class LuceneIndexObjectField
 		extends AbstractIndexObjectField<
-						LuceneIndexObjectField,
-						LuceneSearchIndexScope<?>,
-						LuceneIndexCompositeNodeType,
-						LuceneIndexCompositeNode,
-						LuceneIndexField
-				>
+				LuceneIndexObjectField,
+				LuceneSearchIndexScope<?>,
+				LuceneIndexCompositeNodeType,
+				LuceneIndexCompositeNode,
+				LuceneIndexField>
 		implements LuceneIndexCompositeNode, LuceneIndexField {
 
 	private final boolean dynamic;
 
 	public LuceneIndexObjectField(LuceneIndexCompositeNode parent, String relativeFieldName,
-			LuceneIndexCompositeNodeType type, IndexFieldInclusion inclusion, boolean multiValued,
+			LuceneIndexCompositeNodeType type, TreeNodeInclusion inclusion, boolean multiValued,
 			Map<String, LuceneIndexField> notYetInitializedStaticChildren,
 			boolean dynamic) {
 		super( parent, relativeFieldName, type, inclusion, multiValued, notYetInitializedStaticChildren );

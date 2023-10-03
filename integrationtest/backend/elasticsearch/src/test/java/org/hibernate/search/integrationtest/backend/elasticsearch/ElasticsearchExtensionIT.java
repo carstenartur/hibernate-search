@@ -24,34 +24,34 @@ import java.util.stream.Collectors;
 import org.hibernate.search.backend.elasticsearch.ElasticsearchBackend;
 import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.backend.elasticsearch.index.ElasticsearchIndexManager;
+import org.hibernate.search.backend.elasticsearch.search.query.ElasticsearchSearchQuery;
+import org.hibernate.search.backend.elasticsearch.search.query.ElasticsearchSearchResult;
 import org.hibernate.search.backend.elasticsearch.search.query.ElasticsearchSearchScroll;
 import org.hibernate.search.backend.elasticsearch.search.query.ElasticsearchSearchScrollResult;
 import org.hibernate.search.backend.elasticsearch.search.query.dsl.ElasticsearchSearchQueryOptionsStep;
-import org.hibernate.search.backend.elasticsearch.search.query.dsl.ElasticsearchSearchQueryWhereStep;
 import org.hibernate.search.backend.elasticsearch.search.query.dsl.ElasticsearchSearchQuerySelectStep;
-import org.hibernate.search.backend.elasticsearch.search.query.ElasticsearchSearchQuery;
-import org.hibernate.search.backend.elasticsearch.search.query.ElasticsearchSearchResult;
+import org.hibernate.search.backend.elasticsearch.search.query.dsl.ElasticsearchSearchQueryWhereStep;
 import org.hibernate.search.engine.backend.Backend;
+import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.backend.document.DocumentElement;
 import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.IndexObjectFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaElement;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaObjectField;
-import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.engine.backend.index.IndexManager;
 import org.hibernate.search.engine.backend.types.Aggregable;
+import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.engine.backend.types.Projectable;
 import org.hibernate.search.engine.backend.types.Sortable;
 import org.hibernate.search.engine.common.EntityReference;
 import org.hibernate.search.engine.common.spi.SearchIntegration;
-import org.hibernate.search.engine.backend.common.DocumentReference;
 import org.hibernate.search.engine.search.aggregation.AggregationKey;
 import org.hibernate.search.engine.search.common.ValueConvert;
+import org.hibernate.search.engine.search.loading.spi.SearchLoadingContext;
 import org.hibernate.search.engine.search.predicate.SearchPredicate;
 import org.hibernate.search.engine.search.projection.SearchProjection;
-import org.hibernate.search.engine.search.sort.SearchSort;
-import org.hibernate.search.engine.search.loading.spi.SearchLoadingContext;
 import org.hibernate.search.engine.search.query.SearchQuery;
+import org.hibernate.search.engine.search.sort.SearchSort;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.ValueWrapper;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
 import org.hibernate.search.util.common.SearchException;
@@ -68,6 +68,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+
 import org.apache.http.nio.client.HttpAsyncClient;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.elasticsearch.client.Request;
@@ -163,7 +164,8 @@ public class ElasticsearchExtensionIT {
 
 		// Unsupported extension
 		assertThatThrownBy(
-				() -> query.extension( (SearchQuery<DocumentReference> original, SearchLoadingContext<?> loadingContext) -> Optional.empty() )
+				() -> query.extension(
+						(SearchQuery<DocumentReference> original, SearchLoadingContext<?> loadingContext) -> Optional.empty() )
 		)
 				.isInstanceOf( SearchException.class );
 	}
@@ -391,18 +393,18 @@ public class ElasticsearchExtensionIT {
 						f.extension( ElasticsearchExtension.get() )
 								.fromJson( gson.fromJson(
 										"{"
-											+ "'geo_distance': {"
-												+ "'distance': '200km',"
-												+ "'nativeField_geoPoint': {"
-													+ "'lat': 40,"
-													+ "'lon': -70"
-												+ "}"
-											+ "}"
-										+ "}",
+												+ " 'geo_distance': {"
+												+ "  'distance': '200km',"
+												+ "  'nativeField_geoPoint': {"
+												+ "   'lat': 40,"
+												+ "   'lon': -70"
+												+ "  }"
+												+ " }"
+												+ "}",
 										JsonObject.class
 								)
-						)
-						)
+								)
+				)
 				)
 				.toQuery();
 		assertThatQuery( query )
@@ -421,22 +423,22 @@ public class ElasticsearchExtensionIT {
 		SearchPredicate predicate3 = scope.predicate().extension( ElasticsearchExtension.get() )
 				.fromJson( gson.fromJson(
 						"{"
-							+ "'geo_distance': {"
-								+ "'distance': '200km',"
-								+ "'nativeField_geoPoint': {"
-									+ "'lat': 40,"
-									+ "'lon': -70"
-								+ "}"
-							+ "}"
-						+ "}",
+								+ " 'geo_distance': {"
+								+ "  'distance': '200km',"
+								+ "  'nativeField_geoPoint': {"
+								+ "   'lat': 40,"
+								+ "   'lon': -70"
+								+ "  }"
+								+ " }"
+								+ "}",
 						JsonObject.class
 				) )
 				.toPredicate();
 		SearchPredicate booleanPredicate = scope.predicate().or(
-						predicate1,
-						predicate2,
-						predicate3
-				).toPredicate();
+				predicate1,
+				predicate2,
+				predicate3
+		).toPredicate();
 
 		SearchQuery<DocumentReference> query = scope.query()
 				.where( booleanPredicate )
@@ -459,16 +461,16 @@ public class ElasticsearchExtensionIT {
 						f.extension( ElasticsearchExtension.get() )
 								.fromJson(
 										"{"
-											+ "'geo_distance': {"
-												+ "'distance': '200km',"
-												+ "'nativeField_geoPoint': {"
-													+ "'lat': 40,"
-													+ "'lon': -70"
+												+ " 'geo_distance': {"
+												+ "  'distance': '200km',"
+												+ "  'nativeField_geoPoint': {"
+												+ "   'lat': 40,"
+												+ "   'lon': -70"
+												+ "  }"
+												+ " }"
 												+ "}"
-											+ "}"
-										+ "}"
 								)
-						)
+				)
 				)
 				.toQuery();
 		assertThatQuery( query )
@@ -487,21 +489,21 @@ public class ElasticsearchExtensionIT {
 		SearchPredicate predicate3 = scope.predicate().extension( ElasticsearchExtension.get() )
 				.fromJson(
 						"{"
-							+ "'geo_distance': {"
-								+ "'distance': '200km',"
-								+ "'nativeField_geoPoint': {"
-									+ "'lat': 40,"
-									+ "'lon': -70"
+								+ " 'geo_distance': {"
+								+ "  'distance': '200km',"
+								+ "  'nativeField_geoPoint': {"
+								+ "   'lat': 40,"
+								+ "   'lon': -70"
+								+ "  }"
+								+ " }"
 								+ "}"
-							+ "}"
-						+ "}"
 				)
 				.toPredicate();
 		SearchPredicate booleanPredicate = scope.predicate().or(
-						predicate1,
-						predicate2,
-						predicate3
-				).toPredicate();
+				predicate1,
+				predicate2,
+				predicate3
+		).toPredicate();
 
 		SearchQuery<DocumentReference> query = scope.query()
 				.where( booleanPredicate )
@@ -604,16 +606,16 @@ public class ElasticsearchExtensionIT {
 		StubMappingScope scope = mainIndex.createScope();
 
 		SearchSort sort1Asc = scope.sort().extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
-						"{'nativeField_sort1': 'asc'}", JsonObject.class
-				) )
+				"{'nativeField_sort1': 'asc'}", JsonObject.class
+		) )
 				.toSort();
 		SearchSort sort2Asc = scope.sort().extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
-						"{'nativeField_sort2': 'asc'}", JsonObject.class
-				) )
+				"{'nativeField_sort2': 'asc'}", JsonObject.class
+		) )
 				.toSort();
 		SearchSort sort3Asc = scope.sort().extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
-						"{'nativeField_sort3': 'asc'}", JsonObject.class
-				) )
+				"{'nativeField_sort3': 'asc'}", JsonObject.class
+		) )
 				.toSort();
 		SearchSort sort4Asc = scope.sort()
 				.extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
@@ -632,16 +634,16 @@ public class ElasticsearchExtensionIT {
 				.hasDocRefHitsExactOrder( mainIndex.typeName(), FIRST_ID, SECOND_ID, THIRD_ID, FOURTH_ID, EMPTY_ID, FIFTH_ID );
 
 		SearchSort sort1Desc = scope.sort().extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
-						"{'nativeField_sort1': 'desc'}", JsonObject.class
-				) )
+				"{'nativeField_sort1': 'desc'}", JsonObject.class
+		) )
 				.toSort();
 		SearchSort sort2Desc = scope.sort().extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
-						"{'nativeField_sort2': 'desc'}", JsonObject.class
-				) )
+				"{'nativeField_sort2': 'desc'}", JsonObject.class
+		) )
 				.toSort();
 		SearchSort sort3Desc = scope.sort().extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
-						"{'nativeField_sort3': 'desc'}", JsonObject.class
-				) )
+				"{'nativeField_sort3': 'desc'}", JsonObject.class
+		) )
 				.toSort();
 		SearchSort sort4Desc = scope.sort()
 				.extension( ElasticsearchExtension.get() ).fromJson( gson.fromJson(
@@ -668,15 +670,15 @@ public class ElasticsearchExtensionIT {
 				.where( f -> f.matchAll() )
 				.sort( f -> f
 						.extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort1': 'asc'}" )
+						.fromJson( "{'nativeField_sort1': 'asc'}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort2': 'asc'}" )
+						.fromJson( "{'nativeField_sort2': 'asc'}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort3': 'asc'}" )
+						.fromJson( "{'nativeField_sort3': 'asc'}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort4': {'order': 'asc', 'missing': '_last'}}" )
+						.fromJson( "{'nativeField_sort4': {'order': 'asc', 'missing': '_last'}}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
+						.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
 				)
 				.toQuery();
 		assertThatQuery( query ).hasDocRefHitsExactOrder(
@@ -688,15 +690,15 @@ public class ElasticsearchExtensionIT {
 				.where( f -> f.matchAll() )
 				.sort( f -> f
 						.extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort1': 'desc'}" )
+						.fromJson( "{'nativeField_sort1': 'desc'}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort2': 'desc'}" )
+						.fromJson( "{'nativeField_sort2': 'desc'}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort3': 'desc'}" )
+						.fromJson( "{'nativeField_sort3': 'desc'}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort4': {'order': 'desc', 'missing': '_last'}}" )
+						.fromJson( "{'nativeField_sort4': {'order': 'desc', 'missing': '_last'}}" )
 						.then().extension( ElasticsearchExtension.get() )
-								.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
+						.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
 				)
 				.toQuery();
 		assertThatQuery( query ).hasDocRefHitsExactOrder(
@@ -720,9 +722,9 @@ public class ElasticsearchExtensionIT {
 				.toSort();
 		SearchSort sort4Asc = scope.sort()
 				.extension( ElasticsearchExtension.get() )
-						.fromJson( "{'nativeField_sort4': {'order': 'asc', 'missing': '_last'}}" )
+				.fromJson( "{'nativeField_sort4': {'order': 'asc', 'missing': '_last'}}" )
 				.then().extension( ElasticsearchExtension.get() )
-						.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
+				.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
 				.toSort();
 
 		SearchQuery<DocumentReference> query = scope.query()
@@ -743,9 +745,9 @@ public class ElasticsearchExtensionIT {
 				.toSort();
 		SearchSort sort4Desc = scope.sort()
 				.extension( ElasticsearchExtension.get() )
-						.fromJson( "{'nativeField_sort4': {'order': 'desc', 'missing': '_last'}}" )
+				.fromJson( "{'nativeField_sort4': {'order': 'desc', 'missing': '_last'}}" )
 				.then().extension( ElasticsearchExtension.get() )
-						.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
+				.fromJson( "{'nativeField_sort5': {'order': 'asc', 'missing': '_first'}}" )
 				.toSort();
 
 		query = scope.query()
@@ -848,13 +850,13 @@ public class ElasticsearchExtensionIT {
 		assertThat( result ).hasSize( 1 );
 		assertJsonEquals(
 				"{"
-						+ "'string': 'text 5',"
-						+ "'nativeField_string': 'text 2',"
-						+ "'nativeField_integer': 1,"
-						+ "'nativeField_geoPoint': {'lat': 45.12, 'lon': -75.34},"
-						+ "'nativeField_dateWithColons': '2018:01:25',"
-						+ "'nativeField_unsupportedType': 'foobar',"
-						+ "'nativeField_sort5': 'z'"
+						+ "  'string': 'text 5',"
+						+ "  'nativeField_string': 'text 2',"
+						+ "  'nativeField_integer': 1,"
+						+ "  'nativeField_geoPoint': {'lat': 45.12, 'lon': -75.34},"
+						+ "  'nativeField_dateWithColons': '2018:01:25',"
+						+ "  'nativeField_unsupportedType': 'foobar',"
+						+ "  'nativeField_sort5': 'z'"
 						+ "}",
 				result.get( 0 ).toString(),
 				JSONCompareMode.LENIENT
@@ -870,11 +872,10 @@ public class ElasticsearchExtensionIT {
 		StubMappingScope scope = mainIndex.createScope();
 
 		SearchQuery<List<?>> query = scope.query()
-				.select( f ->
-						f.composite(
-								f.extension( ElasticsearchExtension.get() ).source(),
-								f.field( "nativeField_string" )
-						)
+				.select( f -> f.composite(
+						f.extension( ElasticsearchExtension.get() ).source(),
+						f.field( "nativeField_string" )
+				)
 				)
 				.where( f -> f.id().matching( FIFTH_ID ) )
 				.toQuery();
@@ -885,13 +886,13 @@ public class ElasticsearchExtensionIT {
 		assertThat( result ).hasSize( 1 );
 		assertJsonEquals(
 				"{"
-						+ "'string': 'text 5',"
-						+ "'nativeField_string': 'text 2',"
-						+ "'nativeField_integer': 1,"
-						+ "'nativeField_geoPoint': {'lat': 45.12, 'lon': -75.34},"
-						+ "'nativeField_dateWithColons': '2018:01:25',"
-						+ "'nativeField_unsupportedType': 'foobar',"
-						+ "'nativeField_sort5': 'z'"
+						+ "  'string': 'text 5',"
+						+ "  'nativeField_string': 'text 2',"
+						+ "  'nativeField_integer': 1,"
+						+ "  'nativeField_geoPoint': {'lat': 45.12, 'lon': -75.34},"
+						+ "  'nativeField_dateWithColons': '2018:01:25',"
+						+ "  'nativeField_unsupportedType': 'foobar',"
+						+ "  'nativeField_sort5': 'z'"
 						+ "}",
 				result.get( 0 ).toString(),
 				JSONCompareMode.LENIENT
@@ -928,8 +929,8 @@ public class ElasticsearchExtensionIT {
 		assertThat( result ).hasSize( 1 );
 		assertJsonEquals(
 				"{"
-						+ "'_id': '" + FIRST_ID + "',"
-						+ "'_index': '" + defaultPrimaryName( mainIndex.name() ) + "'"
+						+ "  '_id': '" + FIRST_ID + "',"
+						+ "  '_index': '" + defaultPrimaryName( mainIndex.name() ) + "'"
 						+ "}",
 				result.get( 0 ).toString(),
 				JSONCompareMode.LENIENT
@@ -966,8 +967,8 @@ public class ElasticsearchExtensionIT {
 				.where( f -> f.matchAll() )
 				.aggregation( documentCountPerValue, f -> f.fromJson( gson.fromJson(
 						"{"
-								+ "'value_count' : {"
-										+ "'field' : 'nativeField_aggregation'"
+								+ "  'value_count' : {"
+								+ "    'field' : 'nativeField_aggregation'"
 								+ " }"
 								+ "}",
 						JsonObject.class
@@ -976,7 +977,7 @@ public class ElasticsearchExtensionIT {
 		JsonObject aggregationResult = query.fetchAll().aggregation( documentCountPerValue );
 		assertJsonEquals(
 				"{"
-						+ "'value': 3"
+						+ "  'value': 3"
 						+ "}",
 				aggregationResult.toString()
 		);
@@ -994,16 +995,16 @@ public class ElasticsearchExtensionIT {
 				.where( f -> f.matchAll() )
 				.aggregation( documentCountPerValue, f -> f.fromJson(
 						"{"
-								+ "'value_count' : {"
-										+ "'field' : 'nativeField_aggregation'"
+								+ "  'value_count' : {"
+								+ "    'field' : 'nativeField_aggregation'"
 								+ " }"
-								+ "}"
+								+ "  }"
 				) )
 				.toQuery();
 		JsonObject aggregationResult = query.fetchAll().aggregation( documentCountPerValue );
 		assertJsonEquals(
 				"{"
-						+ "'value': 3"
+						+ "  'value': 3"
 						+ "}",
 				aggregationResult.toString()
 		);
@@ -1107,8 +1108,8 @@ public class ElasticsearchExtensionIT {
 	public void jsonHitProjectionInsideNested() {
 		assertThatThrownBy( () -> mainIndex.createScope().query()
 				.select( f -> f.object( "nestedObject" ).from(
-								f.extension( ElasticsearchExtension.get() ).jsonHit()
-						).asList().multi()
+						f.extension( ElasticsearchExtension.get() ).jsonHit()
+				).asList().multi()
 				)
 				.where( f -> f.matchAll() )
 				.toQuery()
@@ -1123,8 +1124,8 @@ public class ElasticsearchExtensionIT {
 	public void sourceProjectionInsideNested() {
 		assertThatThrownBy( () -> mainIndex.createScope().query()
 				.select( f -> f.object( "nestedObject" ).from(
-								f.extension( ElasticsearchExtension.get() ).source()
-						).asList().multi()
+						f.extension( ElasticsearchExtension.get() ).source()
+				).asList().multi()
 				)
 				.where( f -> f.matchAll() )
 				.toQuery()
@@ -1139,8 +1140,8 @@ public class ElasticsearchExtensionIT {
 	public void explanationProjectionInsideNested() {
 		assertThatThrownBy( () -> mainIndex.createScope().query()
 				.select( f -> f.object( "nestedObject" ).from(
-								f.extension( ElasticsearchExtension.get() ).explanation()
-						).asList().multi()
+						f.extension( ElasticsearchExtension.get() ).explanation()
+				).asList().multi()
 				)
 				.where( f -> f.matchAll() )
 				.toQuery()
@@ -1166,7 +1167,8 @@ public class ElasticsearchExtensionIT {
 					document.addValue( mainIndex.binding().nativeField_sort4, new JsonPrimitive( "z" ) );
 					document.addValue( mainIndex.binding().nativeField_sort5, new JsonPrimitive( "a" ) );
 
-					document.addValue( mainIndex.binding().nativeField_aggregation, new JsonPrimitive( "value-for-doc-1-and-2" ) );
+					document.addValue( mainIndex.binding().nativeField_aggregation,
+							new JsonPrimitive( "value-for-doc-1-and-2" ) );
 
 					DocumentElement nestedObject1 = document.addObject( mainIndex.binding().nestedObject.self );
 					nestedObject1.addValue( mainIndex.binding().nestedObject.discriminator, "included" );
@@ -1188,7 +1190,8 @@ public class ElasticsearchExtensionIT {
 					document.addValue( mainIndex.binding().nativeField_sort4, new JsonPrimitive( "z" ) );
 					document.addValue( mainIndex.binding().nativeField_sort5, new JsonPrimitive( "a" ) );
 
-					document.addValue( mainIndex.binding().nativeField_aggregation, new JsonPrimitive( "value-for-doc-1-and-2" ) );
+					document.addValue( mainIndex.binding().nativeField_aggregation,
+							new JsonPrimitive( "value-for-doc-1-and-2" ) );
 
 					DocumentElement nestedObject1 = document.addObject( mainIndex.binding().nestedObject.self );
 					nestedObject1.addValue( mainIndex.binding().nestedObject.discriminator, "included" );
@@ -1202,7 +1205,8 @@ public class ElasticsearchExtensionIT {
 				.add( THIRD_ID, document -> {
 					document.addValue( mainIndex.binding().string, "text 3" );
 
-					document.addValue( mainIndex.binding().nativeField_geoPoint, gson.fromJson( "{'lat': 40.12, 'lon': -71.34}", JsonObject.class ) );
+					document.addValue( mainIndex.binding().nativeField_geoPoint,
+							gson.fromJson( "{'lat': 40.12, 'lon': -71.34}", JsonObject.class ) );
 
 					document.addValue( mainIndex.binding().nativeField_sort1, new JsonPrimitive( "z" ) );
 					document.addValue( mainIndex.binding().nativeField_sort2, new JsonPrimitive( "z" ) );
@@ -1247,7 +1251,8 @@ public class ElasticsearchExtensionIT {
 					// This document should not match any query
 					document.addValue( mainIndex.binding().nativeField_string, new JsonPrimitive( "text 2" ) );
 					document.addValue( mainIndex.binding().nativeField_integer, new JsonPrimitive( 1 ) );
-					document.addValue( mainIndex.binding().nativeField_geoPoint, gson.fromJson( "{'lat': 45.12, 'lon': -75.34}", JsonObject.class ) );
+					document.addValue( mainIndex.binding().nativeField_geoPoint,
+							gson.fromJson( "{'lat': 45.12, 'lon': -75.34}", JsonObject.class ) );
 					document.addValue( mainIndex.binding().nativeField_dateWithColons, new JsonPrimitive( "2018:01:25" ) );
 					document.addValue( mainIndex.binding().nativeField_unsupportedType, new JsonPrimitive( "foobar" ) ); // ignore_malformed is enabled, this should be ignored
 
@@ -1262,7 +1267,7 @@ public class ElasticsearchExtensionIT {
 					nestedObject2.addValue( mainIndex.binding().nestedObject.sort1, "a" );
 					nestedObject2.addValue( mainIndex.binding().nestedObject.aggregation1, "fifty-five" );
 				} )
-				.add( EMPTY_ID, document -> { } )
+				.add( EMPTY_ID, document -> {} )
 				.join();
 	}
 

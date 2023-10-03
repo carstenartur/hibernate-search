@@ -35,11 +35,13 @@ import org.hibernate.event.spi.PostInsertEvent;
 import org.hibernate.event.spi.PostInsertEventListener;
 import org.hibernate.event.spi.PostUpdateEvent;
 import org.hibernate.event.spi.PostUpdateEventListener;
+import org.hibernate.metamodel.mapping.EntityMappingType;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.search.mapper.orm.common.impl.HibernateOrmUtils;
 import org.hibernate.search.mapper.orm.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.work.spi.PojoIndexingPlan;
 import org.hibernate.search.mapper.pojo.work.spi.PojoTypeIndexingPlan;
+import org.hibernate.search.util.common.annotation.impl.SuppressForbiddenApis;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 /**
@@ -52,7 +54,8 @@ import org.hibernate.search.util.common.logging.impl.LoggerFactory;
  * @author Sanne Grinovero
  * @author Hardy Ferentschik
  */
-public final class HibernateSearchEventListener implements PostDeleteEventListener,
+public final class HibernateSearchEventListener
+		implements PostDeleteEventListener,
 		PostInsertEventListener, PostUpdateEventListener,
 		PostCollectionRecreateEventListener, PostCollectionRemoveEventListener, PostCollectionUpdateEventListener,
 		FlushEventListener, AutoFlushEventListener, ClearEventListener {
@@ -289,8 +292,8 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 		return contextProvider.currentIndexingPlanIfExisting( sessionImplementor );
 	}
 
-	private HibernateOrmListenerTypeContext getTypeContextOrNull(EntityPersister entityPersister) {
-		String entityName = entityPersister.getEntityName();
+	private HibernateOrmListenerTypeContext getTypeContextOrNull(EntityMappingType entityMappingType) {
+		String entityName = entityMappingType.getEntityName();
 		return contextProvider.typeContextProvider().byHibernateOrmEntityName().getOrNull( entityName );
 	}
 
@@ -322,7 +325,7 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 
 		BitSet dirtyPaths;
 		if ( dirtyCheckingEnabled ) {
-			PersistentCollection persistentCollection = event.getCollection();
+			PersistentCollection<?> persistentCollection = event.getCollection();
 			String collectionRole = null;
 			if ( persistentCollection != null ) {
 				collectionRole = persistentCollection.getRole();
@@ -338,8 +341,8 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 				}
 			}
 			else {
-				 // We don't know which collection is being changed,
-				 // so we have to default to reindexing, just in case.
+				// We don't know which collection is being changed,
+				// so we have to default to reindexing, just in case.
 				dirtyPaths = null;
 			}
 		}
@@ -362,8 +365,8 @@ public final class HibernateSearchEventListener implements PostDeleteEventListen
 	 * Required since Hibernate ORM 4.3
 	 */
 	@Override
-	@SuppressWarnings("deprecation") // Deprecated but abstract, so we have to implement it...
-	public boolean requiresPostCommitHanding(EntityPersister persister) {
+	@SuppressForbiddenApis(reason = "We are forced to implement this method and it requires accepting an EntityPersister")
+	public boolean requiresPostCommitHandling(EntityPersister persister) {
 		// TODO Tests seem to pass using _false_ but we might be able to take
 		// advantage of this new hook?
 		return false;

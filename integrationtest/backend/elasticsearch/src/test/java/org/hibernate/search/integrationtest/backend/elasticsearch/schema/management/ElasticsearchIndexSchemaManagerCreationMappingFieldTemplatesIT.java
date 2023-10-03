@@ -63,36 +63,36 @@ public class ElasticsearchIndexSchemaManagerCreationMappingFieldTemplatesIT {
 		} );
 
 		elasticSearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( index );
 
 		assertJsonEquals(
 				"{"
-					+ "'dynamic': 'true',"
-					+ "'dynamic_templates': ["
-							+ "{'myTemplate1': {"
-									+ "'match_mapping_type': 'object',"
-									+ "'path_match': '*_obj',"
-									+ "'mapping': {"
-											+ "'type': 'nested',"
-											+ "'dynamic': 'true'"
-									+ "}"
-							+ "} },"
-							+ "{'myTemplate2': {"
-									+ "'path_match': '*_kw',"
-									+ "'mapping': {"
-											+ "'type': 'keyword',"
-											+ "'doc_values': false,"
-											+ "'index': true,"
-											+ "'norms': false"
-									+ "}"
-							+ "} }"
-					+ "],"
-					+ "'properties': {"
-							+ defaultMetadataMappingForExpectations()
-					+ "}"
-				+ "}",
+						+ " 'dynamic': 'true',"
+						+ " 'dynamic_templates': ["
+						+ "   {'myTemplate1': {"
+						+ "     'match_mapping_type': 'object',"
+						+ "     'path_match': '*_obj',"
+						+ "     'mapping': {"
+						+ "       'type': 'nested',"
+						+ "       'dynamic': 'true'"
+						+ "     }"
+						+ "   } },"
+						+ "   {'myTemplate2': {"
+						+ "     'path_match': '*_kw',"
+						+ "     'mapping': {"
+						+ "       'type': 'keyword',"
+						+ "       'doc_values': false,"
+						+ "       'index': true,"
+						+ "       'norms': false"
+						+ "     }"
+						+ "   } }"
+						+ " ],"
+						+ " 'properties': {"
+						+ defaultMetadataMappingForExpectations()
+						+ " }"
+						+ "}",
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
 	}
@@ -109,40 +109,40 @@ public class ElasticsearchIndexSchemaManagerCreationMappingFieldTemplatesIT {
 		} );
 
 		elasticSearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( index );
 
 		assertJsonEquals(
 				"{"
-					+ "'dynamic': 'strict',"
-					+ "'dynamic_templates': ["
-							+ "{'staticObject.myTemplate1': {"
-									+ "'match_mapping_type': 'object',"
-									+ "'path_match': 'staticObject.*_obj',"
-									+ "'mapping': {"
-											+ "'type': 'nested',"
-											+ "'dynamic': 'true'"
-									+ "}"
-							+ "} },"
-							+ "{'staticObject.myTemplate2': {"
-									+ "'path_match': 'staticObject.*_kw',"
-									+ "'mapping': {"
-											+ "'type': 'keyword',"
-											+ "'doc_values': false,"
-											+ "'index': true,"
-											+ "'norms': false"
-									+ "}"
-							+ "} }"
-					+ "],"
-					+ "'properties': {"
-							+ defaultMetadataMappingAndCommaForExpectations()
-							+ "'staticObject': {"
-									+ "'type': 'object',"
-									+ "'dynamic': 'true'"
-							+ "}"
-					+ "}"
-				+ "}",
+						+ " 'dynamic': 'strict',"
+						+ " 'dynamic_templates': ["
+						+ "   {'staticObject.myTemplate1': {"
+						+ "     'match_mapping_type': 'object',"
+						+ "     'path_match': 'staticObject.*_obj',"
+						+ "     'mapping': {"
+						+ "       'type': 'nested',"
+						+ "       'dynamic': 'true'"
+						+ "     }"
+						+ "   } },"
+						+ "   {'staticObject.myTemplate2': {"
+						+ "     'path_match': 'staticObject.*_kw',"
+						+ "     'mapping': {"
+						+ "       'type': 'keyword',"
+						+ "       'doc_values': false,"
+						+ "       'index': true,"
+						+ "       'norms': false"
+						+ "     }"
+						+ "   } }"
+						+ " ],"
+						+ " 'properties': {"
+						+ defaultMetadataMappingAndCommaForExpectations()
+						+ "   'staticObject': {"
+						+ "     'type': 'object',"
+						+ "     'dynamic': 'true'"
+						+ "   }"
+						+ " }"
+						+ "}",
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
 	}
@@ -157,7 +157,7 @@ public class ElasticsearchIndexSchemaManagerCreationMappingFieldTemplatesIT {
 		} );
 
 		elasticSearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( index, Optional.of( "no-overlapping.json" ) );
 
@@ -220,7 +220,7 @@ public class ElasticsearchIndexSchemaManagerCreationMappingFieldTemplatesIT {
 		} );
 
 		elasticSearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( index, Optional.of( "no-overlapping-with-templates.json" ) );
 
@@ -284,7 +284,7 @@ public class ElasticsearchIndexSchemaManagerCreationMappingFieldTemplatesIT {
 		} );
 
 		elasticSearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( index, Optional.of( "no-overlapping.json" ) );
 

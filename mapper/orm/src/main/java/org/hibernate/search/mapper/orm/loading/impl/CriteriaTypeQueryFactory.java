@@ -8,12 +8,13 @@ package org.hibernate.search.mapper.orm.loading.impl;
 
 import java.util.Collection;
 import java.util.Set;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.ParameterExpression;
-import javax.persistence.criteria.Path;
-import javax.persistence.criteria.Root;
-import javax.persistence.metamodel.SingularAttribute;
+
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.ParameterExpression;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.metamodel.SingularAttribute;
 
 import org.hibernate.MultiIdentifierLoadAccess;
 import org.hibernate.engine.spi.SessionImplementor;
@@ -25,16 +26,14 @@ class CriteriaTypeQueryFactory<E, I> extends ConditionalExpressionQueryFactory<E
 
 	public static <E> CriteriaTypeQueryFactory<E, ?> create(EntityDomainType<E> type,
 			String uniquePropertyName) {
-		return new CriteriaTypeQueryFactory<>( type, uniquePropertyName,
-				type.getSingularAttribute( uniquePropertyName ) );
+		return new CriteriaTypeQueryFactory<>( type, type.getSingularAttribute( uniquePropertyName ) );
 	}
 
 	private final EntityDomainType<E> type;
 	private final SingularAttribute<? super E, I> uniqueProperty;
 
-	private CriteriaTypeQueryFactory(EntityDomainType<E> type,
-			String uniquePropertyName, SingularAttribute<? super E, I> uniqueProperty) {
-		super( uniquePropertyName );
+	private CriteriaTypeQueryFactory(EntityDomainType<E> type, SingularAttribute<? super E, I> uniqueProperty) {
+		super( uniqueProperty.getJavaType(), uniqueProperty.getName() );
 		this.type = type;
 		this.uniqueProperty = uniqueProperty;
 	}

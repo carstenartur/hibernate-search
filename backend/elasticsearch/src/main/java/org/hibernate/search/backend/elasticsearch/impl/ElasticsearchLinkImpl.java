@@ -44,16 +44,21 @@ class ElasticsearchLinkImpl implements ElasticsearchLink {
 					.as( ElasticsearchVersion.class, ElasticsearchVersion::of )
 					.build();
 
-	private static final ConfigurationProperty<Boolean> VERSION_CHECK_ENABLED =
+	private static final OptionalConfigurationProperty<Boolean> VERSION_CHECK_ENABLED =
 			ConfigurationProperty.forKey( ElasticsearchBackendSettings.VERSION_CHECK_ENABLED )
 					.asBoolean()
-					.withDefault( ElasticsearchBackendSettings.Defaults.VERSION_CHECK_ENABLED )
 					.build();
 
 	private static final ConfigurationProperty<Integer> SCROLL_TIMEOUT =
 			ConfigurationProperty.forKey( ElasticsearchBackendSettings.SCROLL_TIMEOUT )
 					.asIntegerStrictlyPositive()
 					.withDefault( ElasticsearchBackendSettings.Defaults.SCROLL_TIMEOUT )
+					.build();
+
+	private static final ConfigurationProperty<Boolean> QUERY_SHARD_FAILURE_IGNORE =
+			ConfigurationProperty.forKey( ElasticsearchBackendSettings.QUERY_SHARD_FAILURE_IGNORE )
+					.asBoolean()
+					.withDefault( ElasticsearchBackendSettings.Defaults.QUERY_SHARD_FAILURE_IGNORE )
 					.build();
 
 	private final BeanHolder<? extends ElasticsearchClientFactory> clientFactoryHolder;
@@ -135,7 +140,8 @@ class ElasticsearchLinkImpl implements ElasticsearchLink {
 		if ( clientImplementor == null ) {
 			clientImplementor = clientFactoryHolder.get().create(
 					beanResolver, propertySource, threads.getThreadProvider(), threads.getPrefix(),
-					threads.getWorkExecutor(), defaultGsonProvider
+					threads.getWorkExecutor(), defaultGsonProvider,
+					configuredVersionOnBackendCreationOptional
 			);
 			clientFactoryHolder.close(); // We won't need it anymore
 
@@ -145,7 +151,7 @@ class ElasticsearchLinkImpl implements ElasticsearchLink {
 			gsonProvider = GsonProvider.create( GsonBuilder::new, logPrettyPrinting );
 			indexMetadataSyntax = protocolDialect.createIndexMetadataSyntax();
 			searchSyntax = protocolDialect.createSearchSyntax();
-			workFactory = protocolDialect.createWorkFactory( gsonProvider );
+			workFactory = protocolDialect.createWorkFactory( gsonProvider, QUERY_SHARD_FAILURE_IGNORE.get( propertySource ) );
 			searchResultExtractorFactory = protocolDialect.createSearchResultExtractorFactory();
 			scrollTimeout = SCROLL_TIMEOUT.get( propertySource );
 		}
@@ -167,7 +173,7 @@ class ElasticsearchLinkImpl implements ElasticsearchLink {
 	}
 
 	private ElasticsearchVersion initVersion(ConfigurationPropertySource propertySource) {
-		boolean versionCheckEnabled = VERSION_CHECK_ENABLED.get( propertySource );
+		Optional<Boolean> versionCheckEnabled = VERSION_CHECK_ENABLED.get( propertySource );
 		Optional<ElasticsearchVersion> configuredVersionOptional = VERSION.getAndTransform( propertySource,
 				configuredVersionOnStartOptional -> {
 					Optional<ElasticsearchVersion> resultOptional;
@@ -176,7 +182,7 @@ class ElasticsearchLinkImpl implements ElasticsearchLink {
 						// but expect it to match the version configured on backend creation (if any)
 						if ( configuredVersionOnBackendCreationOptional.isPresent()
 								&& !configuredVersionOnBackendCreationOptional.get()
-								.matches( configuredVersionOnStartOptional.get() ) ) {
+										.matches( configuredVersionOnStartOptional.get() ) ) {
 							throw log.incompatibleElasticsearchVersionOnStart(
 									configuredVersionOnBackendCreationOptional.get(),
 									configuredVersionOnStartOptional.get() );
@@ -187,17 +193,39 @@ class ElasticsearchLinkImpl implements ElasticsearchLink {
 						// Default to the version configured when the backend was created
 						resultOptional = configuredVersionOnBackendCreationOptional;
 					}
-					if ( !versionCheckEnabled
-							&& ( !resultOptional.isPresent() || !resultOptional.get().minor().isPresent() ) ) {
-						throw log.impreciseElasticsearchVersionWhenNoVersionCheck(
+
+					// If the version is unset or imprecise,
+					// we will need to retrieve it from the cluster through a version check.
+					// So in that situation, if version checks are disabled explicitly (they're enabled by default),
+					// we'll raise an exception now, in the context of the "version" configuration property.
+					if ( ( resultOptional.isEmpty()
+							|| !ElasticsearchDialectFactory.isPreciseEnoughForProtocolDialect( resultOptional.get() ) )
+							&& versionCheckEnabled.isPresent() && !versionCheckEnabled.get() ) {
+						throw log.impreciseElasticsearchVersionWhenVersionCheckDisabled(
 								VERSION_CHECK_ENABLED.resolveOrRaw( propertySource ) );
 					}
+
 					return resultOptional;
 				} );
 
-		if ( versionCheckEnabled ) {
-			ElasticsearchVersion versionFromCluster =
-					ElasticsearchClientUtils.getElasticsearchVersion( clientImplementor );
+		// If someone tries to force the version check on a distribution that doesn't support them
+		// (Amazon OpenSearch Serverless), we'll raise an exception.
+		boolean versionCheckImpossible = configuredVersionOptional.isPresent()
+				&& ElasticsearchDialectFactory.isVersionCheckImpossible( configuredVersionOptional.get() );
+		if ( versionCheckImpossible && versionCheckEnabled.isPresent() && versionCheckEnabled.get() ) {
+			// Get the configuration property again in order to produce
+			// an error message in the context of the problematic configuration property.
+			VERSION_CHECK_ENABLED.getAndMap( propertySource, enabled -> {
+				if ( enabled ) {
+					throw log.cannotCheckElasticsearchVersion( configuredVersionOptional.get().distribution() );
+				}
+				return enabled;
+			} );
+		}
+
+		// Version checks are disabled by default if we know they're impossible.
+		if ( versionCheckEnabled.orElse( !versionCheckImpossible ) ) {
+			ElasticsearchVersion versionFromCluster = fetchElasticsearchVersion( propertySource );
 			if ( configuredVersionOptional.isPresent() ) {
 				ElasticsearchVersion configuredVersion = configuredVersionOptional.get();
 				if ( !configuredVersion.matches( versionFromCluster ) ) {
@@ -207,8 +235,27 @@ class ElasticsearchLinkImpl implements ElasticsearchLink {
 			return versionFromCluster;
 		}
 		else {
-			// In this case we know the optional is non-empty, see above.
+			// In this case we know the optional is non-empty:
+			// see the checks when retrieving the configured version.
 			return configuredVersionOptional.get();
+		}
+	}
+
+	private ElasticsearchVersion fetchElasticsearchVersion(ConfigurationPropertySource propertySource) {
+		try {
+			ElasticsearchVersion version = ElasticsearchClientUtils.tryGetElasticsearchVersion( clientImplementor );
+			if ( version == null ) {
+				// This can happen when targeting Amazon OpenSearch Service
+				// and we didn't notice the problem early
+				// because the version was unset
+				// or the distribution was incorrectly set to elasticsearch/opensearch.
+				throw log.unableToFetchElasticsearchVersion( VERSION.resolveOrRaw( propertySource ),
+						ElasticsearchDialectFactory.AMAZON_OPENSEARCH_SERVERLESS );
+			}
+			return version;
+		}
+		catch (RuntimeException e) {
+			throw log.failedToDetectElasticsearchVersion( e.getMessage(), e );
 		}
 	}
 }

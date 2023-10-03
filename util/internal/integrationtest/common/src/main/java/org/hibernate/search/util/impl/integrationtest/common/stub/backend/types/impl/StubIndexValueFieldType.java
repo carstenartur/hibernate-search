@@ -19,21 +19,21 @@ import org.hibernate.search.engine.search.projection.spi.ProjectionTypeKeys;
 import org.hibernate.search.engine.search.sort.spi.SortTypeKeys;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.document.model.StubIndexSchemaDataNode;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.aggregation.impl.StubSearchAggregation;
+import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.common.impl.AbstractStubSearchQueryElementFactory;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.common.impl.StubSearchIndexScope;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.common.impl.StubSearchIndexValueFieldContext;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.common.impl.StubSearchIndexValueFieldTypeContext;
-import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.common.impl.AbstractStubSearchQueryElementFactory;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.predicate.impl.StubSearchPredicate;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.projection.impl.StubDistanceToFieldProjection;
+import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.projection.impl.StubFieldHighlightProjection;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.projection.impl.StubFieldProjection;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.search.sort.impl.StubSearchSort;
 
 public final class StubIndexValueFieldType<F>
 		extends AbstractIndexValueFieldType<
-						StubSearchIndexScope,
-						StubSearchIndexValueFieldContext<F>,
-						F
-				>
+				StubSearchIndexScope,
+				StubSearchIndexValueFieldContext<F>,
+				F>
 		implements IndexFieldType<F>, StubSearchIndexValueFieldTypeContext<F> {
 
 	private final List<Consumer<StubIndexSchemaDataNode.Builder>> modifiers;
@@ -52,10 +52,9 @@ public final class StubIndexValueFieldType<F>
 
 	public static class Builder<F>
 			extends AbstractIndexValueFieldType.Builder<
-							StubSearchIndexScope,
-							StubSearchIndexValueFieldContext<F>,
-							F
-					> {
+					StubSearchIndexScope,
+					StubSearchIndexValueFieldContext<F>,
+					F> {
 		private final List<Consumer<StubIndexSchemaDataNode.Builder>> modifiers = new ArrayList<>();
 
 		public Builder(Class<F> valueClass) {
@@ -84,10 +83,12 @@ public final class StubIndexValueFieldType<F>
 			);
 			queryElementFactory( ProjectionTypeKeys.FIELD, new StubFieldProjection.Factory() );
 			queryElementFactory( ProjectionTypeKeys.DISTANCE, new StubDistanceToFieldProjection.Factory() );
+			queryElementFactory( ProjectionTypeKeys.HIGHLIGHT, new StubFieldHighlightProjection.Factory() );
 			queryElementFactory( AggregationTypeKeys.TERMS, new StubSearchAggregation.TermsFactory() );
 			queryElementFactory( AggregationTypeKeys.RANGE, new StubSearchAggregation.RangeFactory() );
 		}
 
+		// Needs to be final even if private, to avoid errors with javac.
 		@SafeVarargs
 		private final <T> void stubFactories(AbstractStubSearchQueryElementFactory<T> factory,
 				SearchQueryElementTypeKey<? super T>... keys) {

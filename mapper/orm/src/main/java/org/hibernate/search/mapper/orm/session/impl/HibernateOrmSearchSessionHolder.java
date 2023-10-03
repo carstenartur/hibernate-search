@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.transaction.Synchronization;
+import jakarta.transaction.Synchronization;
 
 import org.hibernate.Transaction;
 import org.hibernate.engine.spi.SessionImplementor;
@@ -30,8 +30,8 @@ public class HibernateOrmSearchSessionHolder implements Serializable {
 	}
 
 	public static HibernateOrmSearchSessionHolder get(SessionImplementor session, boolean createIfMissing) {
-		HibernateOrmSearchSessionHolder holder = (HibernateOrmSearchSessionHolder)
-				session.getProperties().get( SESSION_PROPERTY_KEY );
+		HibernateOrmSearchSessionHolder holder =
+				(HibernateOrmSearchSessionHolder) session.getProperties().get( SESSION_PROPERTY_KEY );
 		if ( holder != null ) {
 			return holder;
 		}

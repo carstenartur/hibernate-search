@@ -119,7 +119,7 @@ public class DynamicMapBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( INDEX1_NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							1L,
 							reference( entityTypeName, "1" )
@@ -127,7 +127,7 @@ public class DynamicMapBaseIT {
 			);
 
 			assertThat( query.fetchAllHits() ).containsExactly(
-					(Map) session.load( entityTypeName, 1 )
+					(Map) session.getReference( entityTypeName, 1 )
 			);
 		} );
 	}
@@ -204,7 +204,7 @@ public class DynamicMapBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( INDEX1_NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							1L,
 							reference( entityTypeName, "1" )
@@ -212,7 +212,7 @@ public class DynamicMapBaseIT {
 			);
 
 			assertThat( query.fetchAllHits() ).containsExactly(
-					session.load( entityTypeName, 1 )
+					session.getReference( entityTypeName, 1 )
 			);
 		} );
 	}
@@ -227,7 +227,7 @@ public class DynamicMapBaseIT {
 		);
 		SessionFactory sessionFactory = ormSetupHelper.start()
 				.withConfiguration( builder -> builder.addHbmFromClassPath( hbmPath ) )
-				.withProperty( HibernateOrmMapperSettings.AUTOMATIC_INDEXING_ENABLED, false )
+				.withProperty( HibernateOrmMapperSettings.INDEXING_LISTENERS_ENABLED, false )
 				.withProperty(
 						HibernateOrmMapperSettings.MAPPING_CONFIGURER,
 						(HibernateOrmSearchMappingConfigurer) context -> {
@@ -264,7 +264,7 @@ public class DynamicMapBaseIT {
 			for ( int i = 0; i < 100; i++ ) {
 				int id = i;
 				backendMock.expectWorks( INDEX1_NAME, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE )
-						.add( String.valueOf( id ), b -> b.field( "title","Hyperion " + id ) );
+						.add( String.valueOf( id ), b -> b.field( "title", "Hyperion " + id ) );
 			}
 
 			try {
@@ -323,7 +323,7 @@ public class DynamicMapBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( INDEX1_NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							1L,
 							reference( entityTypeName, "Hyperion" )
@@ -331,7 +331,7 @@ public class DynamicMapBaseIT {
 			);
 
 			assertThat( query.fetchAllHits() ).containsExactly(
-					session.load( entityTypeName, 1 )
+					session.getReference( entityTypeName, 1 )
 			);
 		} );
 	}
@@ -409,7 +409,7 @@ public class DynamicMapBaseIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( INDEX1_NAME, INDEX2_NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							2L,
 							reference( entityA_BTypeName, "1" ),
@@ -418,8 +418,8 @@ public class DynamicMapBaseIT {
 			);
 
 			assertThat( query.fetchAllHits() ).containsExactly(
-					(Map) session.load( entityA_BTypeName, 1 ),
-					(Map) session.load( entityA_CTypeName, 2 )
+					(Map) session.getReference( entityA_BTypeName, 1 ),
+					(Map) session.getReference( entityA_CTypeName, 2 )
 			);
 		} );
 	}
@@ -643,7 +643,7 @@ public class DynamicMapBaseIT {
 			backendMock.expectWorks( INDEX1_NAME )
 					.add( "1", b -> b
 							.field( "title", book.get( "title" ) )
-							.field( "quotes", quote1 , quote2 )
+							.field( "quotes", quote1, quote2 )
 					);
 		} );
 		backendMock.verifyExpectationsMet();
@@ -964,10 +964,10 @@ public class DynamicMapBaseIT {
 							bookTypeMapping.property( "title" ).fullTextField().analyzer( "myAnalyzer" );
 							bookTypeMapping.property( "quotes" )
 									.indexedEmbedded()
-											.extractor( BuiltinContainerExtractors.MAP_KEY )
+									.extractor( BuiltinContainerExtractors.MAP_KEY )
 									// Necessary because there's no concept of "mappedBy" in hbm.xml.
 									.associationInverseSide( PojoModelPath.ofValue( "book" ) )
-											.extractor( BuiltinContainerExtractors.MAP_KEY );
+									.extractor( BuiltinContainerExtractors.MAP_KEY );
 
 							TypeMappingStep quoteTypeMapping = context.programmaticMapping().type( quoteTypeName );
 							quoteTypeMapping.property( "author" ).fullTextField().analyzer( "myAnalyzer" );

@@ -14,9 +14,11 @@ import org.hibernate.search.backend.lucene.lowlevel.docvalues.impl.LongMultiValu
 import org.hibernate.search.backend.lucene.lowlevel.docvalues.impl.LongMultiValuesSource;
 
 import com.carrotsearch.hppc.LongHashSet;
-import com.carrotsearch.hppc.LongIntScatterMap;
+import com.carrotsearch.hppc.LongIntHashMap;
+import com.carrotsearch.hppc.LongIntMap;
 import com.carrotsearch.hppc.cursors.LongIntCursor;
 import com.carrotsearch.hppc.procedures.LongProcedure;
+
 import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.FacetsCollector;
@@ -33,7 +35,7 @@ public class LongMultiValueFacetCounts extends Facets {
 
 	private final int[] counts = new int[1024];
 
-	private final LongIntScatterMap hashCounts = new LongIntScatterMap();
+	private final LongIntMap hashCounts = new LongIntHashMap();
 
 	private final String field;
 
@@ -77,6 +79,12 @@ public class LongMultiValueFacetCounts extends Facets {
 	}
 
 	@Override
+	public FacetResult getAllChildren(String dim, String... path) {
+		throw new UnsupportedOperationException(
+				"Getting all children is not supported by " + this.getClass().getSimpleName() );
+	}
+
+	@Override
 	public FacetResult getTopChildren(int topN, String dim, String... path) {
 		if ( !dim.equals( field ) ) {
 			throw new IllegalArgumentException( "invalid dim \"" + dim + "\"; should be \"" + field + "\"" );
@@ -97,7 +105,7 @@ public class LongMultiValueFacetCounts extends Facets {
 			@Override
 			protected boolean lessThan(Entry a, Entry b) {
 				// sort by count descending, breaking ties by value ascending:
-				return a.count < b.count || (a.count == b.count && a.value > b.value);
+				return a.count < b.count || ( a.count == b.count && a.value > b.value );
 			}
 		};
 

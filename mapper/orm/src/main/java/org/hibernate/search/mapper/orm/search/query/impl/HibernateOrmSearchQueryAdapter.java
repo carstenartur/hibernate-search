@@ -7,52 +7,50 @@
 package org.hibernate.search.mapper.orm.search.query.impl;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import javax.persistence.FlushModeType;
-import javax.persistence.LockModeType;
-import javax.persistence.Parameter;
-import javax.persistence.QueryTimeoutException;
-import javax.persistence.TemporalType;
+import java.util.function.Function;
+
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.Parameter;
+import jakarta.persistence.PersistenceException;
+import jakarta.persistence.QueryTimeoutException;
 
 import org.hibernate.HibernateException;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
-import org.hibernate.QueryException;
 import org.hibernate.ScrollMode;
-import org.hibernate.TypeMismatchException;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.graph.GraphSemantic;
 import org.hibernate.graph.RootGraph;
-import org.hibernate.query.QueryParameter;
-import org.hibernate.query.internal.AbstractProducedQuery;
-import org.hibernate.query.internal.ParameterMetadataImpl;
+import org.hibernate.graph.spi.AppliedGraph;
+import org.hibernate.graph.spi.RootGraphImplementor;
+import org.hibernate.query.ResultListTransformer;
+import org.hibernate.query.TupleTransformer;
+import org.hibernate.query.spi.AbstractQuery;
+import org.hibernate.query.spi.MutableQueryOptions;
+import org.hibernate.query.spi.ParameterMetadataImplementor;
+import org.hibernate.query.spi.QueryImplementor;
+import org.hibernate.query.spi.QueryParameterBinding;
 import org.hibernate.query.spi.QueryParameterBindings;
+import org.hibernate.query.spi.QueryParameterImplementor;
 import org.hibernate.query.spi.ScrollableResultsImplementor;
 import org.hibernate.search.engine.search.query.SearchQuery;
 import org.hibernate.search.engine.search.query.spi.SearchQueryImplementor;
+import org.hibernate.search.mapper.orm.loading.spi.EntityGraphHint;
+import org.hibernate.search.mapper.orm.loading.spi.MutableEntityLoadingOptions;
 import org.hibernate.search.mapper.orm.logging.impl.Log;
-import org.hibernate.search.mapper.orm.loading.impl.EntityGraphHint;
-import org.hibernate.search.mapper.orm.loading.impl.MutableEntityLoadingOptions;
 import org.hibernate.search.mapper.orm.search.query.spi.HibernateOrmSearchQueryHints;
 import org.hibernate.search.mapper.orm.search.query.spi.HibernateOrmSearchScrollableResultsAdapter;
-import org.hibernate.search.mapper.orm.search.query.spi.HibernateOrmSearchScrollableResultsAdapter.ScrollHitExtractor;
 import org.hibernate.search.util.common.SearchTimeoutException;
 import org.hibernate.search.util.common.annotation.impl.SuppressForbiddenApis;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
-import org.hibernate.transform.ResultTransformer;
-import org.hibernate.type.Type;
 
-@SuppressForbiddenApis(reason = "We need to extend the internal AbstractProducedQuery"
+@SuppressForbiddenApis(reason = "We need to use the internal QueryOptionsImpl"
 		+ " in order to implement a org.hibernate.query.Query")
 @SuppressWarnings("unchecked") // For some reason javac issues warnings for all methods returning this; IDEA doesn't.
-public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQuery<R> {
+public final class HibernateOrmSearchQueryAdapter<R> extends AbstractQuery<R> {
 
 	public static <R> HibernateOrmSearchQueryAdapter<R> create(SearchQuery<R> query) {
 		return query.extension( HibernateOrmSearchQueryAdapterExtension.get() );
@@ -61,14 +59,12 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
 	private final SearchQueryImplementor<R> delegate;
-	private final MutableEntityLoadingOptions loadingOptions;
 
-	private Integer firstResult;
-	private Integer maxResults;
+	private final MutableEntityLoadingOptions loadingOptions;
 
 	HibernateOrmSearchQueryAdapter(SearchQueryImplementor<R> delegate, SessionImplementor sessionImplementor,
 			MutableEntityLoadingOptions loadingOptions) {
-		super( sessionImplementor, new ParameterMetadataImpl( null, null ) );
+		super( sessionImplementor );
 		this.delegate = delegate;
 		this.loadingOptions = loadingOptions;
 	}
@@ -84,83 +80,26 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T unwrap(Class<T> type) {
-		if ( type.equals( SearchQuery.class ) ) {
+	public <T> T unwrap(Class<T> cls) {
+		if ( cls.equals( SearchQuery.class ) ) {
 			return (T) delegate;
 		}
+		else if ( cls.isInstance( this ) ) {
+			return (T) this;
+		}
 		else {
-			return super.unwrap( type );
+			throw new PersistenceException( "Unrecognized unwrap type [" + cls.getName() + "]" );
 		}
 	}
 
 	@Override
 	public List<R> list() {
-		/*
-		 * Reproduce the behavior of AbstractProducedQuery.list() regarding exceptions,
-		 * but without the beforeQuery/afterQuery calls.
-		 * These beforeQuery/afterQuery calls make everything fail
-		 * because they call methods related to parameters,
-		 * which are not supported here.
-		 */
 		try {
-			return doList();
+			return super.list();
 		}
 		catch (SearchTimeoutException e) {
 			throw new QueryTimeoutException( e );
 		}
-		catch (QueryException he) {
-			throw new IllegalStateException( he );
-		}
-		catch (TypeMismatchException e) {
-			throw new IllegalArgumentException( e );
-		}
-		catch (HibernateException he) {
-			throw getExceptionConverter().convert( he );
-		}
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setMaxResults(int maxResults) {
-		if ( maxResults < 0L ) {
-			throw new IllegalArgumentException(
-					"Negative (" + maxResults + ") parameter passed in to setMaxResults"
-			);
-		}
-		this.maxResults = maxResults;
-		return this;
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setFirstResult(int firstResult) {
-		if ( firstResult < 0 ) {
-			throw new IllegalArgumentException(
-					"Negative (" + firstResult + ") parameter passed in to setFirstResult"
-			);
-		}
-		this.firstResult = firstResult;
-		return this;
-	}
-
-	@Override
-	public int getMaxResults() {
-		return maxResults == null ? Integer.MAX_VALUE : maxResults;
-	}
-
-	@Override
-	public int getFirstResult() {
-		return firstResult == null ? 0 : firstResult;
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setFetchSize(int fetchSize) {
-		loadingOptions.fetchSize( fetchSize );
-		return this;
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setFlushMode(FlushModeType flushModeType) {
-		super.setFlushMode( flushModeType );
-		return this;
 	}
 
 	@Override
@@ -180,14 +119,12 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 				break;
 			case HibernateOrmSearchQueryHints.JAVAX_FETCHGRAPH:
 			case HibernateOrmSearchQueryHints.JAKARTA_FETCHGRAPH:
-				applyGraph( hintValueToEntityGraph( value ), GraphSemantic.FETCH );
-				break;
 			case HibernateOrmSearchQueryHints.JAVAX_LOADGRAPH:
 			case HibernateOrmSearchQueryHints.JAKARTA_LOADGRAPH:
-				applyGraph( hintValueToEntityGraph( value ), GraphSemantic.LOAD );
+				applyEntityGraphHint( hintName, value );
 				break;
 			default:
-				handleUnrecognizedHint( hintName, value );
+				log.ignoringUnrecognizedQueryHint( hintName );
 				break;
 		}
 		return this;
@@ -200,50 +137,67 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 	}
 
 	@Override
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings("rawtypes")
 	public HibernateOrmSearchQueryAdapter<R> applyGraph(RootGraph graph, GraphSemantic semantic) {
-		loadingOptions.entityGraphHint( new EntityGraphHint<>( graph, semantic ), true );
+		applyGraph( (RootGraphImplementor) graph, semantic );
 		return this;
 	}
 
 	@Override
-	public ScrollableResultsImplementor scroll() {
+	public ScrollableResultsImplementor<R> scroll() {
 		return scroll( ScrollMode.FORWARD_ONLY );
 	}
 
 	@Override
-	public ScrollableResultsImplementor scroll(ScrollMode scrollMode) {
+	protected ScrollableResultsImplementor<R> doScroll(ScrollMode scrollMode) {
 		if ( !ScrollMode.FORWARD_ONLY.equals( scrollMode ) ) {
 			throw log.canOnlyUseScrollWithScrollModeForwardsOnly( scrollMode );
 		}
 
 		int chunkSize = loadingOptions.fetchSize();
 		return new HibernateOrmSearchScrollableResultsAdapter<>( delegate.scroll( chunkSize ), getMaxResults(),
-				ScrollHitExtractor.singleObject() );
-	}
-
-	@Override
-	protected boolean isNativeQuery() {
-		return false;
+				Function.identity() );
 	}
 
 	@Override
 	protected List<R> doList() {
-		return delegate.fetchHits( firstResult, maxResults );
+		// Do not use getMaxRows()/getFirstRow() directly, they return weird values to comply with the JPA spec
+		Integer limit = getQueryOptions().getLimit().getMaxRows();
+		Integer offset = getQueryOptions().getLimit().getFirstRow();
+		return delegate.fetchHits( offset, limit );
+	}
+
+	@Override
+	protected void beforeQuery() {
+		super.beforeQuery();
+
+		extractQueryOptions();
+	}
+
+	private void extractQueryOptions() {
+		MutableQueryOptions queryOptions = getQueryOptions();
+		Integer queryFetchSize = queryOptions.getFetchSize();
+		if ( queryFetchSize != null ) {
+			loadingOptions.fetchSize( queryFetchSize );
+		}
+		Integer queryTimeout = queryOptions.getTimeout();
+		if ( queryTimeout != null ) {
+			delegate.failAfter( queryTimeout, TimeUnit.SECONDS );
+		}
+		EntityGraphHint<?> entityGraphHint = null;
+		if ( hasAppliedGraph( queryOptions ) ) {
+			AppliedGraph appliedGraph = queryOptions.getAppliedGraph();
+			RootGraph<?> graph = appliedGraph.getGraph();
+			if ( graph != null ) {
+				entityGraphHint = new EntityGraphHint<>( graph, appliedGraph.getSemantic() );
+			}
+		}
+		loadingOptions.entityGraphHint( entityGraphHint, true );
 	}
 
 	//-------------------------------------------------------------
 	// Unsupported ORM/JPA query methods
 	//-------------------------------------------------------------
-
-	/**
-	 * Return an iterator on the results.
-	 * Retrieve the object one by one (initialize it during the next() operation)
-	 */
-	@Override
-	public Iterator<R> iterate() {
-		throw new UnsupportedOperationException( "iterate() is not implemented in Hibernate Search queries. Use scroll() instead." );
-	}
 
 	@Override
 	public Map<String, Object> getHints() {
@@ -251,97 +205,39 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 	}
 
 	@Override
-	public <P> HibernateOrmSearchQueryAdapter<R> setParameter(Parameter<P> tParameter, P t) {
+	public ParameterMetadataImplementor getParameterMetadata() {
 		throw parametersNoSupported();
 	}
 
 	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(Parameter<Calendar> calendarParameter, Calendar calendar, TemporalType temporalType) {
+	public QueryParameterBindings getParameterBindings() {
+		// parameters not supported in Hibernate Search queries
+		return QueryParameterBindings.NO_PARAM_BINDINGS;
+	}
+
+	@Override
+	public QueryParameterBindings getQueryParameterBindings() {
+		// parameters not supported in Hibernate Search queries
+		return QueryParameterBindings.NO_PARAM_BINDINGS;
+	}
+
+	@Override
+	protected <P> QueryParameterBinding<P> locateBinding(String name) {
 		throw parametersNoSupported();
 	}
 
 	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(Parameter<Date> dateParameter, Date date, TemporalType temporalType) {
+	protected <P> QueryParameterBinding<P> locateBinding(int position) {
 		throw parametersNoSupported();
 	}
 
 	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(String name, Object value) {
+	protected <P> QueryParameterBinding<P> locateBinding(Parameter<P> parameter) {
 		throw parametersNoSupported();
 	}
 
 	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(String name, Date value, TemporalType temporalType) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(String name, Calendar value, TemporalType temporalType) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(int position, Object value) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(int position, Date value, TemporalType temporalType) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public Set<Parameter<?>> getParameters() {
-		return Collections.emptySet();
-	}
-
-	@Override
-	protected QueryParameterBindings getQueryParameterBindings() {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setParameter(int position, Calendar value, TemporalType temporalType) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public QueryParameter<?> getParameter(String name) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public QueryParameter<?> getParameter(int position) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public <T> QueryParameter<T> getParameter(String name, Class<T> type) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public <T> QueryParameter<T> getParameter(int position, Class<T> type) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public boolean isBound(Parameter<?> param) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public <T> T getParameterValue(Parameter<T> param) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public Object getParameterValue(String name) {
-		throw parametersNoSupported();
-	}
-
-	@Override
-	public Object getParameterValue(int position) {
+	protected <P> QueryParameterBinding<P> locateBinding(QueryParameterImplementor<P> parameter) {
 		throw parametersNoSupported();
 	}
 
@@ -350,18 +246,16 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 	}
 
 	@Override
-	public HibernateOrmSearchQueryAdapter<R> setLockOptions(LockOptions lockOptions) {
-		throw lockOptionsNotSupported();
+	public <T> QueryImplementor<T> setTupleTransformer(TupleTransformer<T> transformer) {
+		throw resultOrTupleTransformerNotImplemented();
 	}
 
-	@Deprecated
 	@Override
-	public HibernateOrmSearchQueryAdapter<R> setResultTransformer(ResultTransformer transformer) {
-		super.setResultTransformer( transformer );
-		throw resultTransformerNotImplemented();
+	public QueryImplementor<R> setResultListTransformer(ResultListTransformer<R> resultListTransformer) {
+		throw resultOrTupleTransformerNotImplemented();
 	}
 
-	private UnsupportedOperationException resultTransformerNotImplemented() {
+	private UnsupportedOperationException resultOrTupleTransformerNotImplemented() {
 		return new UnsupportedOperationException( "Result transformers are not supported in Hibernate Search queries" );
 	}
 
@@ -391,37 +285,18 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 	}
 
 	@Override
-	public int executeUpdate() {
-		throw new UnsupportedOperationException( "executeUpdate is not supported in Hibernate Search queries" );
+	public int executeUpdate() throws HibernateException {
+		return doExecuteUpdate();
+	}
+
+	@Override
+	protected int doExecuteUpdate() {
+		throw new UnsupportedOperationException( "executeUpdate() is not supported in Hibernate Search queries" );
 	}
 
 	@Override
 	public HibernateOrmSearchQueryAdapter<R> setLockMode(String alias, LockMode lockMode) {
 		throw lockOptionsNotSupported();
-	}
-
-	@Deprecated
-	@Override
-	public Type[] getReturnTypes() {
-		throw new UnsupportedOperationException( "getReturnTypes() is not implemented in Hibernate Search queries" );
-	}
-
-	@Deprecated
-	@Override
-	public String[] getReturnAliases() {
-		throw new UnsupportedOperationException( "getReturnAliases() is not implemented in Hibernate Search queries" );
-	}
-
-	@Deprecated
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setEntity(int position, Object val) {
-		throw new UnsupportedOperationException( "setEntity(int,Object) is not implemented in Hibernate Search queries" );
-	}
-
-	@Deprecated
-	@Override
-	public HibernateOrmSearchQueryAdapter<R> setEntity(String name, Object val) {
-		throw new UnsupportedOperationException( "setEntity(String,Object) is not implemented in Hibernate Search queries" );
 	}
 
 	private static long hintValueToLong(Object value) {
@@ -440,10 +315,6 @@ public final class HibernateOrmSearchQueryAdapter<R> extends AbstractProducedQue
 		else {
 			return Integer.parseInt( String.valueOf( value ) );
 		}
-	}
-
-	private static RootGraph<?> hintValueToEntityGraph(Object value) {
-		return (RootGraph<?>) value;
 	}
 
 }

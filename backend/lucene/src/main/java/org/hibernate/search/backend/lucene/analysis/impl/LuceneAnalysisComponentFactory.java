@@ -19,12 +19,12 @@ import org.hibernate.search.engine.environment.classpath.spi.ResourceResolver;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharFilterFactory;
+import org.apache.lucene.analysis.TokenFilterFactory;
+import org.apache.lucene.analysis.TokenizerFactory;
 import org.apache.lucene.analysis.core.KeywordTokenizerFactory;
-import org.apache.lucene.analysis.util.CharFilterFactory;
-import org.apache.lucene.analysis.util.ResourceLoader;
-import org.apache.lucene.analysis.util.ResourceLoaderAware;
-import org.apache.lucene.analysis.util.TokenFilterFactory;
-import org.apache.lucene.analysis.util.TokenizerFactory;
+import org.apache.lucene.util.ResourceLoader;
+import org.apache.lucene.util.ResourceLoaderAware;
 import org.apache.lucene.util.Version;
 
 /**
@@ -68,22 +68,26 @@ public final class LuceneAnalysisComponentFactory {
 	}
 
 	public TokenizerFactory createTokenizerFactory(Class<? extends TokenizerFactory> factoryClass,
-			Map<String, String> parameters) throws IOException {
+			Map<String, String> parameters)
+			throws IOException {
 		return createAnalysisComponent( TokenizerFactory.class, factoryClass, parameters );
 	}
 
 	public CharFilterFactory createCharFilterFactory(Class<? extends CharFilterFactory> factoryClass,
-			Map<String, String> parameters) throws IOException {
+			Map<String, String> parameters)
+			throws IOException {
 		return createAnalysisComponent( CharFilterFactory.class, factoryClass, parameters );
 	}
 
 	public TokenFilterFactory createTokenFilterFactory(Class<? extends TokenFilterFactory> factoryClass,
-			Map<String, String> parameters) throws IOException {
+			Map<String, String> parameters)
+			throws IOException {
 		return createAnalysisComponent( TokenFilterFactory.class, factoryClass, parameters );
 	}
 
 	private <T> T createAnalysisComponent(Class<T> expectedFactoryClass,
-			Class<? extends T> factoryClass, Map<String, String> parameters) throws IOException {
+			Class<? extends T> factoryClass, Map<String, String> parameters)
+			throws IOException {
 		try {
 			final Map<String, String> tokenMapsOfParameters = getMapOfParameters( parameters, luceneMatchVersion );
 			T tokenizerFactory = ClassLoaderHelper.instanceFromClass(

@@ -11,19 +11,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.lang.invoke.MethodHandles;
 import java.util.List;
 
-import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
-import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
-import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.mapper.pojo.bridge.ValueBridge;
 import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.ValueBinderRef;
+import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.ValueBridgeRef;
 import org.hibernate.search.mapper.pojo.bridge.runtime.ValueBridgeToIndexedValueContext;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
-import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.ValueBridgeRef;
+import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.common.reporting.FailureReportUtils;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
+import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Rule;
@@ -48,7 +48,8 @@ public class FieldBaseIT {
 	public BackendMock backendMock = new BackendMock();
 
 	@Rule
-	public StandalonePojoMappingSetupHelper setupHelper = StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public StandalonePojoMappingSetupHelper setupHelper =
+			StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
 
 	@Test
 	public void valueBridge_default_noMatch() {
@@ -67,7 +68,7 @@ public class FieldBaseIT {
 						.typeContext( IndexedEntity.class.getName() )
 						.pathContext( ".myProperty" )
 						.failure( "No default value bridge implementation for type '"
-										+ Object.class.getName() + "'",
+								+ Object.class.getName() + "'",
 								"Use a custom bridge" ) );
 	}
 
@@ -130,7 +131,7 @@ public class FieldBaseIT {
 						.typeContext( IndexedEntity.class.getName() )
 						.pathContext( ".myProperty" )
 						.failure( "No default value bridge implementation for type 'java.lang.Enum<"
-										+ EnumForEnumSuperClassTest.class.getName() + ">'",
+								+ EnumForEnumSuperClassTest.class.getName() + ">'",
 								"Use a custom bridge" ) );
 	}
 
@@ -155,7 +156,7 @@ public class FieldBaseIT {
 						.typeContext( IndexedEntity.class.getName() )
 						.pathContext( ".id" )
 						.failure( "Invalid bridge for input type '" + Integer.class.getName()
-										+ "': '" + MyStringBridge.TOSTRING + "'",
+								+ "': '" + MyStringBridge.TOSTRING + "'",
 								"This bridge expects an input of type '" + String.class.getName() + "'" ) );
 	}
 
@@ -176,17 +177,19 @@ public class FieldBaseIT {
 						.typeContext( IndexedEntity.class.getName() )
 						.pathContext( ".numbers" )
 						.failure( "Invalid bridge for input type '" + Integer.class.getName()
-										+ "': '" + MyStringBridge.TOSTRING + "'",
+								+ "': '" + MyStringBridge.TOSTRING + "'",
 								"This bridge expects an input of type '" + String.class.getName() + "'" ) );
 	}
 
 	public static class MyStringBridge implements ValueBridge<String, String> {
 		private static final String TOSTRING = "<MyStringBridge toString() result>";
+
 		@Override
 		public String toIndexedValue(String value,
 				ValueBridgeToIndexedValueContext context) {
 			throw new UnsupportedOperationException( "Should not be called" );
 		}
+
 		@Override
 		public String toString() {
 			return TOSTRING;

@@ -6,21 +6,26 @@
  */
 package org.hibernate.search.integrationtest.mapper.orm.automaticindexing.array;
 
+import java.sql.Types;
 import java.util.Arrays;
 import java.util.List;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OrderColumn;
 
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.OrderColumn;
+
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 @TestForIssue(jiraKey = "HSEARCH-3997")
-public class AutomaticIndexingIntArrayIT extends AbstractAutomaticIndexingArrayIT<
-				AutomaticIndexingIntArrayIT.IndexedEntity, int[], Integer
-		> {
+public class AutomaticIndexingIntArrayIT
+		extends AbstractAutomaticIndexingArrayIT<
+				AutomaticIndexingIntArrayIT.IndexedEntity,
+				int[],
+				Integer> {
 
 	public AutomaticIndexingIntArrayIT() {
 		super( new IntArrayModelPrimitives() );
@@ -96,6 +101,7 @@ public class AutomaticIndexingIntArrayIT extends AbstractAutomaticIndexingArrayI
 		private Integer id;
 
 		@GenericField
+		@JdbcTypeCode(Types.VARBINARY)
 		private int[] serializedArray;
 
 		@GenericField

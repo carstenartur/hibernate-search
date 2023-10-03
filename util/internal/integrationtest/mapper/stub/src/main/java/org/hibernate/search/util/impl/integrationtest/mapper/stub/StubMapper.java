@@ -13,9 +13,9 @@ import java.util.Set;
 
 import org.hibernate.search.engine.backend.mapping.spi.BackendMapperContext;
 import org.hibernate.search.engine.backend.reporting.spi.BackendMappingHints;
+import org.hibernate.search.engine.common.tree.TreeFilterDefinition;
+import org.hibernate.search.engine.common.tree.spi.TreeFilterPathTracker;
 import org.hibernate.search.engine.mapper.mapping.building.spi.BackendsInfo;
-import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEmbeddedDefinition;
-import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEmbeddedPathTracker;
 import org.hibernate.search.engine.mapper.mapping.building.spi.IndexedEntityBindingMapperContext;
 import org.hibernate.search.engine.mapper.mapping.building.spi.MappedIndexManagerBuilder;
 import org.hibernate.search.engine.mapper.mapping.building.spi.MappedIndexManagerFactory;
@@ -24,6 +24,7 @@ import org.hibernate.search.engine.mapper.mapping.building.spi.MappingAbortedExc
 import org.hibernate.search.engine.mapper.mapping.building.spi.MappingBuildContext;
 import org.hibernate.search.engine.mapper.mapping.spi.MappedIndexManager;
 import org.hibernate.search.engine.mapper.model.spi.MappableTypeModel;
+import org.hibernate.search.engine.mapper.model.spi.MappingElement;
 import org.hibernate.search.engine.mapper.model.spi.TypeMetadataContributorProvider;
 import org.hibernate.search.engine.reporting.spi.ContextualFailureCollector;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
@@ -34,16 +35,19 @@ class StubMapper implements Mapper<StubMappingPartialBuildState>, IndexedEntityB
 	private final ContextualFailureCollector failureCollector;
 	private final TypeMetadataContributorProvider<StubMappedIndex> contributorProvider;
 
+	private final StubMappingBackendFeatures backendFeatures;
 	private final TenancyMode tenancyMode;
 
 	private final Map<StubTypeModel, MappedIndexManagerBuilder> indexManagerBuilders = new HashMap<>();
-	private final Map<IndexedEmbeddedDefinition, IndexedEmbeddedPathTracker> pathTrackers = new HashMap<>();
+	private final Map<MappingElement, TreeFilterPathTracker> pathTrackers = new HashMap<>();
 
 	StubMapper(MappingBuildContext buildContext,
 			TypeMetadataContributorProvider<StubMappedIndex> contributorProvider,
+			StubMappingBackendFeatures backendFeatures,
 			TenancyMode tenancyMode) {
 		this.failureCollector = buildContext.failureCollector();
 		this.contributorProvider = contributorProvider;
+		this.backendFeatures = backendFeatures;
 		this.tenancyMode = tenancyMode;
 	}
 
@@ -133,12 +137,19 @@ class StubMapper implements Mapper<StubMappingPartialBuildState>, IndexedEntityB
 			throw new MappingAbortedException();
 		}
 
-		return new StubMappingPartialBuildState( mappedIndexesByTypeIdentifier );
+		return new StubMappingPartialBuildState( backendFeatures, mappedIndexesByTypeIdentifier );
 	}
 
 	@Override
-	public IndexedEmbeddedPathTracker getOrCreatePathTracker(IndexedEmbeddedDefinition definition) {
-		return pathTrackers.computeIfAbsent( definition, IndexedEmbeddedPathTracker::new );
+	public TreeFilterPathTracker getOrCreatePathTracker(MappingElement mappingElement,
+			TreeFilterDefinition filterDefinition) {
+		TreeFilterPathTracker result = pathTrackers.get( mappingElement );
+		if ( result != null ) {
+			return result;
+		}
+		result = new TreeFilterPathTracker( filterDefinition );
+		pathTrackers.put( mappingElement, result );
+		return result;
 	}
 
 	@Override

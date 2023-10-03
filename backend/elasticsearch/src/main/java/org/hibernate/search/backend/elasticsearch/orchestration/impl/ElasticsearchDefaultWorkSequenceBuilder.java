@@ -12,9 +12,9 @@ import java.util.concurrent.CompletionStage;
 
 import org.hibernate.search.backend.elasticsearch.logging.impl.Log;
 import org.hibernate.search.backend.elasticsearch.work.impl.BulkableWork;
+import org.hibernate.search.backend.elasticsearch.work.impl.ElasticsearchWork;
 import org.hibernate.search.backend.elasticsearch.work.impl.ElasticsearchWorkExecutionContext;
 import org.hibernate.search.backend.elasticsearch.work.impl.NonBulkableWork;
-import org.hibernate.search.backend.elasticsearch.work.impl.ElasticsearchWork;
 import org.hibernate.search.backend.elasticsearch.work.result.impl.BulkResult;
 import org.hibernate.search.util.common.impl.Futures;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
@@ -85,8 +85,8 @@ class ElasticsearchDefaultWorkSequenceBuilder implements ElasticsearchWorkSequen
 		CompletableFuture<BulkResult> bulkWorkResultFuture =
 				// When the previous work completes *and* the bulk work is available...
 				sequenceContext.tail.thenCombine( workFuture, (ignored, work) -> work )
-				// ... execute the bulk work
-				.thenCompose( sequenceContext::execute );
+						// ... execute the bulk work
+						.thenCompose( sequenceContext::execute );
 
 		sequenceContext.updateTail( bulkWorkResultFuture );
 

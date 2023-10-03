@@ -24,6 +24,7 @@ import org.hibernate.search.engine.backend.work.execution.OperationSubmitter;
 import org.hibernate.search.engine.backend.work.execution.spi.DocumentContributor;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexIndexer;
 import org.hibernate.search.engine.backend.work.execution.spi.IndexWorkspace;
+import org.hibernate.search.engine.backend.work.execution.spi.UnsupportedOperationBehavior;
 import org.hibernate.search.engine.mapper.mapping.spi.MappedIndexManager;
 import org.hibernate.search.util.common.impl.Futures;
 
@@ -39,19 +40,22 @@ public class BulkIndexer {
 	private final BackendMappingContext mappingContext;
 	private final String tenantId;
 	private final IndexIndexer indexer;
-	private final boolean refresh;
+	private final boolean refreshEachBatch;
+	private final boolean refreshAtEnd;
 
 	private List<StubDocumentProvider> buildingBatch = new ArrayList<>();
 
 	private final List<IndexingQueue> indexingQueues;
 	private int currentQueueIndex;
 
-	BulkIndexer(MappedIndexManager indexManager, StubSession sessionContext, boolean refresh) {
+	BulkIndexer(MappedIndexManager indexManager, StubSession sessionContext,
+			boolean refreshEachBatch, boolean refreshAtEnd) {
 		this.indexManager = indexManager;
 		this.mappingContext = sessionContext.mappingContext();
 		this.tenantId = sessionContext.tenantIdentifier();
 		this.indexer = indexManager.createIndexer( sessionContext );
-		this.refresh = refresh;
+		this.refreshEachBatch = refreshEachBatch;
+		this.refreshAtEnd = refreshAtEnd;
 		this.indexingQueues = new ArrayList<>( PARALLELISM );
 		for ( int i = 0; i < PARALLELISM; i++ ) {
 			indexingQueues.add( new IndexingQueue() );
@@ -81,7 +85,7 @@ public class BulkIndexer {
 		valueContributor.accept( new SingleFieldDocumentBuilder<T>() {
 			@Override
 			public void emptyDocument(String documentId) {
-				add( documentProvider( documentId, document -> { } ) );
+				add( documentProvider( documentId, document -> {} ) );
 			}
 
 			@Override
@@ -103,7 +107,7 @@ public class BulkIndexer {
 		Futures.unwrappedExceptionJoin( end() );
 	}
 
-	public void join(BulkIndexer ... otherIndexers) {
+	public void join(BulkIndexer... otherIndexers) {
 		CompletableFuture<?>[] futures = new CompletableFuture[otherIndexers.length + 1];
 		for ( int i = 0; i < otherIndexers.length; i++ ) {
 			futures[i] = otherIndexers[i].end();
@@ -119,12 +123,13 @@ public class BulkIndexer {
 			indexingFutures[i] = indexingQueues.get( i ).future;
 		}
 		CompletableFuture<?> future = CompletableFuture.allOf( indexingFutures );
-		if ( refresh ) {
+		if ( refreshAtEnd ) {
 			IndexWorkspace workspace = indexManager.createWorkspace(
 					mappingContext,
 					asSetIgnoreNull( tenantId )
 			);
-			future = future.thenCompose( ignored -> workspace.refresh( OperationSubmitter.blocking() ) );
+			future = future.thenCompose(
+					ignored -> workspace.refresh( OperationSubmitter.blocking(), UnsupportedOperationBehavior.FAIL ) );
 		}
 		return future;
 	}
@@ -151,7 +156,8 @@ public class BulkIndexer {
 					StubDocumentProvider documentProvider = batch.get( i );
 					batchFutures[i] = indexer.add(
 							documentProvider.getReferenceProvider(), documentProvider.getContributor(),
-							DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE,
+							DocumentCommitStrategy.NONE,
+							refreshEachBatch ? DocumentRefreshStrategy.FORCE : DocumentRefreshStrategy.NONE,
 							OperationSubmitter.blocking()
 					);
 				}

@@ -10,11 +10,18 @@ import java.lang.invoke.MethodHandles;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import javax.persistence.EntityGraph;
+
+import jakarta.persistence.EntityGraph;
 
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.graph.GraphSemantic;
 import org.hibernate.graph.RootGraph;
+import org.hibernate.search.mapper.orm.loading.spi.EntityGraphHint;
+import org.hibernate.search.mapper.orm.loading.spi.HibernateOrmEntityLoadingStrategy;
+import org.hibernate.search.mapper.orm.loading.spi.LoadingMappingContext;
+import org.hibernate.search.mapper.orm.loading.spi.LoadingSessionContext;
+import org.hibernate.search.mapper.orm.loading.spi.LoadingTypeContext;
+import org.hibernate.search.mapper.orm.loading.spi.MutableEntityLoadingOptions;
 import org.hibernate.search.mapper.orm.logging.impl.Log;
 import org.hibernate.search.mapper.orm.search.loading.EntityLoadingCacheLookupStrategy;
 import org.hibernate.search.mapper.orm.search.loading.dsl.SearchLoadingOptionsStep;

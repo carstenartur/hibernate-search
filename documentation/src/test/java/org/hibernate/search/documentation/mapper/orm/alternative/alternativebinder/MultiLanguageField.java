@@ -31,19 +31,20 @@ public @interface MultiLanguageField {
 
 	String name() default ""; // <5>
 
-	class Processor implements PropertyMappingAnnotationProcessor<MultiLanguageField> { // <6>
+	class Processor // <6>
+			implements PropertyMappingAnnotationProcessor<MultiLanguageField> { // <7>
 		@Override
 		public void process(PropertyMappingStep mapping, MultiLanguageField annotation,
 				PropertyMappingAnnotationProcessorContext context) {
-			LanguageAlternativeBinderDelegate delegate = new LanguageAlternativeBinderDelegate( // <7>
+			LanguageAlternativeBinderDelegate delegate = new LanguageAlternativeBinderDelegate( // <8>
 					annotation.name().isEmpty() ? null : annotation.name()
 			);
-			mapping.hostingType() // <8>
-					.binder( AlternativeBinder.create( // <9>
-							Language.class, // <10>
-							context.annotatedElement().name(), // <11>
-							String.class, // <12>
-							BeanReference.ofInstance( delegate ) // <13>
+			mapping.hostingType() // <9>
+					.binder( AlternativeBinder.create( // <10>
+							Language.class, // <11>
+							context.annotatedElement().name(), // <12>
+							String.class, // <13>
+							BeanReference.ofInstance( delegate ) // <14>
 					) );
 		}
 	}

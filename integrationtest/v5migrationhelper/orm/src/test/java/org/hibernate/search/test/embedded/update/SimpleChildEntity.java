@@ -6,10 +6,10 @@
  */
 package org.hibernate.search.test.embedded.update;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 
 import org.hibernate.search.annotations.Analyze;
 import org.hibernate.search.annotations.Field;
@@ -38,7 +38,8 @@ public class SimpleChildEntity {
 
 	@Field(analyze = Analyze.NO)
 	@IndexingDependency(derivedFrom = @ObjectPath({
-			@PropertyValue(propertyName = "parent"), @PropertyValue(propertyName = "name")
+			@PropertyValue(propertyName = "parent"),
+			@PropertyValue(propertyName = "name")
 	}))
 	public String getParentName() {
 		return parent.getName();

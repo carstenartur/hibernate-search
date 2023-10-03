@@ -22,10 +22,10 @@ import org.hibernate.search.engine.mapper.mapping.building.spi.IndexBindingConte
 import org.hibernate.search.engine.mapper.mapping.building.spi.IndexFieldTypeDefaultsProvider;
 import org.hibernate.search.mapper.pojo.bridge.ValueBridge;
 import org.hibernate.search.mapper.pojo.bridge.binding.ValueBindingContext;
+import org.hibernate.search.mapper.pojo.bridge.binding.spi.FieldModelContributor;
 import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.ValueBinder;
 import org.hibernate.search.mapper.pojo.bridge.runtime.impl.PojoValueBridgeDocumentValueConverter;
 import org.hibernate.search.mapper.pojo.logging.impl.Log;
-import org.hibernate.search.mapper.pojo.bridge.binding.spi.FieldModelContributor;
 import org.hibernate.search.mapper.pojo.model.PojoModelValue;
 import org.hibernate.search.mapper.pojo.model.impl.PojoModelValueElement;
 import org.hibernate.search.mapper.pojo.model.spi.PojoBootstrapIntrospector;
@@ -50,7 +50,7 @@ public class ValueBindingContextImpl<V> extends AbstractBindingContext
 	private final PojoModelValue<V> bridgedElement;
 
 	private final IndexFieldTypeFactory indexFieldTypeFactory;
-	private final PojoIndexSchemaContributionListener listener;
+	private final PojoTreeContributionListener listener;
 	private final IndexSchemaElement schemaElement;
 	private final String relativeFieldName;
 	private final FieldModelContributor contributor;
@@ -71,7 +71,7 @@ public class ValueBindingContextImpl<V> extends AbstractBindingContext
 		this.bridgedElement = new PojoModelValueElement<>( introspector, valueTypeModel );
 
 		this.indexFieldTypeFactory = indexBindingContext.createTypeFactory( defaultsProvider );
-		this.listener = new PojoIndexSchemaContributionListener();
+		this.listener = new PojoTreeContributionListener();
 		this.schemaElement = indexBindingContext.schemaElement( listener );
 		this.relativeFieldName = relativeFieldName;
 		this.contributor = contributor;
@@ -181,7 +181,7 @@ public class ValueBindingContextImpl<V> extends AbstractBindingContext
 		return fieldContext.toReference();
 	}
 
-	@SuppressWarnings( "unchecked" ) // We ensure this cast is safe through reflection
+	@SuppressWarnings("unchecked") // We ensure this cast is safe through reflection
 	private <F> IndexFieldTypeOptionsStep<?, F> inferFieldType(ValueBridge<?, F> bridge) {
 		GenericTypeContext bridgeTypeContext = new GenericTypeContext( bridge.getClass() );
 		Type typeArgument = bridgeTypeContext.resolveTypeArgument( ValueBridge.class, 1 )

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchIndexSettings;
 import org.hibernate.search.backend.elasticsearch.client.impl.ElasticsearchClientFactoryImpl;
 import org.hibernate.search.backend.elasticsearch.client.impl.ElasticsearchClientUtils;
@@ -67,7 +68,7 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 	private ScheduledExecutorService timeoutExecutorService;
 	private ElasticsearchClientImplementor client;
 
-	private final List<URLEncodedString> createdIndicesNames = new ArrayList<>();
+	private final List<URLEncodedString> indexesToCleanUp = new ArrayList<>();
 
 	public ElasticsearchTestDialect getDialect() {
 		return dialect;
@@ -89,6 +90,14 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 		return new IndexClient( primaryIndexName, writeAlias, readAlias );
 	}
 
+	public String getActualVersion() {
+		ElasticsearchResponse response = performRequestIgnore404( ElasticsearchRequest.get().build() );
+		return response.body()
+				.getAsJsonObject( "version" )
+				.get( "number" )
+				.getAsString();
+	}
+
 	public class IndexClient {
 
 		private final URLEncodedString primaryIndexName;
@@ -99,6 +108,11 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 			this.primaryIndexName = primaryIndexName;
 			this.writeAlias = writeAlias;
 			this.readAlias = readAlias;
+
+			// Always delete indexes manipulated through test client after the test;
+			// leaving indexes on the cluster could cause problems
+			// with Amazon OpenSearch Serverless in particular.
+			TestElasticsearchClient.this.registerIndexForCleanup( primaryIndexName );
 		}
 
 		public boolean exists() {
@@ -123,11 +137,6 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 
 		public IndexClient ensureDoesNotExist() {
 			TestElasticsearchClient.this.ensureIndexDoesNotExist( primaryIndexName );
-			return this;
-		}
-
-		public IndexClient registerForCleanup() {
-			TestElasticsearchClient.this.registerIndexForCleanup( primaryIndexName );
 			return this;
 		}
 
@@ -264,11 +273,6 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 
 		builder.body( payload );
 
-		Boolean includeTypeName = dialect.getIncludeTypeNameParameterForMappingApi();
-		if ( includeTypeName != null ) {
-			builder.param( "include_type_name", includeTypeName );
-		}
-
 		doDeleteAndCreateIndex(
 				primaryIndexName,
 				builder.build()
@@ -324,7 +328,7 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 		return action;
 	}
 
-	private void updateAliases(JsonObject ... actions) {
+	private void updateAliases(JsonObject... actions) {
 		ElasticsearchRequest.Builder builder = ElasticsearchRequest.post()
 				.pathComponent( Paths._ALIASES );
 
@@ -341,7 +345,7 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 	}
 
 	private void registerIndexForCleanup(URLEncodedString indexName) {
-		createdIndicesNames.add( indexName );
+		indexesToCleanUp.add( indexName );
 	}
 
 	private boolean exists(final URLEncodedString indexName) {
@@ -360,20 +364,15 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 				 * the indexes to never reach a green status
 				 */
 				.param( "wait_for_status", IndexStatus.YELLOW.externalRepresentation() )
-				.param( "timeout", ElasticsearchIndexSettings.Defaults.SCHEMA_MANAGEMENT_MINIMAL_REQUIRED_STATUS_WAIT_TIMEOUT + "ms" )
+				.param( "timeout",
+						ElasticsearchIndexSettings.Defaults.SCHEMA_MANAGEMENT_MINIMAL_REQUIRED_STATUS_WAIT_TIMEOUT + "ms" )
 				.build() );
 	}
 
 	private void putMapping(URLEncodedString indexName, JsonObject mappingJsonObject) {
 		ElasticsearchRequest.Builder builder = ElasticsearchRequest.put()
 				.pathComponent( indexName ).pathComponent( Paths._MAPPING );
-		dialect.getTypeNameForMappingAndBulkApi().ifPresent( builder::pathComponent );
 		builder.body( mappingJsonObject );
-
-		Boolean includeTypeName = dialect.getIncludeTypeNameParameterForMappingApi();
-		if ( includeTypeName != null ) {
-			builder.param( "include_type_name", includeTypeName );
-		}
 
 		performRequest( builder.build() );
 	}
@@ -382,12 +381,6 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 
 		ElasticsearchRequest.Builder builder = ElasticsearchRequest.get()
 				.pathComponent( indexName ).pathComponent( Paths._MAPPING );
-		dialect.getTypeNameForMappingAndBulkApi().ifPresent( builder::pathComponent );
-
-		Boolean includeTypeName = dialect.getIncludeTypeNameParameterForMappingApi();
-		if ( includeTypeName != null ) {
-			builder.param( "include_type_name", includeTypeName );
-		}
 
 		/*
 		 * Elasticsearch 5.5+ triggers a 404 error when mappings are missing,
@@ -404,17 +397,7 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 		if ( mappings == null ) {
 			return new JsonObject().toString();
 		}
-		Optional<URLEncodedString> typeName = dialect.getTypeNameForMappingAndBulkApi();
-		if ( typeName.isPresent() ) {
-			JsonElement mapping = mappings.getAsJsonObject().get( typeName.get().original );
-			if ( mapping == null ) {
-				return new JsonObject().toString();
-			}
-			return mapping.toString();
-		}
-		else {
-			return mappings.toString();
-		}
+		return mappings.toString();
 	}
 
 	private void putIndexSettingsDynamic(URLEncodedString indexName, JsonObject settingsJsonObject) {
@@ -502,6 +485,10 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 	}
 
 	public void open(TestConfigurationProvider configurationProvider) {
+		open( configurationProvider, Optional.of( ElasticsearchTestDialect.getActualVersion() ) );
+	}
+
+	public void open(TestConfigurationProvider configurationProvider, Optional<ElasticsearchVersion> elasticsearchVersion) {
 		Map<String, Object> map = new LinkedHashMap<>();
 		ElasticsearchTestHostConnectionConfiguration.get().addToBackendProperties( map );
 		ConfigurationPropertySource backendProperties = AllAwareConfigurationPropertySource.fromMap( map );
@@ -524,7 +511,8 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 						timeoutExecutorService,
 						threadPoolProvider.isScheduledExecutorBlocking()
 				),
-				GsonProvider.create( GsonBuilder::new, true )
+				GsonProvider.create( GsonBuilder::new, true ),
+				elasticsearchVersion
 		);
 	}
 
@@ -536,8 +524,8 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 	}
 
 	private void close(Closer<IOException> closer) {
-		closer.pushAll( this::tryDeleteESIndex, createdIndicesNames );
-		createdIndicesNames.clear();
+		closer.pushAll( this::tryDeleteESIndex, indexesToCleanUp );
+		indexesToCleanUp.clear();
 		closer.push( this::tryCloseClient, client );
 		client = null;
 		closer.push( ThreadPoolProviderImpl::close, threadPoolProvider );
@@ -620,7 +608,7 @@ public class TestElasticsearchClient implements TestRule, Closeable {
 				+ "\nResponse:\n"
 				+ "========\n"
 				+ new ElasticsearchResponseFormatter( response )
-				);
+		);
 	}
 
 	/*

@@ -16,17 +16,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedEntityGraph;
-import javax.persistence.NoResultException;
-import javax.persistence.NonUniqueResultException;
-import javax.persistence.OneToMany;
-import javax.persistence.OneToOne;
-import javax.persistence.QueryTimeoutException;
-import javax.persistence.TypedQuery;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedEntityGraph;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.NonUniqueResultException;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.QueryTimeoutException;
+import jakarta.persistence.TypedQuery;
 
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.graph.GraphSemantic;
@@ -154,7 +155,7 @@ public class ToJpaQueryIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( IndexedEntity.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							6L,
 							reference( IndexedEntity.NAME, "1" ),
@@ -179,7 +180,7 @@ public class ToJpaQueryIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( IndexedEntity.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							1L,
 							reference( IndexedEntity.NAME, "1" )
@@ -192,7 +193,7 @@ public class ToJpaQueryIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( IndexedEntity.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.empty()
 			);
 			assertThatThrownBy( () -> query.getSingleResult() )
@@ -201,7 +202,7 @@ public class ToJpaQueryIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( IndexedEntity.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							2L,
 							reference( IndexedEntity.NAME, "1" ),
@@ -214,7 +215,7 @@ public class ToJpaQueryIT {
 
 			backendMock.expectSearchObjects(
 					Arrays.asList( IndexedEntity.NAME ),
-					b -> { },
+					b -> {},
 					StubSearchWorkBehavior.of(
 							2L,
 							reference( IndexedEntity.NAME, "1" ),
@@ -287,7 +288,7 @@ public class ToJpaQueryIT {
 			SearchSession searchSession = Search.session( entityManager );
 			TypedQuery<IndexedEntity> query = Search.toJpaQuery( createSimpleQuery( searchSession ) );
 
-			query.setHint( "javax.persistence.query.timeout", 200 );
+			query.setHint( "jakarta.persistence.query.timeout", 200 );
 
 			SearchTimeoutException timeoutException = new SearchTimeoutException( "Timed out" );
 
@@ -315,7 +316,7 @@ public class ToJpaQueryIT {
 							.toQuery()
 			);
 
-			query.setHint( "javax.persistence.query.timeout", 200 );
+			query.setHint( "jakarta.persistence.query.timeout", 200 );
 
 			SearchTimeoutException timeoutException = new SearchTimeoutException( "Timed out" );
 
@@ -339,7 +340,7 @@ public class ToJpaQueryIT {
 			SearchSession searchSession = Search.session( entityManager );
 			TypedQuery<IndexedEntity> query = Search.toOrmQuery( createSimpleQuery( searchSession ) );
 
-			query.setHint( "javax.persistence.fetchgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_EAGER ) );
+			query.setHint( "jakarta.persistence.fetchgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_EAGER ) );
 
 			backendMock.expectSearchObjects(
 					IndexedEntity.NAME,
@@ -355,7 +356,7 @@ public class ToJpaQueryIT {
 			SearchSession searchSession = Search.session( entityManager );
 			TypedQuery<IndexedEntity> query = Search.toOrmQuery( createSimpleQuery( searchSession ) );
 
-			query.setHint( "javax.persistence.fetchgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_LAZY ) );
+			query.setHint( "jakarta.persistence.fetchgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_LAZY ) );
 
 			backendMock.expectSearchObjects(
 					IndexedEntity.NAME,
@@ -376,10 +377,10 @@ public class ToJpaQueryIT {
 			SearchSession searchSession = Search.session( entityManager );
 			TypedQuery<IndexedEntity> query = Search.toOrmQuery( createSimpleQuery( searchSession ) );
 
-			query.setHint( "javax.persistence.loadgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_EAGER ) );
+			query.setHint( "jakarta.persistence.loadgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_EAGER ) );
 
 			backendMock.expectSearchObjects(
-					Arrays.asList( IndexedEntity.NAME ), b -> { },
+					Arrays.asList( IndexedEntity.NAME ), b -> {},
 					StubSearchWorkBehavior.of( 1, reference( IndexedEntity.NAME, "1" ) )
 			);
 
@@ -392,7 +393,7 @@ public class ToJpaQueryIT {
 			SearchSession searchSession = Search.session( entityManager );
 			TypedQuery<IndexedEntity> query = Search.toOrmQuery( createSimpleQuery( searchSession ) );
 
-			query.setHint( "javax.persistence.loadgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_LAZY ) );
+			query.setHint( "jakarta.persistence.loadgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_LAZY ) );
 
 			backendMock.expectSearchObjects(
 					IndexedEntity.NAME,
@@ -417,7 +418,7 @@ public class ToJpaQueryIT {
 							.toQuery()
 			);
 
-			query.setHint( "javax.persistence.fetchgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_LAZY ) );
+			query.setHint( "jakarta.persistence.fetchgraph", entityManager.getEntityGraph( IndexedEntity.GRAPH_LAZY ) );
 
 			backendMock.expectSearchObjects(
 					IndexedEntity.NAME,

@@ -16,7 +16,9 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.PropertyMappingStep;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.TypeMappingStep;
 
-public class SpatialAnnotationProcessor implements TypeMappingAnnotationProcessor<Spatial>,
+@Deprecated
+public class SpatialAnnotationProcessor
+		implements TypeMappingAnnotationProcessor<Spatial>,
 		PropertyMappingAnnotationProcessor<Spatial> {
 	@Override
 	public void process(TypeMappingStep mapping, Spatial annotation,

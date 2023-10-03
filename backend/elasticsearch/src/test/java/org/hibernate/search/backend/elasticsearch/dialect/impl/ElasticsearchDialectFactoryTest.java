@@ -14,16 +14,9 @@ import java.util.List;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchDistributionName;
 import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
-import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch56ModelDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch6ModelDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch7ModelDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch8ModelDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.model.impl.ElasticsearchModelDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch56ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch60ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch63ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch64ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch67ProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch70ProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch80ProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch81ProtocolDialect;
@@ -36,12 +29,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-@RunWith( Parameterized.class )
+@RunWith(Parameterized.class)
 public class ElasticsearchDialectFactoryTest {
 
 	private enum ExpectedOutcome {
 		UNSUPPORTED,
-		AMBIGUOUS,
 		SUCCESS_WITH_WARNING,
 		SUCCESS
 	}
@@ -56,176 +48,33 @@ public class ElasticsearchDialectFactoryTest {
 				unsupported( ElasticsearchDistributionName.ELASTIC, "2.4.4" ),
 				unsupported( ElasticsearchDistributionName.ELASTIC, "5.0.0" ),
 				unsupported( ElasticsearchDistributionName.ELASTIC, "5.2.0" ),
-				ambiguous( ElasticsearchDistributionName.ELASTIC, "5" ),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "5.6", "5.6.12",
-						Elasticsearch56ModelDialect.class, Elasticsearch56ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "5.6.12", "5.6.12",
-						Elasticsearch56ModelDialect.class, Elasticsearch56ProtocolDialect.class
-				),
-				successWithWarning(
-						ElasticsearchDistributionName.ELASTIC, "5.7.0", "5.7.0",
-						Elasticsearch56ModelDialect.class, Elasticsearch56ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6", "6.0.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch60ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6", "6.3.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch63ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6", "6.7.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch67ProtocolDialect.class
-				),
-
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.0", "6.0.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch60ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.0.0", "6.0.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch60ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.3", "6.3.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch63ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.3.0", "6.3.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch63ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.4", "6.4.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch64ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.4.0", "6.4.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch64ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.6", "6.6.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch64ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.6.0", "6.6.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch64ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.7", "6.7.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch67ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.7.0", "6.7.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch67ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "6.8.0", "6.8.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch67ProtocolDialect.class
-				),
-				successWithWarning(
-						ElasticsearchDistributionName.ELASTIC, "6.9.0", "6.9.0",
-						Elasticsearch6ModelDialect.class, Elasticsearch67ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.0.0-beta1", "7.0.0-beta1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7", "7.16.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.0", "7.0.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.0.0", "7.0.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.1", "7.1.1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.1.1", "7.1.1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.2", "7.2.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.2.0", "7.2.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.3", "7.3.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.3.0", "7.3.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.4", "7.4.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.4.0", "7.4.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.5", "7.5.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.5.0", "7.5.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.6", "7.6.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.6.0", "7.6.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.6.2", "7.6.2",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.7", "7.7.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.7.0", "7.7.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.8", "7.8.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.8.0", "7.8.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.9", "7.9.2",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.9.0", "7.9.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.ELASTIC, "7.9.2", "7.9.2",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "5.6.12" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "5.7.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "6.0.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "6.3.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "6.4.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "6.6.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "6.7.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "6.8.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "6.9.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.0.0-beta1" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.0.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.1.1" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.1.1" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.2.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.3.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.3.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.4.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.4.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.5.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.5.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.6.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.6.2" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.7.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.8.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.9.2" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.9.0" ),
+				unsupported( ElasticsearchDistributionName.ELASTIC, "7.9.2" ),
 				success(
 						ElasticsearchDistributionName.ELASTIC, "7.10", "7.10.0",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
@@ -358,12 +207,28 @@ public class ElasticsearchDialectFactoryTest {
 						ElasticsearchDistributionName.ELASTIC, "8.7.0", "8.7.0",
 						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
 				),
-				successWithWarning(
+				success(
 						ElasticsearchDistributionName.ELASTIC, "8.8", "8.8.0",
 						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
 				),
+				success(
+						ElasticsearchDistributionName.ELASTIC, "8.8.0", "8.8.0",
+						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
+				),
+				success(
+						ElasticsearchDistributionName.ELASTIC, "8.9", "8.9.0",
+						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
+				),
+				success(
+						ElasticsearchDistributionName.ELASTIC, "8.9.0", "8.9.0",
+						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
+				),
 				successWithWarning(
-						ElasticsearchDistributionName.ELASTIC, "8.8.0", "88.0",
+						ElasticsearchDistributionName.ELASTIC, "8.10", "8.10.0",
+						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
+				),
+				successWithWarning(
+						ElasticsearchDistributionName.ELASTIC, "8.10.0", "8.10.0",
 						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
 				),
 				successWithWarning(
@@ -371,37 +236,16 @@ public class ElasticsearchDialectFactoryTest {
 						Elasticsearch8ModelDialect.class, Elasticsearch81ProtocolDialect.class
 				),
 				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1", "1.2.1",
+						ElasticsearchDistributionName.OPENSEARCH, "1", "1.3.1",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
-				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1.0", "1.0.0-rc1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1.0.0-rc1", "1.0.0-rc1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1.0.0", "1.0.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1.0.1", "1.0.1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1.2", "1.2.1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1.2.0", "1.2.0",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
-				success(
-						ElasticsearchDistributionName.OPENSEARCH, "1.2.1", "1.2.1",
-						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
-				),
+				unsupported( ElasticsearchDistributionName.OPENSEARCH, "1.0" ),
+				unsupported( ElasticsearchDistributionName.OPENSEARCH, "1.0.0-rc1" ),
+				unsupported( ElasticsearchDistributionName.OPENSEARCH, "1.0.0" ),
+				unsupported( ElasticsearchDistributionName.OPENSEARCH, "1.0.1" ),
+				unsupported( ElasticsearchDistributionName.OPENSEARCH, "1.2" ),
+				unsupported( ElasticsearchDistributionName.OPENSEARCH, "1.2.0" ),
+				unsupported( ElasticsearchDistributionName.OPENSEARCH, "1.2.1" ),
 				success(
 						ElasticsearchDistributionName.OPENSEARCH, "1.3", "1.3.1",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
@@ -462,12 +306,36 @@ public class ElasticsearchDialectFactoryTest {
 						ElasticsearchDistributionName.OPENSEARCH, "2.7.0", "2.7.0",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
-				successWithWarning(
+				success(
 						ElasticsearchDistributionName.OPENSEARCH, "2.8", "2.8.0",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
-				successWithWarning(
+				success(
 						ElasticsearchDistributionName.OPENSEARCH, "2.8.0", "2.8.0",
+						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
+				),
+				success(
+						ElasticsearchDistributionName.OPENSEARCH, "2.9", "2.9.0",
+						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
+				),
+				success(
+						ElasticsearchDistributionName.OPENSEARCH, "2.9.0", "2.9.0",
+						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
+				),
+				success(
+						ElasticsearchDistributionName.OPENSEARCH, "2.10", "2.10.0",
+						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
+				),
+				success(
+						ElasticsearchDistributionName.OPENSEARCH, "2.10.0", "2.10.0",
+						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
+				),
+				successWithWarning(
+						ElasticsearchDistributionName.OPENSEARCH, "2.11", "2.11.0",
+						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
+				),
+				successWithWarning(
+						ElasticsearchDistributionName.OPENSEARCH, "2.11.0", "2.11.0",
 						Elasticsearch7ModelDialect.class, Elasticsearch70ProtocolDialect.class
 				),
 				successWithWarning(
@@ -487,13 +355,12 @@ public class ElasticsearchDialectFactoryTest {
 
 	private static Object[] unsupported(ElasticsearchDistributionName distribution, String configuredVersionString) {
 		return new Object[] {
-				distribution, configuredVersionString, null, ExpectedOutcome.UNSUPPORTED, null, null
-		};
-	}
-
-	private static Object[] ambiguous(ElasticsearchDistributionName distribution, String configuredVersionString) {
-		return new Object[] {
-				distribution, configuredVersionString, null, ExpectedOutcome.AMBIGUOUS, null, null
+				distribution,
+				configuredVersionString,
+				null,
+				ExpectedOutcome.UNSUPPORTED,
+				null,
+				null
 		};
 	}
 
@@ -502,8 +369,12 @@ public class ElasticsearchDialectFactoryTest {
 			Class<? extends ElasticsearchModelDialect> expectedModelDialectClass,
 			Class<? extends ElasticsearchProtocolDialect> expectedProtocolDialectClass) {
 		return new Object[] {
-				distribution, configuredVersionString, actualVersionString,
-				ExpectedOutcome.SUCCESS_WITH_WARNING, expectedModelDialectClass, expectedProtocolDialectClass
+				distribution,
+				configuredVersionString,
+				actualVersionString,
+				ExpectedOutcome.SUCCESS_WITH_WARNING,
+				expectedModelDialectClass,
+				expectedProtocolDialectClass
 		};
 	}
 
@@ -512,8 +383,12 @@ public class ElasticsearchDialectFactoryTest {
 			Class<? extends ElasticsearchModelDialect> expectedModelDialectClass,
 			Class<? extends ElasticsearchProtocolDialect> expectedProtocolDialectClass) {
 		return new Object[] {
-				distribution, configuredVersionString, actualVersionString,
-				ExpectedOutcome.SUCCESS, expectedModelDialectClass, expectedProtocolDialectClass
+				distribution,
+				configuredVersionString,
+				actualVersionString,
+				ExpectedOutcome.SUCCESS,
+				expectedModelDialectClass,
+				expectedProtocolDialectClass
 		};
 	}
 
@@ -540,9 +415,6 @@ public class ElasticsearchDialectFactoryTest {
 		switch ( expectedOutcome ) {
 			case UNSUPPORTED:
 				testUnsupported();
-				break;
-			case AMBIGUOUS:
-				testAmbiguous();
 				break;
 			case SUCCESS_WITH_WARNING:
 				testSuccessWithWarning();
@@ -573,7 +445,8 @@ public class ElasticsearchDialectFactoryTest {
 		)
 				.isInstanceOf( SearchException.class )
 				.hasMessageContaining( "HSEARCH400561" )
-				.hasMessageContaining( "Ambiguous Elasticsearch version: '" + distributionName + ":" + configuredVersionString + "'." )
+				.hasMessageContaining(
+						"Ambiguous Elasticsearch version: '" + distributionName + ":" + configuredVersionString + "'." )
 				.hasMessageContaining( "Please use a more precise version to remove the ambiguity" );
 	}
 

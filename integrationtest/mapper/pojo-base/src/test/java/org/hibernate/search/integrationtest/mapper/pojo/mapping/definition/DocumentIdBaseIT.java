@@ -12,29 +12,29 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.lang.invoke.MethodHandles;
 import java.util.Collections;
 
-import org.hibernate.search.engine.search.query.SearchQuery;
-import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReference;
-import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
 import org.hibernate.search.engine.common.EntityReference;
-import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
-import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
+import org.hibernate.search.engine.search.query.SearchQuery;
 import org.hibernate.search.mapper.pojo.bridge.IdentifierBridge;
 import org.hibernate.search.mapper.pojo.bridge.binding.IdentifierBindingContext;
 import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.IdentifierBinderRef;
 import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.IdentifierBridgeRef;
-import org.hibernate.search.mapper.pojo.common.annotation.Param;
 import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.IdentifierBinder;
 import org.hibernate.search.mapper.pojo.bridge.runtime.IdentifierBridgeFromDocumentIdentifierContext;
 import org.hibernate.search.mapper.pojo.bridge.runtime.IdentifierBridgeToDocumentIdentifierContext;
+import org.hibernate.search.mapper.pojo.common.annotation.Param;
+import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReference;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.TypeMappingStep;
+import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.common.reporting.FailureReportUtils;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
 import org.hibernate.search.util.impl.integrationtest.common.rule.StubSearchWorkBehavior;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.StubBackendUtils;
+import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Rule;
@@ -54,7 +54,8 @@ public class DocumentIdBaseIT {
 	public BackendMock backendMock = new BackendMock();
 
 	@Rule
-	public StandalonePojoMappingSetupHelper setupHelper = StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public StandalonePojoMappingSetupHelper setupHelper =
+			StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
 
 	@Test
 	public void identifierBridge_default_noMatch() {
@@ -163,21 +164,24 @@ public class DocumentIdBaseIT {
 						.typeContext( IndexedEntity.class.getName() )
 						.pathContext( ".id" )
 						.failure( "Invalid bridge for input type '" + Integer.class.getName()
-										+ "': '" + MyStringBridge.TOSTRING + "'",
+								+ "': '" + MyStringBridge.TOSTRING + "'",
 								"This bridge expects an input of type '" + String.class.getName() + "'." ) );
 	}
 
 	public static class MyStringBridge implements IdentifierBridge<String> {
 		private static final String TOSTRING = "<MyStringBridge toString() result>";
+
 		@Override
 		public String fromDocumentIdentifier(String documentIdentifier,
 				IdentifierBridgeFromDocumentIdentifierContext context) {
 			throw new UnsupportedOperationException( "Should not be called" );
 		}
+
 		@Override
 		public String toDocumentIdentifier(String propertyValue, IdentifierBridgeToDocumentIdentifierContext context) {
 			throw new UnsupportedOperationException( "Should not be called" );
 		}
+
 		@Override
 		public String toString() {
 			return TOSTRING;
@@ -198,7 +202,7 @@ public class DocumentIdBaseIT {
 						.typeContext( IndexedEntity.class.getName() )
 						.pathContext( ".id" )
 						.failure( "Invalid bridge for input type '" + Object.class.getName()
-										+ "': '" + MyNumberBridge.TOSTRING + "'",
+								+ "': '" + MyNumberBridge.TOSTRING + "'",
 								"This bridge expects an input of type '" + Number.class.getName() + "'" ) );
 	}
 
@@ -216,21 +220,24 @@ public class DocumentIdBaseIT {
 						.typeContext( IndexedEntity.class.getName() )
 						.pathContext( ".id" )
 						.failure( "Invalid bridge for input type '" + Integer.class.getName()
-										+ "': '" + MyNumberBridge.TOSTRING + "'",
+								+ "': '" + MyNumberBridge.TOSTRING + "'",
 								"This bridge expects an input of type '" + Number.class.getName() + "'." ) );
 	}
 
 	public static class MyNumberBridge implements IdentifierBridge<Number> {
 		private static final String TOSTRING = "<MyNumberBridge toString() result>";
+
 		@Override
 		public Number fromDocumentIdentifier(String documentIdentifier,
 				IdentifierBridgeFromDocumentIdentifierContext context) {
 			throw new UnsupportedOperationException( "Should not be called" );
 		}
+
 		@Override
 		public String toDocumentIdentifier(Number propertyValue, IdentifierBridgeToDocumentIdentifierContext context) {
 			throw new UnsupportedOperationException( "Should not be called" );
 		}
+
 		@Override
 		public String toString() {
 			return TOSTRING;
@@ -510,9 +517,8 @@ public class DocumentIdBaseIT {
 			}
 		}
 
-		@SuppressWarnings("uncheked")
 		private static String extractFixedPrefix(IdentifierBindingContext<?> context) {
-			return (String) context.param( "fixedPrefix" );
+			return context.param( "fixedPrefix", String.class );
 		}
 	}
 }

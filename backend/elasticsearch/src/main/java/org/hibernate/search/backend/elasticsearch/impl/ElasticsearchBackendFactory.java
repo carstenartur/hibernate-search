@@ -33,8 +33,8 @@ import org.hibernate.search.backend.elasticsearch.types.dsl.provider.impl.Elasti
 import org.hibernate.search.engine.backend.spi.BackendBuildContext;
 import org.hibernate.search.engine.backend.spi.BackendFactory;
 import org.hibernate.search.engine.backend.spi.BackendImplementor;
-import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
+import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.spi.OptionalConfigurationProperty;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
 import org.hibernate.search.engine.environment.bean.BeanReference;
@@ -46,7 +46,6 @@ import org.hibernate.search.util.common.reporting.EventContext;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 
 public class ElasticsearchBackendFactory implements BackendFactory {
 
@@ -122,7 +121,8 @@ public class ElasticsearchBackendFactory implements BackendFactory {
 
 			ElasticsearchModelDialect dialect;
 			ElasticsearchVersion version;
-			if ( configuredVersion.isPresent() ) {
+			if ( configuredVersion.isPresent()
+					&& ElasticsearchDialectFactory.isPreciseEnoughForModelDialect( configuredVersion.get() ) ) {
 				version = configuredVersion.get();
 			}
 			else {
@@ -178,11 +178,11 @@ public class ElasticsearchBackendFactory implements BackendFactory {
 					}
 					return optionalName;
 				} ).orElseGet( () -> {
-			// set dynamic default
-			return ( buildContext.multiTenancyEnabled() ) ?
-					MultiTenancyStrategyName.DISCRIMINATOR :
-					MultiTenancyStrategyName.NONE;
-		} );
+					// set dynamic default
+					return ( buildContext.multiTenancyEnabled() )
+							? MultiTenancyStrategyName.DISCRIMINATOR
+							: MultiTenancyStrategyName.NONE;
+				} );
 
 		switch ( multiTenancyStrategy ) {
 			case NONE:

@@ -5,9 +5,9 @@
  * See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
  */
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.GeneratedValue;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
@@ -15,11 +15,15 @@ import org.hibernate.search.annotations.Indexed;
 /**
  * This entity is intentionally in no package for testing purposes
  */
-@Indexed @Entity
+@Indexed
+@Entity
 public class NotPackagedEntity {
 
-	@GeneratedValue @Id long id;
+	@GeneratedValue
+	@Id
+	long id;
 
-	@Field String title;
+	@Field
+	String title;
 
 }

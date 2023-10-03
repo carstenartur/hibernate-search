@@ -8,16 +8,12 @@ package org.hibernate.search.util.impl.integrationtest.backend.elasticsearch;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
+import org.hibernate.search.backend.elasticsearch.ElasticsearchDistributionName;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendConfiguration;
 
-import org.junit.rules.TestRule;
-
 public class ElasticsearchBackendConfiguration extends BackendConfiguration {
-
-	protected final TestElasticsearchClient testElasticsearchClient = new TestElasticsearchClient();
 
 	@Override
 	public String toString() {
@@ -25,19 +21,28 @@ public class ElasticsearchBackendConfiguration extends BackendConfiguration {
 	}
 
 	@Override
-	public Optional<TestRule> testRule() {
-		return Optional.of( testElasticsearchClient );
-	}
-
-	public TestElasticsearchClient testElasticsearchClient() {
-		return testElasticsearchClient;
-	}
-
-	@Override
 	public Map<String, String> rawBackendProperties() {
 		Map<String, String> properties = new LinkedHashMap<>();
 		properties.put( "log.json_pretty_printing", "true" );
 		ElasticsearchTestHostConnectionConfiguration.get().addToBackendProperties( properties );
+		if ( ElasticsearchDistributionName.AMAZON_OPENSEARCH_SERVERLESS
+				.equals( ElasticsearchTestDialect.getActualVersion().distribution() ) ) {
+			// The distribution/version cannot be detected on Amazon OpenSearch Serverless
+			properties.put( "version", ElasticsearchTestDialect.getActualVersion().toString() );
+		}
 		return properties;
 	}
+
+	@Override
+	public boolean supportsExplicitPurge() {
+		return !ElasticsearchDistributionName.AMAZON_OPENSEARCH_SERVERLESS
+				.equals( ElasticsearchTestDialect.getActualVersion().distribution() );
+	}
+
+	@Override
+	public boolean supportsExplicitRefresh() {
+		return !ElasticsearchDistributionName.AMAZON_OPENSEARCH_SERVERLESS
+				.equals( ElasticsearchTestDialect.getActualVersion().distribution() );
+	}
+
 }

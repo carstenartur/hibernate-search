@@ -12,12 +12,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Transient;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Transient;
 
 import org.hibernate.search.annotations.Analyzer;
 import org.hibernate.search.annotations.Field;
@@ -85,13 +85,16 @@ public class ProductShootingBrief {
 	@Transient
 	@Field(analyzer = @Analyzer(definition = AnalysisNames.ANALYZER_STANDARD))
 	@IndexingDependency(derivedFrom = {
-			@ObjectPath({@PropertyValue(propertyName = "articles"),
-					@PropertyValue(propertyName = "productReferenceCodeWithColorCollection")}),
-			@ObjectPath({@PropertyValue(propertyName = "models"),
-					@PropertyValue(propertyName = "productReferenceCodeCollection")}),
-			@ObjectPath({@PropertyValue(propertyName = "models"),
+			@ObjectPath({
 					@PropertyValue(propertyName = "articles"),
-					@PropertyValue(propertyName = "productReferenceCodeWithColorCollection")})
+					@PropertyValue(propertyName = "productReferenceCodeWithColorCollection") }),
+			@ObjectPath({
+					@PropertyValue(propertyName = "models"),
+					@PropertyValue(propertyName = "productReferenceCodeCollection") }),
+			@ObjectPath({
+					@PropertyValue(propertyName = "models"),
+					@PropertyValue(propertyName = "articles"),
+					@PropertyValue(propertyName = "productReferenceCodeWithColorCollection") })
 	})
 	public Collection<String> getReferenceCodeCollection() {
 		Collection<String> referenceCodes = new ArrayList<String>();

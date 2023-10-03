@@ -14,11 +14,11 @@ import org.hibernate.search.engine.backend.document.IndexFieldReference;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaFieldOptionsStep;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaFieldTemplateOptionsStep;
 import org.hibernate.search.engine.backend.document.model.dsl.IndexSchemaNamedPredicateOptionsStep;
-import org.hibernate.search.engine.backend.document.model.dsl.spi.IndexObjectFieldBuilder;
 import org.hibernate.search.engine.backend.document.model.dsl.spi.IndexCompositeNodeBuilder;
-import org.hibernate.search.engine.backend.document.model.spi.IndexFieldInclusion;
+import org.hibernate.search.engine.backend.document.model.dsl.spi.IndexObjectFieldBuilder;
 import org.hibernate.search.engine.backend.types.IndexFieldType;
 import org.hibernate.search.engine.backend.types.ObjectStructure;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.search.predicate.definition.PredicateDefinition;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.document.model.StubIndexSchemaDataNode;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.document.model.impl.StubIndexCompositeNode;
@@ -37,11 +37,12 @@ abstract class AbstractStubIndexCompositeNodeBuilder implements IndexCompositeNo
 
 	@Override
 	public <F> IndexSchemaFieldOptionsStep<?, IndexFieldReference<F>> addField(String relativeFieldName,
-			IndexFieldInclusion inclusion, IndexFieldType<F> indexFieldType) {
-		StubIndexSchemaDataNode.Builder childSchemaNodeBuilder = StubIndexSchemaDataNode.field( schemaDataNodeBuilder, relativeFieldName );
+			TreeNodeInclusion inclusion, IndexFieldType<F> indexFieldType) {
+		StubIndexSchemaDataNode.Builder childSchemaNodeBuilder =
+				StubIndexSchemaDataNode.field( schemaDataNodeBuilder, relativeFieldName );
 		StubIndexValueFieldType<F> stubType = (StubIndexValueFieldType<F>) indexFieldType;
 		stubType.apply( childSchemaNodeBuilder );
-		if ( IndexFieldInclusion.INCLUDED.equals( inclusion ) ) {
+		if ( TreeNodeInclusion.INCLUDED.equals( inclusion ) ) {
 			getRootNodeBuilder().getBackendBehavior().onAddField(
 					getRootNodeBuilder().getIndexName(),
 					childSchemaNodeBuilder.getAbsolutePath()
@@ -55,13 +56,13 @@ abstract class AbstractStubIndexCompositeNodeBuilder implements IndexCompositeNo
 	}
 
 	@Override
-	public IndexObjectFieldBuilder addObjectField(String relativeFieldName, IndexFieldInclusion inclusion,
+	public IndexObjectFieldBuilder addObjectField(String relativeFieldName, TreeNodeInclusion inclusion,
 			ObjectStructure structure) {
 		StubIndexSchemaDataNode.Builder childSchemaNodeBuilder =
 				StubIndexSchemaDataNode.objectField( schemaDataNodeBuilder, relativeFieldName );
 		StubIndexCompositeNodeType type = new StubIndexCompositeNodeType.Builder( structure ).build();
 		type.apply( childSchemaNodeBuilder );
-		if ( IndexFieldInclusion.INCLUDED.equals( inclusion ) ) {
+		if ( TreeNodeInclusion.INCLUDED.equals( inclusion ) ) {
 			getRootNodeBuilder().getBackendBehavior().onAddField(
 					getRootNodeBuilder().getIndexName(),
 					childSchemaNodeBuilder.getAbsolutePath()
@@ -76,11 +77,11 @@ abstract class AbstractStubIndexCompositeNodeBuilder implements IndexCompositeNo
 
 	@Override
 	public IndexSchemaNamedPredicateOptionsStep addNamedPredicate(String relativeNamedPredicateName,
-			IndexFieldInclusion inclusion, PredicateDefinition definition) {
+			TreeNodeInclusion inclusion, PredicateDefinition definition) {
 		StubIndexSchemaDataNode.Builder childBuilder =
 				StubIndexSchemaDataNode.namedPredicate( schemaDataNodeBuilder, relativeNamedPredicateName )
 						.predicateDefinition( definition );
-		if ( IndexFieldInclusion.INCLUDED.equals( inclusion ) ) {
+		if ( TreeNodeInclusion.INCLUDED.equals( inclusion ) ) {
 			schemaDataNodeBuilder.child( childBuilder );
 		}
 		return new StubIndexNamedPredicateBuilder( childBuilder );
@@ -88,12 +89,12 @@ abstract class AbstractStubIndexCompositeNodeBuilder implements IndexCompositeNo
 
 	@Override
 	public IndexSchemaFieldTemplateOptionsStep<?> addFieldTemplate(String templateName,
-			IndexFieldInclusion inclusion, IndexFieldType<?> indexFieldType, String prefix) {
+			TreeNodeInclusion inclusion, IndexFieldType<?> indexFieldType, String prefix) {
 		StubIndexSchemaDataNode.Builder childBuilder =
 				StubIndexSchemaDataNode.fieldTemplate( schemaDataNodeBuilder, templateName );
 		StubIndexValueFieldType<?> stubType = (StubIndexValueFieldType<?>) indexFieldType;
 		stubType.apply( childBuilder );
-		if ( IndexFieldInclusion.INCLUDED.equals( inclusion ) ) {
+		if ( TreeNodeInclusion.INCLUDED.equals( inclusion ) ) {
 			schemaDataNodeBuilder.child( childBuilder );
 		}
 		return new StubIndexFieldTemplateNodeBuilder( childBuilder );
@@ -101,12 +102,12 @@ abstract class AbstractStubIndexCompositeNodeBuilder implements IndexCompositeNo
 
 	@Override
 	public IndexSchemaFieldTemplateOptionsStep<?> addObjectFieldTemplate(String templateName,
-			ObjectStructure structure, String prefix, IndexFieldInclusion inclusion) {
+			ObjectStructure structure, String prefix, TreeNodeInclusion inclusion) {
 		StubIndexSchemaDataNode.Builder childBuilder =
 				StubIndexSchemaDataNode.objectFieldTemplate( schemaDataNodeBuilder, templateName );
 		StubIndexCompositeNodeType type = new StubIndexCompositeNodeType.Builder( structure ).build();
 		type.apply( childBuilder );
-		if ( IndexFieldInclusion.INCLUDED.equals( inclusion ) ) {
+		if ( TreeNodeInclusion.INCLUDED.equals( inclusion ) ) {
 			schemaDataNodeBuilder.child( childBuilder );
 		}
 		return new StubIndexFieldTemplateNodeBuilder( childBuilder );

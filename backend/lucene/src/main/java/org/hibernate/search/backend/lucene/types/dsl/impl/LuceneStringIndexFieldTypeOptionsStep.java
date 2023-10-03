@@ -51,7 +51,6 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.IndexOptions;
 
-
 class LuceneStringIndexFieldTypeOptionsStep
 		extends AbstractLuceneStandardIndexFieldTypeOptionsStep<LuceneStringIndexFieldTypeOptionsStep, String>
 		implements StringIndexFieldTypeOptionsStep<LuceneStringIndexFieldTypeOptionsStep> {
@@ -204,14 +203,10 @@ class LuceneStringIndexFieldTypeOptionsStep
 			builder.queryElementFactory( PredicateTypeKeys.MATCH, new LuceneTextMatchPredicate.Factory<>( codec ) );
 			builder.queryElementFactory( PredicateTypeKeys.RANGE, new LuceneTextRangePredicate.Factory<>( codec ) );
 			builder.queryElementFactory( PredicateTypeKeys.TERMS, new LuceneTextTermsPredicate.Factory<>( codec ) );
-			if ( resolvedNorms ) {
-				builder.queryElementFactory( PredicateTypeKeys.EXISTS, new LuceneExistsPredicate.NormsBasedFactory() );
-			}
-			else {
-				builder.queryElementFactory( PredicateTypeKeys.EXISTS,
-						DocValues.ENABLED.equals( docValues ) ? new LuceneExistsPredicate.DocValuesBasedFactory<>()
-								: new LuceneExistsPredicate.DefaultFactory<>() );
-			}
+			builder.queryElementFactory( PredicateTypeKeys.EXISTS,
+					resolvedNorms || DocValues.ENABLED.equals( docValues )
+							? new LuceneExistsPredicate.DocValuesOrNormsBasedFactory<>()
+							: new LuceneExistsPredicate.DefaultFactory<>() );
 			builder.queryElementFactory( PredicateTypeKeys.PHRASE, new LuceneTextPhrasePredicate.Factory<>() );
 			builder.queryElementFactory( PredicateTypeKeys.WILDCARD, new LuceneTextWildcardPredicate.Factory<>() );
 			builder.queryElementFactory( PredicateTypeKeys.REGEXP, new LuceneTextRegexpPredicate.Factory<>() );
@@ -261,8 +256,9 @@ class LuceneStringIndexFieldTypeOptionsStep
 
 	private ResolvedTermVector resolveTermVector() {
 		TermVector localTermVector = termVector;
-		if ( highlightable != null && ( highlightable.contains( Highlightable.ANY )
-				|| highlightable.contains( Highlightable.FAST_VECTOR ) ) ) {
+		if ( highlightable != null
+				&& ( highlightable.contains( Highlightable.ANY )
+						|| highlightable.contains( Highlightable.FAST_VECTOR ) ) ) {
 			if ( TermVector.DEFAULT.equals( termVector ) ) {
 				localTermVector = TermVector.WITH_POSITIONS_OFFSETS;
 			}
@@ -297,7 +293,8 @@ class LuceneStringIndexFieldTypeOptionsStep
 		}
 	}
 
-	private static FieldType getFieldType(boolean projectable, boolean searchable, boolean analyzed, boolean norms, ResolvedTermVector termVector) {
+	private static FieldType getFieldType(boolean projectable, boolean searchable, boolean analyzed, boolean norms,
+			ResolvedTermVector termVector) {
 		FieldType fieldType = new FieldType();
 
 		if ( !searchable ) {
@@ -345,7 +342,7 @@ class LuceneStringIndexFieldTypeOptionsStep
 			this.payloads = payloads;
 		}
 
-		private void applyTo( FieldType fieldType ) {
+		private void applyTo(FieldType fieldType) {
 			fieldType.setStoreTermVectors( store );
 			fieldType.setStoreTermVectorPositions( positions );
 			fieldType.setStoreTermVectorOffsets( offsets );
@@ -374,8 +371,8 @@ class LuceneStringIndexFieldTypeOptionsStep
 		if ( highlightable.contains( Highlightable.DEFAULT ) ) {
 			// means we have the default case, so let's check if either plain or unified highlighters can be applied:
 			if ( Projectable.YES.equals( projectable ) ) {
-				if ( TermVector.WITH_POSITIONS_OFFSETS.equals( termVector ) ||
-						TermVector.WITH_POSITIONS_OFFSETS_PAYLOADS.equals( termVector ) ) {
+				if ( TermVector.WITH_POSITIONS_OFFSETS.equals( termVector )
+						|| TermVector.WITH_POSITIONS_OFFSETS_PAYLOADS.equals( termVector ) ) {
 					highlightable = EnumSet.of( Highlightable.ANY );
 				}
 				else {

@@ -6,9 +6,9 @@
  */
 package org.hibernate.search.test.batchindexing;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.DocumentId;
 import org.hibernate.search.annotations.Field;
@@ -30,7 +30,8 @@ public class ConcurrentData {
 		this.data = data;
 	}
 
-	@Id @GeneratedValue
+	@Id
+	@GeneratedValue
 	@DocumentId
 	public Long getId() {
 		return id;

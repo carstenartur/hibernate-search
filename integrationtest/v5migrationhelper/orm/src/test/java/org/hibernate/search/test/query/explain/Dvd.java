@@ -6,13 +6,13 @@
  */
 package org.hibernate.search.test.query.explain;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.GeneratedValue;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 
-import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.annotations.DocumentId;
 import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
 
 /**
  * @author Emmanuel Bernard
@@ -21,9 +21,14 @@ import org.hibernate.search.annotations.Field;
 @Indexed
 public class Dvd {
 
-	@Id @GeneratedValue @DocumentId private Integer id;
-	@Field private String title;
-	@Field private String description;
+	@Id
+	@GeneratedValue
+	@DocumentId
+	private Integer id;
+	@Field
+	private String title;
+	@Field
+	private String description;
 
 	protected Dvd() {
 	}

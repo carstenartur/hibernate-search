@@ -7,6 +7,7 @@
 package org.hibernate.search.engine.common.spi;
 
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
+import org.hibernate.search.engine.cfg.impl.ConfigurationPropertySourceScopeUtils;
 import org.hibernate.search.engine.cfg.spi.ConfigurationPropertyChecker;
 import org.hibernate.search.engine.environment.bean.BeanResolver;
 import org.hibernate.search.engine.environment.bean.impl.BeanResolverImpl;
@@ -26,6 +27,17 @@ import org.hibernate.search.engine.environment.classpath.spi.ServiceResolver;
 public final class SearchIntegrationEnvironment implements AutoCloseable {
 	public static final String CONFIGURATION_PROPERTIES_MASK = "hibernate.search";
 
+	public static ConfigurationPropertySource rootPropertySource(ConfigurationPropertySource propertySource,
+			BeanResolver beanResolver) {
+		return propertySource
+				.withMask( CONFIGURATION_PROPERTIES_MASK )
+				.withFallback(
+						ConfigurationPropertySourceScopeUtils.fallback(
+								beanResolver,
+								ConfigurationPropertySourceScopeUtils.global()
+						) );
+	}
+
 	private final ConfigurationPropertySource propertySource;
 	private final ConfigurationPropertyChecker propertyChecker;
 	private final ClassResolver classResolver;
@@ -35,9 +47,6 @@ public final class SearchIntegrationEnvironment implements AutoCloseable {
 	private final BeanProvider beanProvider;
 
 	private SearchIntegrationEnvironment(Builder builder) {
-		propertySource = builder.propertySource.withMask( CONFIGURATION_PROPERTIES_MASK );
-		propertyChecker = builder.propertyChecker;
-
 		AggregatedClassLoader aggregatedClassLoader = null;
 
 		if ( builder.classResolver != null ) {
@@ -68,19 +77,28 @@ public final class SearchIntegrationEnvironment implements AutoCloseable {
 			serviceResolver = DefaultServiceResolver.create( aggregatedClassLoader );
 		}
 
+		propertyChecker = builder.propertyChecker;
 		beanProvider = builder.beanProvider;
-		beanResolver = BeanResolverImpl.create( classResolver, serviceResolver, beanProvider, propertySource );
+
+		// This is the property source without any mask or ConfigurationProvider defaults applied.
+		ConfigurationPropertySource rawPropertySource = builder.propertySource;
+
+		beanResolver = BeanResolverImpl.create( classResolver, serviceResolver, beanProvider,
+				// BeanResolverImpl.create() will apply its own, limited, fallback configuration.
+				rawPropertySource );
+
+		propertySource = rootPropertySource( rawPropertySource, beanResolver );
 	}
 
 	private SearchIntegrationEnvironment(SearchIntegrationEnvironment source, ConfigurationPropertySource propertySource,
 			ConfigurationPropertyChecker checker) {
-		this.propertySource = propertySource.withMask( CONFIGURATION_PROPERTIES_MASK );
 		this.propertyChecker = checker;
 		this.classResolver = source.classResolver;
 		this.resourceResolver = source.resourceResolver;
 		this.serviceResolver = source.serviceResolver;
 		beanProvider = source.beanProvider;
 		beanResolver = source.beanResolver;
+		this.propertySource = rootPropertySource( propertySource, beanResolver );
 	}
 
 	@Override

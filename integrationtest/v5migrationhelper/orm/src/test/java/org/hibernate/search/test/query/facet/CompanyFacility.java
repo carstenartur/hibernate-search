@@ -6,10 +6,10 @@
  */
 package org.hibernate.search.test.query.facet;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 
 import org.hibernate.search.annotations.Analyze;
 import org.hibernate.search.annotations.Facet;
@@ -39,6 +39,7 @@ public class CompanyFacility {
 		this.country = country;
 
 	}
+
 	public int getId() {
 		return id;
 	}

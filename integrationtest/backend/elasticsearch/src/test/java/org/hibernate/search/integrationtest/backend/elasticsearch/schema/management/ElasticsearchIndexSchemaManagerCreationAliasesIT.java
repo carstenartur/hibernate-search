@@ -64,15 +64,15 @@ public class ElasticsearchIndexSchemaManagerCreationAliasesIT {
 	@Test
 	public void success_defaultLayoutStrategy() {
 		elasticsearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( null );
 
 		assertJsonEquals(
 				"{"
 						+ "'" + defaultWriteAlias( index.name() ) + "': " + simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + simpleReadAliasDefinition()
-				+ "}",
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + simpleReadAliasDefinition()
+						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
 	}
@@ -80,7 +80,7 @@ public class ElasticsearchIndexSchemaManagerCreationAliasesIT {
 	@Test
 	public void success_noAliasLayoutStrategy() {
 		elasticsearchClient.indexNoAlias( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( "no-alias" );
 
@@ -94,15 +94,15 @@ public class ElasticsearchIndexSchemaManagerCreationAliasesIT {
 	@Test
 	public void success_customLayoutStrategy() {
 		elasticsearchClient.index( index.name() )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		setupAndCreateIndex( new StubSingleIndexLayoutStrategy( "custom-write", "custom-read" ) );
 
 		assertJsonEquals(
 				"{"
 						+ "'custom-write': " + simpleWriteAliasDefinition() + ", "
-						+ "'custom-read': " + simpleReadAliasDefinition()
-				+ "}",
+						+ "  'custom-read': " + simpleReadAliasDefinition()
+						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
 	}
@@ -126,7 +126,7 @@ public class ElasticsearchIndexSchemaManagerCreationAliasesIT {
 		assertJsonEquals(
 				"{"
 						+ "'" + defaultWriteAlias( index.name() ) + "': " + simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + simpleReadAliasDefinition()
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + simpleReadAliasDefinition()
 						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);

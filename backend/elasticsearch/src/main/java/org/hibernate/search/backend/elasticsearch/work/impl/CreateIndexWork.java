@@ -21,7 +21,6 @@ import org.hibernate.search.backend.elasticsearch.work.result.impl.CreateIndexRe
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-
 public class CreateIndexWork extends AbstractNonBulkableWork<CreateIndexResult> {
 
 	private static final String MAPPINGS_PROPERTY = "mappings";
@@ -46,32 +45,16 @@ public class CreateIndexWork extends AbstractNonBulkableWork<CreateIndexResult> 
 			extends AbstractBuilder<Builder> {
 		private final GsonProvider gsonProvider;
 		private final URLEncodedString indexName;
-		private final URLEncodedString typeName;
-		private final Boolean includeTypeName;
 		private final JsonObject payload = new JsonObject();
 
-		public static Builder forElasticsearch66AndBelow(GsonProvider gsonProvider,
-				URLEncodedString indexName, URLEncodedString typeName) {
-			return new Builder( gsonProvider, indexName, typeName, null );
+		public static Builder create(GsonProvider gsonProvider, URLEncodedString indexName) {
+			return new Builder( gsonProvider, indexName );
 		}
 
-		public static Builder forElasticsearch67(GsonProvider gsonProvider,
-				URLEncodedString indexName, URLEncodedString typeName) {
-			return new Builder( gsonProvider, indexName, typeName, true );
-		}
-
-		public static Builder forElasticsearch7AndAbove(GsonProvider gsonProvider,
-				URLEncodedString indexName) {
-			return new Builder( gsonProvider, indexName, null, null );
-		}
-
-		private Builder(GsonProvider gsonProvider, URLEncodedString indexName, URLEncodedString typeName,
-				Boolean includeTypeName) {
+		private Builder(GsonProvider gsonProvider, URLEncodedString indexName) {
 			super( ElasticsearchRequestSuccessAssessor.DEFAULT_INSTANCE );
 			this.gsonProvider = gsonProvider;
 			this.indexName = indexName;
-			this.typeName = typeName;
-			this.includeTypeName = includeTypeName;
 		}
 
 		public Builder aliases(Map<String, IndexAliasDefinition> aliases) {
@@ -97,19 +80,7 @@ public class CreateIndexWork extends AbstractNonBulkableWork<CreateIndexResult> 
 		public Builder mapping(RootTypeMapping mapping) {
 			Gson gson = gsonProvider.getGsonNoSerializeNulls();
 
-			if ( typeName != null ) {
-				// ES6 and below
-				JsonObject mappings = payload.getAsJsonObject( MAPPINGS_PROPERTY );
-				if ( mappings == null ) {
-					mappings = new JsonObject();
-					payload.add( MAPPINGS_PROPERTY, mappings );
-				}
-				mappings.add( typeName.original, gson.toJsonTree( mapping ) );
-			}
-			else {
-				// ES7 and above
-				payload.add( MAPPINGS_PROPERTY, gson.toJsonTree( mapping ) );
-			}
+			payload.add( MAPPINGS_PROPERTY, gson.toJsonTree( mapping ) );
 
 			return this;
 		}
@@ -125,11 +96,7 @@ public class CreateIndexWork extends AbstractNonBulkableWork<CreateIndexResult> 
 		protected ElasticsearchRequest buildRequest() {
 			ElasticsearchRequest.Builder builder =
 					ElasticsearchRequest.put()
-					.pathComponent( indexName );
-			// ES6.7 and later 6.x only
-			if ( includeTypeName != null ) {
-				builder.param( "include_type_name", includeTypeName );
-			}
+							.pathComponent( indexName );
 			if ( payload.size() > 0 ) {
 				builder.body( payload );
 			}

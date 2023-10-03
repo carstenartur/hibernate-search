@@ -6,12 +6,16 @@
  */
 package org.hibernate.search.mapper.orm.spi;
 
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 
 public interface BatchMappingContext {
 
-	BatchTypeIdentifierProvider typeContextProvider();
+	BatchTypeContextProvider typeContextProvider();
 
 	BatchSessionContext sessionContext(EntityManager entityManager);
+
+	<T> BatchScopeContext<T> scope(Class<T> expectedSuperType);
+
+	<T> BatchScopeContext<T> scope(Class<T> expectedSuperType, String entityName);
 
 }

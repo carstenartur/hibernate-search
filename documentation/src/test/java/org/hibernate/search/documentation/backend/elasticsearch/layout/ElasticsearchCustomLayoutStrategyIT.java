@@ -6,13 +6,13 @@
  */
 package org.hibernate.search.documentation.backend.elasticsearch.layout;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchIndexMetadataTestUtils.encodeName;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.List;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.backend.elasticsearch.cfg.ElasticsearchBackendSettings;
@@ -40,7 +40,7 @@ public class ElasticsearchCustomLayoutStrategyIT {
 	public void smoke() {
 		URLEncodedString primaryIndexName = encodeName( Book.NAME + "-20171106-191900-000000000" );
 		elasticsearchClient.index( primaryIndexName, null, null )
-				.ensureDoesNotExist().registerForCleanup();
+				.ensureDoesNotExist();
 
 		EntityManagerFactory entityManagerFactory = setupHelper.start()
 				.withBackendProperty(

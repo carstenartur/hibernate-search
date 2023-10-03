@@ -15,6 +15,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.hibernate.search.engine.environment.bean.spi.BeanProvider;
+import org.hibernate.search.mapper.pojo.automaticindexing.ReindexOnUpdate;
 import org.hibernate.search.mapper.pojo.standalone.cfg.StandalonePojoMapperSettings;
 import org.hibernate.search.mapper.pojo.standalone.cfg.spi.StandalonePojoMapperSpiSettings;
 import org.hibernate.search.mapper.pojo.standalone.mapping.CloseableSearchMapping;
@@ -28,11 +29,15 @@ import org.hibernate.search.util.impl.integrationtest.common.bean.ForbiddenBeanP
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendConfiguration;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendSetupStrategy;
-import org.hibernate.search.util.impl.integrationtest.common.stub.backend.BackendMappingHandle;
 import org.hibernate.search.util.impl.integrationtest.common.rule.MappingSetupHelper;
+import org.hibernate.search.util.impl.integrationtest.common.stub.backend.BackendMappingHandle;
 
 public final class StandalonePojoMappingSetupHelper
-		extends MappingSetupHelper<StandalonePojoMappingSetupHelper.SetupContext, SearchMappingBuilder, StandalonePojoMappingConfigurationContext, CloseableSearchMapping> {
+		extends
+		MappingSetupHelper<StandalonePojoMappingSetupHelper.SetupContext,
+				SearchMappingBuilder,
+				StandalonePojoMappingConfigurationContext,
+				CloseableSearchMapping> {
 
 	/**
 	 * @param lookup A {@link MethodHandles.Lookup} with private access to the test method,
@@ -68,12 +73,26 @@ public final class StandalonePojoMappingSetupHelper
 
 	private final MethodHandles.Lookup lookup;
 	private final SchemaManagementStrategyName schemaManagementStrategyName;
+	private final StandalonePojoAssertionHelper assertionHelper;
+
+	private ReindexOnUpdate defaultReindexOnUpdate;
 
 	private StandalonePojoMappingSetupHelper(MethodHandles.Lookup lookup, BackendSetupStrategy backendSetupStrategy,
 			SchemaManagementStrategyName schemaManagementStrategyName) {
 		super( backendSetupStrategy );
 		this.lookup = lookup;
 		this.schemaManagementStrategyName = schemaManagementStrategyName;
+		this.assertionHelper = new StandalonePojoAssertionHelper( backendSetupStrategy );
+	}
+
+	public StandalonePojoMappingSetupHelper disableAssociationReindexing() {
+		this.defaultReindexOnUpdate = ReindexOnUpdate.SHALLOW;
+		return this;
+	}
+
+	@Override
+	public StandalonePojoAssertionHelper assertions() {
+		return assertionHelper;
 	}
 
 	@Override
@@ -87,7 +106,11 @@ public final class StandalonePojoMappingSetupHelper
 	}
 
 	public final class SetupContext
-			extends MappingSetupHelper<SetupContext, SearchMappingBuilder, StandalonePojoMappingConfigurationContext, CloseableSearchMapping>.AbstractSetupContext {
+			extends
+			MappingSetupHelper<SetupContext,
+					SearchMappingBuilder,
+					StandalonePojoMappingConfigurationContext,
+					CloseableSearchMapping>.AbstractSetupContext {
 
 		// Use a LinkedHashMap for deterministic iteration
 		private final Map<String, Object> properties = new LinkedHashMap<>();
@@ -102,6 +125,9 @@ public final class StandalonePojoMappingSetupHelper
 			// Ensure we don't build Jandex indexes needlessly:
 			// discovery based on Jandex ought to be tested in real projects that don't use this setup helper.
 			withConfiguration( builder -> builder.annotationMapping().buildMissingDiscoveredJandexIndexes( false ) );
+			if ( defaultReindexOnUpdate != null ) {
+				withConfiguration( builder -> builder.defaultReindexOnUpdate( defaultReindexOnUpdate ) );
+			}
 		}
 
 		@Override
@@ -127,7 +153,7 @@ public final class StandalonePojoMappingSetupHelper
 			} );
 		}
 
-		public SetupContext withAnnotatedEntityTypes(Class<?> ... annotatedEntityTypes) {
+		public SetupContext withAnnotatedEntityTypes(Class<?>... annotatedEntityTypes) {
 			return withAnnotatedEntityTypes( CollectionHelper.asLinkedHashSet( annotatedEntityTypes ) );
 		}
 
@@ -138,7 +164,7 @@ public final class StandalonePojoMappingSetupHelper
 			} );
 		}
 
-		public SetupContext withAnnotatedTypes(Class<?> ... annotatedTypes) {
+		public SetupContext withAnnotatedTypes(Class<?>... annotatedTypes) {
 			return withAnnotatedTypes( CollectionHelper.asLinkedHashSet( annotatedTypes ) );
 		}
 
@@ -146,7 +172,7 @@ public final class StandalonePojoMappingSetupHelper
 			return withConfiguration( builder -> builder.annotationMapping().add( annotatedTypes ) );
 		}
 
-		public SearchMapping setup(Class<?> ... annotatedEntityTypes) {
+		public SearchMapping setup(Class<?>... annotatedEntityTypes) {
 			return withAnnotatedEntityTypes( annotatedEntityTypes ).setup();
 		}
 
@@ -158,7 +184,8 @@ public final class StandalonePojoMappingSetupHelper
 		}
 
 		@Override
-		protected void consumeBeforeBuildConfigurations(SearchMappingBuilder builder, List<Consumer<StandalonePojoMappingConfigurationContext>> consumers) {
+		protected void consumeBeforeBuildConfigurations(SearchMappingBuilder builder,
+				List<Consumer<StandalonePojoMappingConfigurationContext>> consumers) {
 			List<Object> configurers = consumers.stream()
 					.map( c -> (StandalonePojoMappingConfigurer) c::accept )
 					.collect( Collectors.toList() );

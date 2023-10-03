@@ -13,7 +13,8 @@ import static org.hibernate.search.util.impl.test.JsonHelper.assertJsonEquals;
 
 import java.util.List;
 import java.util.function.Consumer;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
@@ -26,6 +27,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.google.gson.JsonObject;
+
 import org.skyscreamer.jsonassert.JSONCompareMode;
 
 public class ElasticsearchProjectionDslIT {
@@ -90,7 +92,7 @@ public class ElasticsearchProjectionDslIT {
 			assertThat( hits ).hasSize( 4 );
 			assertThat( hits ).allSatisfy( hit -> assertJsonEquals(
 					"{"
-							+ "'_index': '" + defaultPrimaryName( Book.NAME ) + "'"
+							+ "  '_index': '" + defaultPrimaryName( Book.NAME ) + "'"
 							+ "}",
 					hit.toString(),
 					JSONCompareMode.LENIENT

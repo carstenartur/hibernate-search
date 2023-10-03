@@ -9,6 +9,7 @@ package org.hibernate.search.backend.lucene.lowlevel.facet.impl;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+
 import org.apache.lucene.facet.FacetResult;
 import org.apache.lucene.facet.Facets;
 import org.apache.lucene.facet.LabelAndValue;
@@ -33,6 +34,12 @@ public class MultiValueRangeFacetCounts extends Facets {
 		this.ranges = ranges;
 		this.fastMatchQuery = fastMatchQuery;
 		counts = new int[ranges.length];
+	}
+
+	@Override
+	public FacetResult getAllChildren(String dim, String... path) {
+		throw new UnsupportedOperationException(
+				"Getting all children is not supported by " + this.getClass().getSimpleName() );
 	}
 
 	@Override

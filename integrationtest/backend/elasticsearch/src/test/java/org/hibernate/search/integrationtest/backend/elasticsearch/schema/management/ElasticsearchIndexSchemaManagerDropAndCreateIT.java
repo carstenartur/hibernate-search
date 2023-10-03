@@ -36,9 +36,8 @@ public class ElasticsearchIndexSchemaManagerDropAndCreateIT {
 	@Rule
 	public TestElasticsearchClient elasticSearchClient = new TestElasticsearchClient();
 
-	private final StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root ->
-		root.field( "field", f -> f.asString() )
-				.toReference()
+	private final StubMappedIndex index = StubMappedIndex.ofNonRetrievable( root -> root.field( "field", f -> f.asString() )
+			.toReference()
 	);
 
 	@Test
@@ -48,22 +47,22 @@ public class ElasticsearchIndexSchemaManagerDropAndCreateIT {
 		elasticSearchClient.index( index.name() ).type().putMapping(
 				simpleMappingForInitialization(
 						"'field': {"
-								+ "'type': 'text'"
-						+ "},"
-						+ "'NOTmyField': {"
-								+ "'type': 'date'"
-						+ "}"
+								+ "  'type': 'text'"
+								+ "},"
+								+ "'NOTmyField': {"
+								+ "  'type': 'date'"
+								+ "}"
 				)
 		);
 
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'field': {"
-								+ "'type': 'text'"
-						+ "},"
-						+ "'NOTmyField': {"
-								+ "'type': 'date'"
-						+ "}"
+								+ "  'type': 'text'"
+								+ "},"
+								+ "'NOTmyField': {"
+								+ "  'type': 'date'"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -75,9 +74,9 @@ public class ElasticsearchIndexSchemaManagerDropAndCreateIT {
 				simpleMappingForExpectations(
 						// Previous index was dropped => new schema
 						"'field': {"
-								+ "'type': 'keyword',"
-								+ "'doc_values': false"
-						+ "}"
+								+ "  'type': 'keyword',"
+								+ "  'doc_values': false"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);
@@ -96,9 +95,9 @@ public class ElasticsearchIndexSchemaManagerDropAndCreateIT {
 		assertJsonEquals(
 				simpleMappingForExpectations(
 						"'field': {"
-								+ "'type': 'keyword',"
-								+ "'doc_values': false"
-						+ "}"
+								+ "  'type': 'keyword',"
+								+ "  'doc_values': false"
+								+ "}"
 				),
 				elasticSearchClient.index( index.name() ).type().getMapping()
 		);

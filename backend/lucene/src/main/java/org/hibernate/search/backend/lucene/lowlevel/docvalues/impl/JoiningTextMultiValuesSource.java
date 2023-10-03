@@ -35,7 +35,7 @@ public abstract class JoiningTextMultiValuesSource extends TextMultiValuesSource
 
 	protected final NestedDocsProvider nestedDocsProvider;
 
-	public JoiningTextMultiValuesSource(NestedDocsProvider nestedDocsProvider) {
+	protected JoiningTextMultiValuesSource(NestedDocsProvider nestedDocsProvider) {
 		this.nestedDocsProvider = nestedDocsProvider;
 	}
 
@@ -75,7 +75,7 @@ public abstract class JoiningTextMultiValuesSource extends TextMultiValuesSource
 		}
 
 		return new TextMultiValues.DocValuesTextMultiValues( values ) {
-			int currentParentDoc = -1;
+			private int currentParentDoc = -1;
 
 			@Override
 			public boolean advanceExact(int parentDoc) throws IOException {
@@ -83,32 +83,32 @@ public abstract class JoiningTextMultiValuesSource extends TextMultiValuesSource
 				if ( parentDoc == currentParentDoc ) {
 					return hasNextValue();
 				}
-
 				currentParentDoc = parentDoc;
-				nextOrd = SortedSetDocValues.NO_MORE_ORDS; // To be set in the next call to hasNextValue()
-
-				return childDocsWithValues.advanceExactParent( parentDoc );
+				boolean found = childDocsWithValues.advanceExactParent( parentDoc );
+				if ( found ) {
+					// Position the iterator on the next child so that updateRemaining()
+					// can get the relevant docvalues.
+					childDocsWithValues.nextChild();
+				}
+				updateRemaining( found );
+				return found;
 			}
 
 			@Override
 			public boolean hasNextValue() throws IOException {
-				if ( nextOrd != SortedSetDocValues.NO_MORE_ORDS ) {
+				if ( super.hasNextValue() ) {
 					return true;
 				}
 
-				if ( childDocsWithValues.nextChild() != DocIdSetIterator.NO_MORE_DOCS ) {
-					nextOrd = values.nextOrd();
-					return true;
-				}
-				else {
-					nextOrd = SortedSetDocValues.NO_MORE_ORDS;
-					return false;
-				}
+				boolean hasNextChildDocWithValue = childDocsWithValues.nextChild() != DocIdSetIterator.NO_MORE_DOCS;
+				updateRemaining( hasNextChildDocWithValue );
+				return hasNextChildDocWithValue;
 			}
 		};
 	}
 
-	private static class FieldTextMultiValuesSource extends
+	private static class FieldTextMultiValuesSource
+			extends
 			JoiningTextMultiValuesSource {
 
 		private final String field;

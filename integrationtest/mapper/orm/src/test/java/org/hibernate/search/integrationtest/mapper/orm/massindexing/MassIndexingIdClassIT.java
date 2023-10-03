@@ -10,9 +10,10 @@ import static org.assertj.core.api.Fail.fail;
 
 import java.io.Serializable;
 import java.util.Objects;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
 import org.hibernate.search.engine.backend.work.execution.DocumentRefreshStrategy;
@@ -50,7 +51,7 @@ public class MassIndexingIdClassIT {
 	public void setup(OrmSetupHelper.SetupContext setupContext) {
 		backendMock.expectAnySchema( IdClassEntity.INDEX );
 
-		setupContext.withPropertyRadical( HibernateOrmMapperSettings.Radicals.AUTOMATIC_INDEXING_ENABLED, false )
+		setupContext.withPropertyRadical( HibernateOrmMapperSettings.Radicals.INDEXING_LISTENERS_ENABLED, false )
 				.withAnnotatedTypes( IdClassEntity.class );
 	}
 
@@ -73,8 +74,8 @@ public class MassIndexingIdClassIT {
 			// add operations on indexes can follow any random order,
 			// since they are executed by different threads
 			backendMock.expectWorks(
-							IdClassEntity.INDEX, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
-					)
+					IdClassEntity.INDEX, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+			)
 					.add( "1", b -> b.field( "keyword", "key-A" ) )
 					.add( "2", b -> b.field( "keyword", "key-C" ) )
 					.add( "3", b -> b.field( "keyword", "key-C" ) )
@@ -192,8 +193,8 @@ public class MassIndexingIdClassIT {
 				return false;
 			}
 			MyIdClass myIdClass = (MyIdClass) o;
-			return Objects.equals( id1, myIdClass.id1 ) &&
-					Objects.equals( id2, myIdClass.id2 );
+			return Objects.equals( id1, myIdClass.id1 )
+					&& Objects.equals( id2, myIdClass.id2 );
 		}
 
 		@Override

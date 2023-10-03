@@ -15,8 +15,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import javax.persistence.Entity;
-import javax.persistence.Id;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -73,8 +74,7 @@ public class SearchQueryEntityChangingScrollingIT {
 
 			List<String> targetIndexes = Collections.singletonList( SimpleEntity.NAME );
 
-			backendMock.expectScrollObjects( targetIndexes, 3, b -> {
-			} );
+			backendMock.expectScrollObjects( targetIndexes, 3, b -> {} );
 			for ( int base = 0; base < 12; base += 3 ) {
 				backendMock.expectNextScroll( targetIndexes,
 						StubNextScrollWorkBehavior.of( 12, documentReferences( base, base + 1, base + 2 ) ) );
@@ -86,7 +86,8 @@ public class SearchQueryEntityChangingScrollingIT {
 
 			try ( SearchScroll<SimpleEntity> scroll = query.scroll( 3 ) ) {
 				for ( SearchScrollResult<SimpleEntity> next = scroll.next(); next.hasHits(); next = scroll.next() ) {
-					assertThatHits( next.hits() ).hasHitsAnyOrder( new SimpleEntity( index++ ), new SimpleEntity( index++ ), new SimpleEntity( index++ ) );
+					assertThatHits( next.hits() ).hasHitsAnyOrder( new SimpleEntity( index++ ), new SimpleEntity( index++ ),
+							new SimpleEntity( index++ ) );
 					changeNames( next.hits() );
 
 					assertThat( next.total().hitCount() ).isEqualTo( 12 );
@@ -152,8 +153,8 @@ public class SearchQueryEntityChangingScrollingIT {
 				return false;
 			}
 			SimpleEntity that = (SimpleEntity) o;
-			return Objects.equals( id, that.id ) &&
-					Objects.equals( name, that.name );
+			return Objects.equals( id, that.id )
+					&& Objects.equals( name, that.name );
 		}
 
 		@Override

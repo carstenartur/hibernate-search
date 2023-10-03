@@ -52,6 +52,9 @@ public interface PojoRawTypeModel<T> extends PojoTypeModel<T>, MappableTypeModel
 	@Override
 	Stream<? extends PojoRawTypeModel<? super T>> descendingSuperTypes();
 
+	/**
+	 * @return All annotations on this specific type (non-inherited annotations from supertype are excluded).
+	 */
 	Stream<Annotation> annotations();
 
 	/**
@@ -66,13 +69,16 @@ public interface PojoRawTypeModel<T> extends PojoTypeModel<T>, MappableTypeModel
 	 * @return The constructor of this type whose parameters have the given {@code parameterTypes}.
 	 * @throws org.hibernate.search.util.common.SearchException If there is no constructor with parameters of the given types.
 	 */
-	PojoConstructorModel<T> constructor(Class<?> ... parameterTypes);
+	PojoConstructorModel<T> constructor(Class<?>... parameterTypes);
 
 	/**
 	 * @return All accessible constructors of this type.
 	 */
 	Collection<PojoConstructorModel<T>> declaredConstructors();
 
+	/**
+	 * @return All declared properties of this type.
+	 */
 	Collection<PojoPropertyModel<?>> declaredProperties();
 
 	/**
@@ -85,6 +91,9 @@ public interface PojoRawTypeModel<T> extends PojoTypeModel<T>, MappableTypeModel
 	 */
 	PojoTypeModel<? extends T> cast(PojoTypeModel<?> other);
 
+	/**
+	 * @return A {@link PojoCaster} targeting this type.
+	 */
 	PojoCaster<T> caster();
 
 }

@@ -11,42 +11,36 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.hibernate.search.engine.backend.types.ObjectStructure;
 import org.hibernate.search.engine.backend.types.Projectable;
-import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
-import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
-import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FieldProjection;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IdProjection;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.ProjectionConstructor;
+import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.common.reporting.FailureReportUtils;
-import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
 import org.hibernate.search.util.impl.integrationtest.common.rule.StubSearchWorkBehavior;
+import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Rule;
 import org.junit.Test;
 
 @TestForIssue(jiraKey = "HSEARCH-3927")
-public class ProjectionConstructorBaseIT {
-
-	private static final String INDEX_NAME = "index_name";
+public class ProjectionConstructorBaseIT extends AbstractProjectionConstructorIT {
 
 	@Rule
-	public BackendMock backendMock = new BackendMock();
-
-	@Rule
-	public StandalonePojoMappingSetupHelper setupHelper = StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public StandalonePojoMappingSetupHelper setupHelper =
+			StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
 
 	@Test
 	public void typeLevelAnnotation() {
@@ -63,6 +57,7 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
@@ -74,7 +69,7 @@ public class ProjectionConstructorBaseIT {
 				.withAnnotatedTypes( MyProjection.class )
 				.setup( IndexedEntity.class );
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, MyProjection.class,
 				Arrays.asList(
 						Arrays.asList( "result1", 1 ),
@@ -104,10 +99,12 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
 			}
+
 			public MyProjection(String text, Integer integer, String somethingElse) {
 				this.text = text;
 				this.integer = integer;
@@ -139,15 +136,18 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyProjection() {
 				this.text = "foo";
 				this.integer = 42;
 			}
+
 			@ProjectionConstructor
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
 			}
+
 			public MyProjection(String text, Integer integer, String somethingElse) {
 				this.text = text;
 				this.integer = integer;
@@ -159,7 +159,7 @@ public class ProjectionConstructorBaseIT {
 				.withAnnotatedTypes( MyProjection.class )
 				.setup( IndexedEntity.class );
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, MyProjection.class,
 				Arrays.asList(
 						Arrays.asList( "result1", 1 ),
@@ -188,11 +188,13 @@ public class ProjectionConstructorBaseIT {
 		abstract class MyAbstractProjection {
 			public final String text;
 			public final Integer integer;
+
 			@ProjectionConstructor
 			public MyAbstractProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
 			}
+
 			public MyAbstractProjection(String text, Integer integer, String somethingElse) {
 				this.text = text;
 				this.integer = integer;
@@ -235,7 +237,7 @@ public class ProjectionConstructorBaseIT {
 		backendMock.expectAnySchema( INDEX_NAME );
 		SearchMapping mapping = setupHelper.start().setup( IndexedEntity.class );
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, IndexedEntity.class,
 				Arrays.asList(
 						Arrays.asList( "result1", 1 ),
@@ -264,11 +266,13 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			@ProjectionConstructor
 			public MyProjection() {
 				this.text = "foo";
 				this.integer = 42;
 			}
+
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
@@ -280,7 +284,7 @@ public class ProjectionConstructorBaseIT {
 				.withAnnotatedTypes( MyProjection.class )
 				.setup( IndexedEntity.class );
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, MyProjection.class,
 				Arrays.asList(
 						Arrays.asList(),
@@ -293,566 +297,6 @@ public class ProjectionConstructorBaseIT {
 						new MyProjection()
 				)
 		);
-	}
-
-	@Test
-	public void inferredInner_value_multiValued_list() {
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public Collection<String> text;
-			@GenericField
-			public Set<Integer> integer;
-		}
-		class MyProjection {
-			public final List<String> text;
-			public final List<Integer> integer;
-			@ProjectionConstructor
-			public MyProjection(List<String> text, List<Integer> integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( Arrays.asList( "result1_1", "result1_2" ), Arrays.asList( 11, 12 ) ),
-						Arrays.asList( Arrays.asList( "result2_1" ), Arrays.asList( 21 ) ),
-						Arrays.asList( Collections.emptyList(), Collections.emptyList() ),
-						Arrays.asList( Arrays.asList( "result4_1" ), Arrays.asList( 41 ) )
-				),
-				Arrays.asList(
-						new MyProjection( Arrays.asList( "result1_1", "result1_2" ), Arrays.asList( 11, 12 ) ),
-						new MyProjection( Arrays.asList( "result2_1" ), Arrays.asList( 21 ) ),
-						new MyProjection( Collections.emptyList(), Collections.emptyList() ),
-						new MyProjection( Arrays.asList( "result4_1" ), Arrays.asList( 41 ) )
-				)
-		);
-	}
-
-	@Test
-	public void inferredInner_value_multiValued_collection() {
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public List<String> text;
-			@GenericField
-			public Set<Integer> integer;
-		}
-		class MyProjection {
-			public final Collection<String> text;
-			public final Collection<Integer> integer;
-			@ProjectionConstructor
-			public MyProjection(Collection<String> text, Collection<Integer> integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( Arrays.asList( "result1_1", "result1_2" ), Arrays.asList( 11, 12 ) ),
-						Arrays.asList( Arrays.asList( "result2_1" ), Arrays.asList( 21 ) ),
-						Arrays.asList( Collections.emptyList(), Collections.emptyList() ),
-						Arrays.asList( Arrays.asList( "result4_1" ), Arrays.asList( 41 ) )
-				),
-				Arrays.asList(
-						new MyProjection( Arrays.asList( "result1_1", "result1_2" ), Arrays.asList( 11, 12 ) ),
-						new MyProjection( Arrays.asList( "result2_1" ), Arrays.asList( 21 ) ),
-						new MyProjection( Collections.emptyList(), Collections.emptyList() ),
-						new MyProjection( Arrays.asList( "result4_1" ), Arrays.asList( 41 ) )
-				)
-		);
-	}
-
-	@Test
-	public void inferredInner_value_multiValued_iterable() {
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public List<String> text;
-			@GenericField
-			public Set<Integer> integer;
-		}
-		class MyProjection {
-			public final Iterable<String> text;
-			public final Iterable<Integer> integer;
-			@ProjectionConstructor
-			public MyProjection(Iterable<String> text, Iterable<Integer> integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( Arrays.asList( "result1_1", "result1_2" ), Arrays.asList( 11, 12 ) ),
-						Arrays.asList( Arrays.asList( "result2_1" ), Arrays.asList( 21 ) ),
-						Arrays.asList( Collections.emptyList(), Collections.emptyList() ),
-						Arrays.asList( Arrays.asList( "result4_1" ), Arrays.asList( 41 ) )
-				),
-				Arrays.asList(
-						new MyProjection( Arrays.asList( "result1_1", "result1_2" ), Arrays.asList( 11, 12 ) ),
-						new MyProjection( Arrays.asList( "result2_1" ), Arrays.asList( 21 ) ),
-						new MyProjection( Collections.emptyList(), Collections.emptyList() ),
-						new MyProjection( Arrays.asList( "result4_1" ), Arrays.asList( 41 ) )
-				)
-		);
-	}
-
-	@Test
-	public void inferredInner_value_multiValued_set() {
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public Collection<String> text;
-			@GenericField
-			public Set<Integer> integer;
-		}
-		class MyProjection {
-			public final Set<String> text;
-			public final List<Integer> integer;
-			@ProjectionConstructor
-			public MyProjection(Set<String> text, List<Integer> integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-
-		assertThatThrownBy( () -> setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class )
-				.setup( IndexedEntity.class ) )
-				.isInstanceOf( SearchException.class )
-				.satisfies( FailureReportUtils.hasFailureReport()
-						.typeContext( MyProjection.class.getName() )
-						.constructorContext( ProjectionConstructorBaseIT.class, Set.class, List.class )
-						.methodParameterContext( 1, "text" )
-						.failure( "Invalid parameter type for projection constructor",
-								"java.util.Set<java.lang.String>",
-								"When inferring inner projections from constructor parameters,"
-										+ " multi-valued constructor parameters must be lists (java.util.List<...>)"
-										+ " or list supertypes (java.lang.Iterable<...>, java.util.Collection<...>)" ) );
-	}
-
-	@Test
-	public void inferredInner_object() {
-		class Contained {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@GenericField
-			public Integer integer;
-		}
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@IndexedEmbedded
-			public Contained contained;
-		}
-		class MyInnerProjection {
-			public final String text;
-			public final Integer integer;
-			@ProjectionConstructor
-			public MyInnerProjection(String text, Integer integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-		class MyProjection {
-			public final String text;
-			public final MyInnerProjection contained;
-			@ProjectionConstructor
-			public MyProjection(String text, MyInnerProjection contained) {
-				this.text = text;
-				this.contained = contained;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class, MyInnerProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( "result1", Arrays.asList( "result1_1", 11 ) ),
-						Arrays.asList( "result2", Arrays.asList( null, null ) ),
-						Arrays.asList( "result3", null )
-				),
-				Arrays.asList(
-						new MyProjection( "result1", new MyInnerProjection( "result1_1", 11 ) ),
-						new MyProjection( "result2", new MyInnerProjection( null, null ) ),
-						new MyProjection( "result3", null )
-				)
-		);
-	}
-
-	// If an inner projection type is not included in any Jandex index on startup,
-	// Hibernate Search can still get on its feet thanks to annotated type discovery.
-	@Test
-	public void inferredInner_object_annotatedTypeDiscovery() {
-		class Contained {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@GenericField
-			public Integer integer;
-		}
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@IndexedEmbedded
-			public Contained contained;
-		}
-		class MyInnerProjection {
-			public final String text;
-			public final Integer integer;
-			@ProjectionConstructor
-			public MyInnerProjection(String text, Integer integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-		class MyProjection {
-			public final String text;
-			public final MyInnerProjection contained;
-			@ProjectionConstructor
-			public MyProjection(String text, MyInnerProjection contained) {
-				this.text = text;
-				this.contained = contained;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				// We're not processing annotations on MyInnerProjection on purpose:
-				// this simulates the class not being included in any Jandex index on startup.
-				.withAnnotatedTypes( MyProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( "result1", Arrays.asList( "result1_1", 11 ) ),
-						Arrays.asList( "result2", Arrays.asList( null, null ) ),
-						Arrays.asList( "result3", null )
-				),
-				Arrays.asList(
-						new MyProjection( "result1", new MyInnerProjection( "result1_1", 11 ) ),
-						new MyProjection( "result2", new MyInnerProjection( null, null ) ),
-						new MyProjection( "result3", null )
-				)
-		);
-	}
-
-	@Test
-	public void inferredInner_object_multiValued_list() {
-		class Contained {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@GenericField
-			public Integer integer;
-		}
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@IndexedEmbedded
-			public Collection<Contained> contained;
-		}
-		class MyInnerProjection {
-			public final String text;
-			public final Integer integer;
-			@ProjectionConstructor
-			public MyInnerProjection(String text, Integer integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-		class MyProjection {
-			public final String text;
-			public final List<MyInnerProjection> contained;
-			@ProjectionConstructor
-			public MyProjection(String text, List<MyInnerProjection> contained) {
-				this.text = text;
-				this.contained = contained;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class, MyInnerProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( "result1", Arrays.asList(
-								Arrays.asList( "result1_1", 11 ),
-								Arrays.asList( "result1_2", 12 )
-						) ),
-						Arrays.asList( "result2", Arrays.asList(
-								Arrays.asList( "result2_1", 21 )
-						) ),
-						Arrays.asList( "result3", Collections.emptyList() ),
-						Arrays.asList( "result4", Arrays.asList(
-								Arrays.asList( "result4_1", 41 )
-						) )
-				),
-				Arrays.asList(
-						new MyProjection( "result1", Arrays.asList(
-								new MyInnerProjection( "result1_1", 11 ),
-								new MyInnerProjection( "result1_2", 12 )
-						) ),
-						new MyProjection( "result2", Arrays.asList(
-								new MyInnerProjection( "result2_1", 21 )
-						) ),
-						new MyProjection( "result3", Collections.emptyList() ),
-						new MyProjection( "result4", Arrays.asList(
-								new MyInnerProjection( "result4_1", 41 )
-						) )
-				)
-		);
-	}
-
-	@Test
-	public void inferredInner_object_multiValued_collection() {
-		class Contained {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@GenericField
-			public Integer integer;
-		}
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@IndexedEmbedded
-			public List<Contained> contained;
-		}
-		class MyInnerProjection {
-			public final String text;
-			public final Integer integer;
-			@ProjectionConstructor
-			public MyInnerProjection(String text, Integer integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-		class MyProjection {
-			public final String text;
-			public final Collection<MyInnerProjection> contained;
-			@ProjectionConstructor
-			public MyProjection(String text, Collection<MyInnerProjection> contained) {
-				this.text = text;
-				this.contained = contained;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class, MyInnerProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( "result1", Arrays.asList(
-								Arrays.asList( "result1_1", 11 ),
-								Arrays.asList( "result1_2", 12 )
-						) ),
-						Arrays.asList( "result2", Arrays.asList(
-								Arrays.asList( "result2_1", 21 )
-						) ),
-						Arrays.asList( "result3", Collections.emptyList() ),
-						Arrays.asList( "result4", Arrays.asList(
-								Arrays.asList( "result4_1", 41 )
-						) )
-				),
-				Arrays.asList(
-						new MyProjection( "result1", Arrays.asList(
-								new MyInnerProjection( "result1_1", 11 ),
-								new MyInnerProjection( "result1_2", 12 )
-						) ),
-						new MyProjection( "result2", Arrays.asList(
-								new MyInnerProjection( "result2_1", 21 )
-						) ),
-						new MyProjection( "result3", Collections.emptyList() ),
-						new MyProjection( "result4", Arrays.asList(
-								new MyInnerProjection( "result4_1", 41 )
-						) )
-				)
-		);
-	}
-
-	@Test
-	public void inferredInner_object_multiValued_iterable() {
-		class Contained {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@GenericField
-			public Integer integer;
-		}
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@IndexedEmbedded
-			public List<Contained> contained;
-		}
-		class MyInnerProjection {
-			public final String text;
-			public final Integer integer;
-			@ProjectionConstructor
-			public MyInnerProjection(String text, Integer integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-		class MyProjection {
-			public final String text;
-			public final Iterable<MyInnerProjection> contained;
-			@ProjectionConstructor
-			public MyProjection(String text, Iterable<MyInnerProjection> contained) {
-				this.text = text;
-				this.contained = contained;
-			}
-		}
-
-		backendMock.expectAnySchema( INDEX_NAME );
-		SearchMapping mapping = setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class, MyInnerProjection.class )
-				.setup( IndexedEntity.class );
-
-		testSuccessfulRootProjection(
-				mapping, IndexedEntity.class, MyProjection.class,
-				Arrays.asList(
-						Arrays.asList( "result1", Arrays.asList(
-								Arrays.asList( "result1_1", 11 ),
-								Arrays.asList( "result1_2", 12 )
-						) ),
-						Arrays.asList( "result2", Arrays.asList(
-								Arrays.asList( "result2_1", 21 )
-						) ),
-						Arrays.asList( "result3", Collections.emptyList() ),
-						Arrays.asList( "result4", Arrays.asList(
-								Arrays.asList( "result4_1", 41 )
-						) )
-				),
-				Arrays.asList(
-						new MyProjection( "result1", Arrays.asList(
-								new MyInnerProjection( "result1_1", 11 ),
-								new MyInnerProjection( "result1_2", 12 )
-						) ),
-						new MyProjection( "result2", Arrays.asList(
-								new MyInnerProjection( "result2_1", 21 )
-						) ),
-						new MyProjection( "result3", Collections.emptyList() ),
-						new MyProjection( "result4", Arrays.asList(
-								new MyInnerProjection( "result4_1", 41 )
-						) )
-				)
-		);
-	}
-
-	@Test
-	public void inferredInner_object_multiValued_set() {
-		class Contained {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@GenericField
-			public Integer integer;
-		}
-		@Indexed(index = INDEX_NAME)
-		class IndexedEntity {
-			@DocumentId
-			public Integer id;
-			@FullTextField
-			public String text;
-			@IndexedEmbedded
-			public List<Contained> contained;
-		}
-		class MyInnerProjection {
-			public final String text;
-			public final Integer integer;
-			@ProjectionConstructor
-			public MyInnerProjection(String text, Integer integer) {
-				this.text = text;
-				this.integer = integer;
-			}
-		}
-		class MyProjection {
-			public final String text;
-			public final Set<MyInnerProjection> contained;
-			@ProjectionConstructor
-			public MyProjection(String text, Set<MyInnerProjection> contained) {
-				this.text = text;
-				this.contained = contained;
-			}
-		}
-
-		assertThatThrownBy( () -> setupHelper.start()
-				.withAnnotatedTypes( MyProjection.class )
-				.setup( IndexedEntity.class ) )
-				.isInstanceOf( SearchException.class )
-				.satisfies( FailureReportUtils.hasFailureReport()
-						.typeContext( MyProjection.class.getName() )
-						.constructorContext( ProjectionConstructorBaseIT.class, String.class, Set.class )
-						.methodParameterContext( 2, "contained" )
-						.failure( "Invalid parameter type for projection constructor",
-								"java.util.Set<" + MyInnerProjection.class.getName() + ">",
-								"When inferring inner projections from constructor parameters,"
-										+ " multi-valued constructor parameters must be lists (java.util.List<...>)"
-										+ " or list supertypes (java.lang.Iterable<...>, java.util.Collection<...>)" ) );
 	}
 
 	@Test
@@ -869,10 +313,12 @@ public class ProjectionConstructorBaseIT {
 		class MyNonProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyNonProjection() {
 				this.text = "foo";
 				this.integer = 42;
 			}
+
 			public MyNonProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
@@ -910,10 +356,12 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyProjection() {
 				this.text = "foo";
 				this.integer = 42;
 			}
+
 			@ProjectionConstructor
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
@@ -954,14 +402,17 @@ public class ProjectionConstructorBaseIT {
 		class MyNonProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyNonProjection() {
 				this.text = "foo";
 				this.integer = 42;
 			}
+
 			public MyNonProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
 			}
+
 			public MyNonProjection(String text, Integer integer, String somethingElse) {
 				this.text = text;
 				this.integer = integer;
@@ -971,10 +422,12 @@ public class ProjectionConstructorBaseIT {
 			public MyProjectionSubclass() {
 				super();
 			}
+
 			@ProjectionConstructor
 			public MyProjectionSubclass(String text, Integer integer) {
 				super( text + "_fromSubclass", integer );
 			}
+
 			public MyProjectionSubclass(String text, Integer integer, String somethingElse) {
 				super( text, integer, somethingElse );
 			}
@@ -993,7 +446,7 @@ public class ProjectionConstructorBaseIT {
 							MyNonProjection.class.getName() );
 		}
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, MyProjectionSubclass.class,
 				Arrays.asList(
 						Arrays.asList( "result1", 1 ),
@@ -1022,15 +475,18 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyProjection() {
 				this.text = "foo";
 				this.integer = 42;
 			}
+
 			@ProjectionConstructor
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
 			}
+
 			public MyProjection(String text, Integer integer, String somethingElse) {
 				this.text = text;
 				this.integer = integer;
@@ -1040,9 +496,11 @@ public class ProjectionConstructorBaseIT {
 			public MyNonProjectionSubclass() {
 				super();
 			}
+
 			public MyNonProjectionSubclass(String text, Integer integer) {
 				super( text + "_fromSubclass", integer );
 			}
+
 			public MyNonProjectionSubclass(String text, Integer integer, String somethingElse) {
 				super( text, integer, somethingElse );
 			}
@@ -1053,7 +511,7 @@ public class ProjectionConstructorBaseIT {
 				.withAnnotatedTypes( MyProjection.class, MyNonProjectionSubclass.class )
 				.setup( IndexedEntity.class );
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, MyProjection.class,
 				Arrays.asList(
 						Arrays.asList( "result1", 1 ),
@@ -1090,15 +548,18 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			public MyProjection() {
 				this.text = "foo";
 				this.integer = 42;
 			}
+
 			@ProjectionConstructor
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
 				this.integer = integer;
 			}
+
 			public MyProjection(String text, Integer integer, String somethingElse) {
 				this.text = text;
 				this.integer = integer;
@@ -1108,10 +569,12 @@ public class ProjectionConstructorBaseIT {
 			public MyProjectionSubclass() {
 				super();
 			}
+
 			@ProjectionConstructor
 			public MyProjectionSubclass(String text, Integer integer) {
 				super( text + "_fromSubclass", integer );
 			}
+
 			public MyProjectionSubclass(String text, Integer integer, String somethingElse) {
 				super( text, integer, somethingElse );
 			}
@@ -1122,7 +585,7 @@ public class ProjectionConstructorBaseIT {
 				.withAnnotatedTypes( MyProjection.class, MyProjectionSubclass.class )
 				.setup( IndexedEntity.class );
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, MyProjection.class,
 				Arrays.asList(
 						Arrays.asList( "result1", 1 ),
@@ -1136,7 +599,7 @@ public class ProjectionConstructorBaseIT {
 				)
 		);
 
-		testSuccessfulRootProjection(
+		testSuccessfulRootProjectionExecutionOnly(
 				mapping, IndexedEntity.class, MyProjectionSubclass.class,
 				Arrays.asList(
 						Arrays.asList( "result1", 1 ),
@@ -1149,223 +612,6 @@ public class ProjectionConstructorBaseIT {
 						new MyProjectionSubclass( "result3", 3 )
 				)
 		);
-	}
-
-	@Test
-	public void cycle() {
-		class Model {
-			@Indexed(index = INDEX_NAME)
-			class Level1 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded(includeDepth = 10)
-				public Level2 level2;
-			}
-			class Level2 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded
-				Level1 level1;
-			}
-			class ProjectionLevel1 {
-				public final String text;
-				public final ProjectionLevel2 level2;
-				@ProjectionConstructor
-				public ProjectionLevel1(String text, ProjectionLevel2 level2) {
-					this.text = text;
-					this.level2 = level2;
-				}
-			}
-			class ProjectionLevel2 {
-				public final String text;
-				public final ProjectionLevel1 level1;
-				@ProjectionConstructor
-				public ProjectionLevel2(String text, ProjectionLevel1 level1) {
-					this.text = text;
-					this.level1 = level1;
-				}
-			}
-		}
-
-		assertThatThrownBy( () -> setupHelper.start()
-				.withAnnotatedTypes( Model.ProjectionLevel1.class, Model.ProjectionLevel2.class )
-				.setup( Model.Level1.class ) )
-				.isInstanceOf( SearchException.class )
-				.satisfies( FailureReportUtils.hasFailureReport()
-						.typeContext( Model.ProjectionLevel1.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel2.class )
-						.methodParameterContext( 2, "level2" )
-						.typeContext( Model.ProjectionLevel2.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel1.class )
-						.methodParameterContext( 2, "level1" )
-						.typeContext( Model.ProjectionLevel1.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel2.class )
-						.failure( "Infinite object projection recursion starting from projection constructor "
-								+ Model.ProjectionLevel1.class.getName() + "(" + Model.class.getName() + ", "
-								+ String.class.getName() + ", " + Model.ProjectionLevel2.class.getName() + ")"
-								+ " and involving field path '.level2.level1'" ) );
-	}
-
-	@Test
-	public void cycle_indirect() {
-		class Model {
-			@Indexed(index = INDEX_NAME)
-			class Level1 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded(includeDepth = 10)
-				public Level2 level2;
-			}
-			class Level2 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded
-				Level3 level3;
-			}
-			class Level3 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded
-				Level1 level1;
-			}
-			class ProjectionLevel1 {
-				public final String text;
-				public final ProjectionLevel2 level2;
-				@ProjectionConstructor
-				public ProjectionLevel1(String text, ProjectionLevel2 level2) {
-					this.text = text;
-					this.level2 = level2;
-				}
-			}
-			class ProjectionLevel2 {
-				public final String text;
-				public final ProjectionLevel3 level3;
-				@ProjectionConstructor
-				public ProjectionLevel2(String text, ProjectionLevel3 level3) {
-					this.text = text;
-					this.level3 = level3;
-				}
-			}
-			class ProjectionLevel3 {
-				public final String text;
-				public final ProjectionLevel1 level1;
-				@ProjectionConstructor
-				public ProjectionLevel3(String text, ProjectionLevel1 level1) {
-					this.text = text;
-					this.level1 = level1;
-				}
-			}
-		}
-
-		assertThatThrownBy( () -> setupHelper.start()
-				.withAnnotatedTypes( Model.ProjectionLevel1.class, Model.ProjectionLevel2.class )
-				.setup( Model.Level1.class ) )
-				.isInstanceOf( SearchException.class )
-				.satisfies( FailureReportUtils.hasFailureReport()
-						.typeContext( Model.ProjectionLevel1.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel2.class )
-						.methodParameterContext( 2, "level2" )
-						.typeContext( Model.ProjectionLevel2.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel3.class )
-						.methodParameterContext( 2, "level3" )
-						.typeContext( Model.ProjectionLevel3.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel1.class )
-						.methodParameterContext( 2, "level1" )
-						.typeContext( Model.ProjectionLevel1.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel2.class )
-						.failure( "Infinite object projection recursion starting from projection constructor "
-								+ Model.ProjectionLevel1.class.getName() + "(" + Model.class.getName() + ", "
-								+ String.class.getName() + ", " + Model.ProjectionLevel2.class.getName() + ")"
-								+ " and involving field path '.level2.level3.level1'" ) );
-	}
-
-	@Test
-	public void cycle_buried() {
-		class Model {
-			@Indexed(index = INDEX_NAME)
-			class Level1 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded(includeDepth = 10)
-				public Level2 level2;
-			}
-			class Level2 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded
-				Level3 level3;
-			}
-			class Level3 {
-				@DocumentId
-				public Integer id;
-				@FullTextField
-				public String text;
-				@IndexedEmbedded
-				Level1 level1;
-			}
-			class ProjectionLevel1 {
-				public final String text;
-				public final ProjectionLevel2 level2;
-				@ProjectionConstructor
-				public ProjectionLevel1(String text, ProjectionLevel2 level2) {
-					this.text = text;
-					this.level2 = level2;
-				}
-			}
-			class ProjectionLevel2 {
-				public final String text;
-				public final ProjectionLevel3 level3;
-				@ProjectionConstructor
-				public ProjectionLevel2(String text, ProjectionLevel3 level3) {
-					this.text = text;
-					this.level3 = level3;
-				}
-			}
-			class ProjectionLevel3 {
-				public final String text;
-				public final ProjectionLevel2 level2;
-				@ProjectionConstructor
-				public ProjectionLevel3(String text, ProjectionLevel2 level2) {
-					this.text = text;
-					this.level2 = level2;
-				}
-			}
-		}
-
-		assertThatThrownBy( () -> setupHelper.start()
-				.withAnnotatedTypes( Model.ProjectionLevel1.class, Model.ProjectionLevel2.class )
-				.setup( Model.Level1.class ) )
-				.isInstanceOf( SearchException.class )
-				.satisfies( FailureReportUtils.hasFailureReport()
-						.typeContext( Model.ProjectionLevel1.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel2.class )
-						.methodParameterContext( 2, "level2" )
-						.typeContext( Model.ProjectionLevel2.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel3.class )
-						.methodParameterContext( 2, "level3" )
-						.typeContext( Model.ProjectionLevel3.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel2.class )
-						.methodParameterContext( 2, "level2" )
-						.typeContext( Model.ProjectionLevel2.class.getName() )
-						.constructorContext( Model.class, String.class, Model.ProjectionLevel3.class )
-						.failure( "Infinite object projection recursion starting from projection constructor "
-								+ Model.ProjectionLevel2.class.getName() + "(" + Model.class.getName() + ", "
-								+ String.class.getName() + ", " + Model.ProjectionLevel3.class.getName() + ")"
-								+ " and involving field path '.level3.level2'" ) );
 	}
 
 	// This checks that everything works correctly when a constructor projection
@@ -1393,6 +639,7 @@ public class ProjectionConstructorBaseIT {
 		class MyProjection {
 			public final String text;
 			public final Integer integer;
+
 			@ProjectionConstructor
 			public MyProjection(String text, Integer integer) {
 				this.text = text;
@@ -1447,8 +694,6 @@ public class ProjectionConstructorBaseIT {
 				this.firstName = firstName;
 				this.lastName = lastName;
 			}
-
-
 		}
 
 		@Indexed(index = Book.INDEX_NAME)
@@ -1521,25 +766,37 @@ public class ProjectionConstructorBaseIT {
 		}
 	}
 
-	private <P> void testSuccessfulRootProjection(SearchMapping mapping, Class<?> indexedType, Class<P> projectionType,
-			List<?> rawProjectionResults, List<P> expectedProjectionResults) {
-		try ( SearchSession session = mapping.createSession() ) {
-			backendMock.expectSearchProjection(
-					INDEX_NAME,
-					StubSearchWorkBehavior.of(
-							rawProjectionResults.size(),
-							rawProjectionResults
-					)
-			);
+	@Test
+	public void multipleParameterProjectionAnnotations() {
+		class Model {
+			@Indexed(index = INDEX_NAME)
+			class IndexedEntity {
+				@DocumentId
+				@GenericField
+				public Integer id;
+			}
 
-			assertThat( session.search( indexedType )
-					.select( projectionType )
-					.where( f -> f.matchAll() )
-					.fetchAllHits() )
-					.usingRecursiveComparison()
-					.isEqualTo( expectedProjectionResults );
+			class MyProjection {
+				public final Integer id;
+
+				@ProjectionConstructor
+				public MyProjection(@IdProjection @FieldProjection Integer id) {
+					this.id = id;
+				}
+			}
 		}
-		backendMock.verifyExpectationsMet();
+
+		assertThatThrownBy( () -> setupHelper.start()
+				.withAnnotatedTypes( Model.MyProjection.class )
+				.setup( Model.IndexedEntity.class ) )
+				.isInstanceOf( SearchException.class )
+				.satisfies( FailureReportUtils.hasFailureReport()
+						.typeContext( Model.MyProjection.class.getName() )
+						.constructorContext( Model.class, Integer.class )
+						.methodParameterContext( 1, "id" )
+						.failure(
+								"Multiple projections are mapped for this parameter",
+								"At most one projection is allowed for each parameter" ) );
 	}
 
 }

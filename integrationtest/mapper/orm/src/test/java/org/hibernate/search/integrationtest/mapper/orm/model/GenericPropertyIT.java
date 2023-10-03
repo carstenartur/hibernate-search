@@ -8,15 +8,19 @@ package org.hibernate.search.integrationtest.mapper.orm.model;
 
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
+import java.io.Serializable;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.Basic;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+
+import jakarta.persistence.Basic;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 
 import org.hibernate.SessionFactory;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
@@ -26,7 +30,6 @@ import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmSetupHelper;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
 
 public class GenericPropertyIT {
 
@@ -118,25 +121,18 @@ public class GenericPropertyIT {
 	}
 
 	@Entity(name = "generic")
-	public abstract static class GenericEntity<T> {
+	public abstract static class GenericEntity<T extends Serializable> {
 
 		@Id
 		private Integer id;
 
 		@Basic
 		@GenericField
-		// Necessary for Hibernate ORM: even if we make T extend Serializable,
-		// ORM doesn't take it into account for some reason.
-		@SuppressWarnings("deprecation")
-		@org.hibernate.annotations.Type(type = "serializable")
 		private T content;
 
 		@Basic
 		@GenericField
-		// Necessary for Hibernate ORM: even if we make T extend Serializable,
-		// ORM doesn't take it into account for some reason.
-		@SuppressWarnings("deprecation")
-		@org.hibernate.annotations.Type(type = "serializable")
+		@JdbcTypeCode(Types.VARBINARY)
 		private T[] arrayContent;
 
 		@OneToMany(mappedBy = "genericProperty")

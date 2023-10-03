@@ -13,9 +13,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import javax.persistence.Entity;
-import javax.persistence.EntityManager;
-import javax.persistence.Id;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.integrationtest.spring.testsupport.AbstractSpringITConfig;
 import org.hibernate.search.mapper.orm.Search;
@@ -101,7 +102,7 @@ public class SessionProxyIT {
 			assertThat( entityFromThread1_2 ).returns( entityFromThread1_1.getId(), IndexedEntity::getId );
 			assertThat( entityFromThread1_2 ).isSameAs( entityFromThread1_1 );
 
-			// Same call from another thread: another underlying session is used, so we should a different entity instance
+			// Same call from another thread: another underlying session is used, so we should get a different entity instance
 			ThreadPoolExecutor executorService = new ThreadPoolExecutor(
 					1, 1, 0L, TimeUnit.MILLISECONDS,
 					new LinkedBlockingQueue<>( 10 )

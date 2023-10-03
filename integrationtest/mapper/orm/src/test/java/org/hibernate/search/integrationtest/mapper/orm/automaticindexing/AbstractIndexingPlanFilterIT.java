@@ -9,14 +9,15 @@ package org.hibernate.search.integrationtest.mapper.orm.automaticindexing;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
-import javax.persistence.Basic;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Inheritance;
-import javax.persistence.InheritanceType;
-import javax.persistence.ManyToOne;
-import javax.persistence.MappedSuperclass;
-import javax.persistence.OneToMany;
+
+import jakarta.persistence.Basic;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.OneToMany;
 
 import org.hibernate.search.mapper.orm.Search;
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
@@ -55,15 +56,14 @@ public abstract class AbstractIndexingPlanFilterIT {
 	protected static final String DYNAMIC_NOT_INDEXED_SUBTYPE_B_B = "DynamicNotIndexedSubTypeB_B";
 
 
-
 	@ReusableOrmSetupHolder.Setup
 	public void setup(OrmSetupHelper.SetupContext setupContext) {
 		backendMock.expectSchema( IndexedEntity.INDEX, b -> b
-						.field( "indexedField", String.class )
-						.objectField(
-								"containedIndexedEmbedded", b2 -> b2.field( "indexedField", String.class ).multiValued( true )
-						)
+				.field( "indexedField", String.class )
+				.objectField(
+						"containedIndexedEmbedded", b2 -> b2.field( "indexedField", String.class ).multiValued( true )
 				)
+		)
 				.expectSchema( OtherIndexedEntity.INDEX, b -> b
 						.field( "indexedField", String.class )
 						.objectField(
@@ -110,7 +110,7 @@ public abstract class AbstractIndexingPlanFilterIT {
 						}
 				);
 		backendMock.expectSchema( DYNAMIC_BASE_TYPE_A, b -> b
-						.field( "propertyOfA", String.class ) )
+				.field( "propertyOfA", String.class ) )
 				.expectSchema( DYNAMIC_SUBTYPE_B, b -> b
 						.field( "propertyOfA", String.class )
 						.field( "propertyOfB", Integer.class ) )

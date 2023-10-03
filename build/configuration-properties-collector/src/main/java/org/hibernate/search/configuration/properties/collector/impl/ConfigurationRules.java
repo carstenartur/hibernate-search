@@ -25,7 +25,7 @@ public final class ConfigurationRules {
 			"org.hibernate.search.backend.lucene.cfg.LuceneBackendSettings#TYPE_NAME",
 			"org.hibernate.search.backend.lucene.cfg.LuceneIndexSettings#SHARDS",
 			"org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings#COORDINATION",
-			"org.hibernate.search.mapper.orm.coordination.outboxpolling.cfg.HibernateOrmMapperOutboxPollingSettings#COORDINATION_STRATEGY_NAME",
+			"org.hibernate.search.mapper.orm.outboxpolling.cfg.HibernateOrmMapperOutboxPollingSettings#COORDINATION_STRATEGY_NAME",
 			"org.hibernate.search.engine.cfg.EngineSettings#BACKEND",
 			"org.hibernate.search.engine.cfg.EngineSettings#BACKENDS",
 			"org.hibernate.search.engine.cfg.BackendSettings#INDEXES"
@@ -35,8 +35,10 @@ public final class ConfigurationRules {
 	}
 
 	public static boolean isClassIgnored(String className) {
-		return !className.endsWith( "Settings" ) || className.contains( ".impl." ) ||
-				className.contains( ".internal." ) || IGNORED_CLASSES.contains( className );
+		return !className.endsWith( "Settings" )
+				|| className.contains( ".impl." )
+				|| className.contains( ".internal." )
+				|| IGNORED_CLASSES.contains( className );
 	}
 
 	public static boolean isConstantIgnored(String className, String constantName, String constantValue) {
@@ -56,8 +58,9 @@ public final class ConfigurationRules {
 			);
 		}
 		else {
-			return !propertyKey.startsWith( "hibernate.search." ) ? Collections.singletonList( "hibernate.search." ) :
-					Collections.emptyList();
+			return !propertyKey.startsWith( "hibernate.search." )
+					? Collections.singletonList( "hibernate.search." )
+					: Collections.emptyList();
 		}
 	}
 }

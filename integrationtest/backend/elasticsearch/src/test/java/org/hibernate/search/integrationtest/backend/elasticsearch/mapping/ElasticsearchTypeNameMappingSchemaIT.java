@@ -20,8 +20,8 @@ import org.hibernate.search.backend.elasticsearch.cfg.impl.ElasticsearchBackendI
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchClientSpy;
 import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchRequestAssertionMode;
+import org.hibernate.search.integrationtest.backend.elasticsearch.testsupport.util.ElasticsearchTckBackendFeatures;
 import org.hibernate.search.integrationtest.backend.tck.testsupport.util.rule.SearchSetupHelper;
-import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect;
 import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappedIndex;
 
 import org.junit.Rule;
@@ -64,10 +64,12 @@ public class ElasticsearchTypeNameMappingSchemaIT {
 
 	@Test
 	public void schema() {
-		clientSpy.expectNext(
-				ElasticsearchRequest.get().build(),
-				ElasticsearchRequestAssertionMode.STRICT
-		);
+		if ( ElasticsearchTckBackendFeatures.supportsVersionCheck() ) {
+			clientSpy.expectNext(
+					ElasticsearchRequest.get().build(),
+					ElasticsearchRequestAssertionMode.STRICT
+			);
+		}
 		clientSpy.expectNext(
 				ElasticsearchRequest.get()
 						.multiValuedPathComponent( defaultAliases( index.name() ) )
@@ -102,10 +104,7 @@ public class ElasticsearchTypeNameMappingSchemaIT {
 		ElasticsearchRequest.Builder schemaRequestBuilder = ElasticsearchRequest.put()
 				.pathComponent( defaultPrimaryName( index.name() ) )
 				.body( indexCreationPayload() );
-		Boolean includeTypeName = ElasticsearchTestDialect.get().getIncludeTypeNameParameterForMappingApi();
-		if ( includeTypeName != null ) {
-			schemaRequestBuilder.param( "include_type_name", includeTypeName );
-		}
+
 		return schemaRequestBuilder.build();
 	}
 
@@ -114,17 +113,7 @@ public class ElasticsearchTypeNameMappingSchemaIT {
 
 		payload.add( "aliases", defaultAliasDefinitions( index.name() ) );
 
-		JsonObject mappings = ElasticsearchTestDialect.get().getTypeNameForMappingAndBulkApi()
-				// ES6 and below: the mapping has its own object node, child of "mappings"
-				.map( name -> {
-					JsonObject doc = new JsonObject();
-					doc.add( name.original, expectedMappingContent );
-					return doc;
-				} )
-				// ES7 and below: the mapping is the "mappings" node
-				.orElse( expectedMappingContent );
-
-		payload.add( "mappings", mappings );
+		payload.add( "mappings", expectedMappingContent );
 
 		payload.add( "settings", new JsonObject() );
 

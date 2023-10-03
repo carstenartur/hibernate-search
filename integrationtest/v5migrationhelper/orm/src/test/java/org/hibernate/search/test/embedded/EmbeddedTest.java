@@ -11,13 +11,6 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
-import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.search.FullTextSession;
@@ -26,6 +19,14 @@ import org.hibernate.search.test.SearchTestBase;
 import org.hibernate.search.testsupport.TestConstants;
 
 import org.junit.Test;
+
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
 
 /**
  * @author Emmanuel Bernard
@@ -421,9 +422,18 @@ public class EmbeddedTest extends SearchTestBase {
 	@Override
 	public Class<?>[] getAnnotatedClasses() {
 		return new Class[] {
-				Tower.class, Address.class, Product.class, Order.class, Author.class, Country.class,
-				State.class, StateCandidate.class, NonIndexedEntity.class,
-				AbstractProduct.class, Book.class, ProductFeature.class
+				Tower.class,
+				Address.class,
+				Product.class,
+				Order.class,
+				Author.class,
+				Country.class,
+				State.class,
+				StateCandidate.class,
+				NonIndexedEntity.class,
+				AbstractProduct.class,
+				Book.class,
+				ProductFeature.class
 		};
 	}
 }

@@ -49,6 +49,7 @@ import org.hibernate.search.util.common.AssertionFailure;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 import org.hibernate.search.util.logging.impl.Log;
 
+@Deprecated
 public class FieldAnnotationProcessor implements PropertyMappingAnnotationProcessor<Field> {
 	private static final String LEGACY_DEFAULT_NULL_TOKEN = "__DEFAULT_NULL_TOKEN__";
 
@@ -65,7 +66,8 @@ public class FieldAnnotationProcessor implements PropertyMappingAnnotationProces
 				.get(); // The default extractors can always be applied: worst case, they default to no extractors.
 
 		PropertyMappingStandardFieldOptionsStep<?> optionsStep;
-		if ( String.class.equals( propertyType ) || Enum.class.isAssignableFrom( propertyType )
+		if ( String.class.equals( propertyType )
+				|| Enum.class.isAssignableFrom( propertyType )
 				|| Character.class.equals( propertyType ) ) {
 			if ( Analyze.YES.equals( annotation.analyze() ) ) {
 				optionsStep = mapAnalyzed( mapping, annotation, context );

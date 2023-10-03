@@ -8,11 +8,12 @@ package org.hibernate.search.documentation.mapper.orm.reindexing.derivedfrom;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Transient;
+
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Transient;
 
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
@@ -69,9 +70,9 @@ public class Book {
 
 	@Transient // <2>
 	@FullTextField(analyzer = "name") // <3>
-	@IndexingDependency(derivedFrom = @ObjectPath( // <4>
+	@IndexingDependency(derivedFrom = @ObjectPath({ // <4>
 			@PropertyValue(propertyName = "authors")
-	))
+	}))
 	public String getMainAuthor() {
 		return authors.isEmpty() ? null : authors.get( 0 );
 	}

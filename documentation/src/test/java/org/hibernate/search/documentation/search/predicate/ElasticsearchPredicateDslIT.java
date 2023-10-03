@@ -11,7 +11,8 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 
 import java.util.List;
 import java.util.function.Consumer;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.backend.elasticsearch.ElasticsearchExtension;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
@@ -55,14 +56,14 @@ public class ElasticsearchPredicateDslIT {
 					// end::elasticsearch-fromJson-jsonObject[]
 					new Gson().fromJson(
 							"{"
-									+ "\"regexp\": {"
-											+ "\"description\": \"neighbor|neighbour\""
-									+ "}"
-							+ "}",
+									+ "    \"regexp\": {"
+									+ "        \"description\": \"neighbor|neighbour\""
+									+ "    }"
+									+ "}",
 							JsonObject.class
 					)
-					// tag::elasticsearch-fromJson-jsonObject[]
-					/* ... */; // <1>
+			// tag::elasticsearch-fromJson-jsonObject[]
+			/* ... */; // <1>
 			List<Book> hits = searchSession.search( Book.class )
 					.extension( ElasticsearchExtension.get() ) // <2>
 					.where( f -> f.fromJson( jsonObject ) ) // <3>
@@ -78,9 +79,9 @@ public class ElasticsearchPredicateDslIT {
 			List<Book> hits = searchSession.search( Book.class )
 					.extension( ElasticsearchExtension.get() ) // <1>
 					.where( f -> f.fromJson( "{" // <2>
-									+ "\"regexp\": {"
-											+ "\"description\": \"neighbor|neighbour\""
-									+ "}"
+							+ "    \"regexp\": {"
+							+ "        \"description\": \"neighbor|neighbour\""
+							+ "    }"
 							+ "}" ) )
 					.fetchHits( 20 );
 			// end::elasticsearch-fromJson-string[]

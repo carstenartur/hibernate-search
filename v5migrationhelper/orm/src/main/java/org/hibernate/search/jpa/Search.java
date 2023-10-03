@@ -6,14 +6,15 @@
  */
 package org.hibernate.search.jpa;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
+import java.lang.invoke.MethodHandles;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 
 import org.hibernate.Session;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
-import java.lang.invoke.MethodHandles;
 
 /**
  * Helper class that should be used when building a FullTextEntityManager

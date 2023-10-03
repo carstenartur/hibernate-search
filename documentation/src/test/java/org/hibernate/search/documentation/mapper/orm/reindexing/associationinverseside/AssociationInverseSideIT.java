@@ -11,7 +11,8 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 
 import java.math.BigDecimal;
 import java.util.List;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -35,6 +36,7 @@ public class AssociationInverseSideIT {
 		return DocumentationSetupHelper.testParamsForBothAnnotationsAndProgrammatic(
 				BackendConfigurations.simple(),
 				mapping -> {
+				// @formatter:off
 					//tag::programmatic[]
 					TypeMappingStep bookMapping = mapping.type( Book.class );
 					bookMapping.indexed();
@@ -47,6 +49,7 @@ public class AssociationInverseSideIT {
 					bookEditionMapping.property( "label" )
 							.fullTextField().analyzer( "english" );
 					//end::programmatic[]
+					// @formatter:on
 				} );
 	}
 

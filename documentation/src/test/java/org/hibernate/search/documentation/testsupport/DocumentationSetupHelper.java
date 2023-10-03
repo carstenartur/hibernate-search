@@ -26,11 +26,16 @@ import org.hibernate.search.util.impl.integrationtest.common.rule.BackendSetupSt
 import org.hibernate.search.util.impl.integrationtest.common.rule.MappingSetupHelper;
 import org.hibernate.search.util.impl.integrationtest.common.stub.backend.BackendMappingHandle;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.HibernateOrmMappingHandle;
+import org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmAssertionHelper;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.SimpleSessionFactoryBuilder;
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.multitenancy.impl.MultitenancyTestHelper;
 
 public final class DocumentationSetupHelper
-		extends MappingSetupHelper<DocumentationSetupHelper.SetupContext, SimpleSessionFactoryBuilder, SimpleSessionFactoryBuilder, SessionFactory> {
+		extends
+		MappingSetupHelper<DocumentationSetupHelper.SetupContext,
+				SimpleSessionFactoryBuilder,
+				SimpleSessionFactoryBuilder,
+				SessionFactory> {
 
 	public static List<DocumentationSetupHelper> testParamsForBothAnnotationsAndProgrammatic(
 			BackendConfiguration backendConfiguration,
@@ -44,7 +49,7 @@ public final class DocumentationSetupHelper
 			Set<Class<?>> additionalAnnotatedClasses,
 			Consumer<ProgrammaticMappingConfigurationContext> programmaticMappingContributor) {
 		return testParamsForBothAnnotationsAndProgrammatic(
-				BackendSetupStrategy.withSingleBackend( backendConfiguration ), backendConfiguration,
+				BackendSetupStrategy.withSingleBackend( backendConfiguration ),
 				additionalAnnotatedClasses, programmaticMappingContributor );
 	}
 
@@ -63,19 +68,18 @@ public final class DocumentationSetupHelper
 			Consumer<ProgrammaticMappingConfigurationContext> programmaticMappingContributor) {
 		return testParamsForBothAnnotationsAndProgrammatic(
 				BackendSetupStrategy.withMultipleBackends( defaultBackendConfiguration, namedBackendConfigurations ),
-				defaultBackendConfiguration,
 				additionalAnnotatedClasses, programmaticMappingContributor );
 	}
 
 	public static List<DocumentationSetupHelper> testParamsForBothAnnotationsAndProgrammatic(
 			BackendSetupStrategy backendSetupStrategy,
-			BackendConfiguration defaultBackendConfiguration,
 			Set<Class<?>> additionalAnnotatedClasses,
 			Consumer<ProgrammaticMappingConfigurationContext> programmaticMappingContributor) {
 		List<DocumentationSetupHelper> result = new ArrayList<>();
 		// Annotation-based mapping
 		HibernateOrmSearchMappingConfigurer annotationMappingConfigurer =
-				additionalAnnotatedClasses.isEmpty() ? null
+				additionalAnnotatedClasses.isEmpty()
+						? null
 						: context -> context.annotationMapping().add( additionalAnnotatedClasses );
 		result.add( new DocumentationSetupHelper( backendSetupStrategy,
 				null, annotationMappingConfigurer ) );
@@ -105,6 +109,7 @@ public final class DocumentationSetupHelper
 	private final Boolean annotationProcessingEnabled;
 
 	private final HibernateOrmSearchMappingConfigurer defaultMappingConfigurer;
+	private final OrmAssertionHelper assertionHelper;
 
 	private DocumentationSetupHelper(BackendSetupStrategy backendSetupStrategy,
 			Boolean annotationProcessingEnabled,
@@ -112,12 +117,18 @@ public final class DocumentationSetupHelper
 		super( backendSetupStrategy );
 		this.annotationProcessingEnabled = annotationProcessingEnabled;
 		this.defaultMappingConfigurer = defaultMappingConfigurer;
+		this.assertionHelper = new OrmAssertionHelper( backendSetupStrategy );
 	}
 
 	@Override
 	public String toString() {
 		return super.toString()
-				+ ( annotationProcessingEnabled == Boolean.FALSE ? " - programmatic mapping" : "");
+				+ ( annotationProcessingEnabled == Boolean.FALSE ? " - programmatic mapping" : "" );
+	}
+
+	@Override
+	public OrmAssertionHelper assertions() {
+		return assertionHelper;
 	}
 
 	@Override
@@ -131,7 +142,11 @@ public final class DocumentationSetupHelper
 	}
 
 	public final class SetupContext
-			extends MappingSetupHelper<SetupContext, SimpleSessionFactoryBuilder, SimpleSessionFactoryBuilder, SessionFactory>.AbstractSetupContext {
+			extends
+			MappingSetupHelper<SetupContext,
+					SimpleSessionFactoryBuilder,
+					SimpleSessionFactoryBuilder,
+					SessionFactory>.AbstractSetupContext {
 
 		// Use a LinkedHashMap for deterministic iteration
 		private final Map<String, Object> overriddenProperties = new LinkedHashMap<>();
@@ -140,7 +155,7 @@ public final class DocumentationSetupHelper
 			// Real backend => ensure we clean up everything before and after the tests
 			withProperty( HibernateOrmMapperSettings.SCHEMA_MANAGEMENT_STRATEGY,
 					SchemaManagementStrategyName.DROP_AND_CREATE_AND_DROP );
-			// Override the automatic indexing synchronization strategy according to our needs for testing
+			// Override the indexing plan synchronization strategy according to our needs for testing
 			withProperty( HibernateOrmMapperSettings.INDEXING_PLAN_SYNCHRONIZATION_STRATEGY,
 					IndexingPlanSynchronizationStrategyNames.SYNC );
 			// Set up default mapping if necessary
@@ -168,7 +183,7 @@ public final class DocumentationSetupHelper
 			return thisAsC();
 		}
 
-		public SessionFactory setup(Class<?> ... annotatedTypes) {
+		public SessionFactory setup(Class<?>... annotatedTypes) {
 			return withConfiguration( builder -> builder.addAnnotatedClasses( Arrays.asList( annotatedTypes ) ) )
 					.setup();
 		}
@@ -179,7 +194,8 @@ public final class DocumentationSetupHelper
 		}
 
 		@Override
-		protected void consumeBeforeBuildConfigurations(SimpleSessionFactoryBuilder builder, List<Consumer<SimpleSessionFactoryBuilder>> consumers) {
+		protected void consumeBeforeBuildConfigurations(SimpleSessionFactoryBuilder builder,
+				List<Consumer<SimpleSessionFactoryBuilder>> consumers) {
 			consumers.forEach( c -> c.accept( builder ) );
 		}
 

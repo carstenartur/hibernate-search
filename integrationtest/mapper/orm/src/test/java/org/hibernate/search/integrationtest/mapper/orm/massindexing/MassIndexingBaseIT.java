@@ -13,9 +13,10 @@ import static org.hibernate.search.util.common.impl.CollectionHelper.asSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import org.hibernate.Session;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
@@ -86,7 +87,7 @@ public class MassIndexingBaseIT {
 	public void setup(OrmSetupHelper.SetupContext setupContext, ReusableOrmSetupHolder.DataClearConfig dataClearConfig) {
 		backendMock.expectAnySchema( Book.INDEX );
 
-		setupContext.withPropertyRadical( HibernateOrmMapperSettings.Radicals.AUTOMATIC_INDEXING_ENABLED, false )
+		setupContext.withPropertyRadical( HibernateOrmMapperSettings.Radicals.INDEXING_LISTENERS_ENABLED, false )
 				.withAnnotatedTypes( Book.class );
 
 		if ( TenancyMode.MULTI_TENANCY.equals( tenancyMode ) ) {
@@ -123,9 +124,7 @@ public class MassIndexingBaseIT {
 	}
 
 	private Set<String> allTenantIds() {
-		return TenancyMode.MULTI_TENANCY.equals( tenancyMode ) ?
-				asSet( TENANT_1_ID, TENANT_2_ID ) :
-				Collections.emptySet();
+		return TenancyMode.MULTI_TENANCY.equals( tenancyMode ) ? asSet( TENANT_1_ID, TENANT_2_ID ) : Collections.emptySet();
 	}
 
 	@Test
@@ -271,8 +270,8 @@ public class MassIndexingBaseIT {
 		// add operations on indexes can follow any random order,
 		// since they are executed by different threads
 		backendMock.expectWorks(
-						Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
-				)
+				Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+		)
 				.add( "1", b -> b
 						.field( "title", TITLE_1 )
 						.field( "author", AUTHOR_1 )
@@ -312,8 +311,8 @@ public class MassIndexingBaseIT {
 		// add operations on indexes can follow any random order,
 		// since they are executed by different threads
 		backendMock.expectWorks(
-						Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
-				)
+				Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+		)
 				.add( "1", b -> b
 						.field( "title", TITLE_1 )
 						.field( "author", AUTHOR_1 )
@@ -328,8 +327,8 @@ public class MassIndexingBaseIT {
 				);
 		if ( TenancyMode.MULTI_TENANCY.equals( tenancyMode ) ) {
 			backendMock.expectWorks(
-							Book.INDEX, TENANT_2_ID, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
-					)
+					Book.INDEX, TENANT_2_ID, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+			)
 					.add( "1", b -> b
 							.field( "title", TITLE_1 )
 							.field( "author", AUTHOR_1 )
@@ -389,8 +388,8 @@ public class MassIndexingBaseIT {
 		// add operations on indexes can follow any random order,
 		// since they are executed by different threads
 		backendMock.expectWorks(
-						Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
-				)
+				Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+		)
 				.add( "1", b -> b
 						.field( "title", TITLE_1 )
 						.field( "author", AUTHOR_1 )
@@ -405,8 +404,8 @@ public class MassIndexingBaseIT {
 				);
 		if ( TenancyMode.MULTI_TENANCY.equals( tenancyMode ) ) {
 			backendMock.expectWorks(
-							Book.INDEX, TENANT_2_ID, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
-					)
+					Book.INDEX, TENANT_2_ID, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+			)
 					.add( "1", b -> b
 							.field( "title", TITLE_1 )
 							.field( "author", AUTHOR_1 )
@@ -466,8 +465,8 @@ public class MassIndexingBaseIT {
 			// add operations on indexes can follow any random order,
 			// since they are executed by different threads
 			backendMock.expectWorks(
-							Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
-					)
+					Book.INDEX, targetTenantId(), DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
+			)
 					.add( "1", b -> b
 							.field( "title", TITLE_1 )
 							.field( "author", AUTHOR_1 )

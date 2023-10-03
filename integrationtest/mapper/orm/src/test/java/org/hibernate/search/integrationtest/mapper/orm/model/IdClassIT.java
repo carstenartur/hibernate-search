@@ -11,9 +11,10 @@ import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils
 
 import java.io.Serializable;
 import java.util.Objects;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
@@ -27,7 +28,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Tests behavior when an entity uses {@link javax.persistence.IdClass},
+ * Tests behavior when an entity uses {@link jakarta.persistence.IdClass},
  */
 public class IdClassIT {
 
@@ -69,7 +70,7 @@ public class IdClassIT {
 			session.persist( entity );
 
 			backendMock.expectWorks( NonIdClassIndexed.NAME )
-					.add( "1", b -> { } );
+					.add( "1", b -> {} );
 		} );
 		backendMock.verifyExpectationsMet();
 	}
@@ -94,7 +95,7 @@ public class IdClassIT {
 			session.persist( entity );
 
 			backendMock.expectWorks( IdClassIndexedWithDocumentId.NAME )
-					.add( "8", b -> { } );
+					.add( "8", b -> {} );
 		} );
 		backendMock.verifyExpectationsMet();
 	}
@@ -244,8 +245,8 @@ public class IdClassIT {
 				return false;
 			}
 			MyIdClass myIdClass = (MyIdClass) o;
-			return Objects.equals( id1, myIdClass.id1 ) &&
-					Objects.equals( id2, myIdClass.id2 );
+			return Objects.equals( id1, myIdClass.id1 )
+					&& Objects.equals( id2, myIdClass.id2 );
 		}
 
 		@Override

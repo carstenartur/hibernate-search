@@ -6,11 +6,11 @@
  */
 package org.hibernate.search.test.embedded;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 
 import org.hibernate.search.annotations.DocumentId;
 import org.hibernate.search.annotations.Field;
@@ -25,7 +25,8 @@ import org.hibernate.search.annotations.IndexedEmbedded;
 @Indexed
 public class StateCandidate implements Person {
 
-	@Id @GeneratedValue
+	@Id
+	@GeneratedValue
 	@DocumentId
 	private int id;
 
@@ -43,7 +44,7 @@ public class StateCandidate implements Person {
 		return state;
 	}
 
-	public void setState( State state ) {
+	public void setState(State state) {
 		this.state = state;
 	}
 
@@ -58,13 +59,13 @@ public class StateCandidate implements Person {
 	}
 
 	@Override
-	public void setAddress( Address address ) {
+	public void setAddress(Address address) {
 		this.address = address;
 
 	}
 
 	@Override
-	public void setName( String name ) {
+	public void setName(String name) {
 		this.name = name;
 	}
 
@@ -72,7 +73,7 @@ public class StateCandidate implements Person {
 		return id;
 	}
 
-	public void setId( int id ) {
+	public void setId(int id) {
 		this.id = id;
 	}
 }

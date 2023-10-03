@@ -6,13 +6,13 @@
  */
 package org.hibernate.search.mapper.orm.loading.impl;
 
-import java.io.Serializable;
 import java.util.List;
 
 import org.hibernate.FlushMode;
 import org.hibernate.LockOptions;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.search.mapper.orm.common.spi.TransactionHelper;
+import org.hibernate.search.mapper.orm.loading.spi.HibernateOrmQueryLoader;
 import org.hibernate.search.mapper.pojo.loading.spi.PojoMassEntityLoader;
 import org.hibernate.search.mapper.pojo.loading.spi.PojoMassEntitySink;
 
@@ -46,8 +46,7 @@ public final class HibernateOrmMassEntityLoader<E, I> implements PojoMassEntityL
 	public void load(List<I> identifiers) throws InterruptedException {
 		transactionHelper.begin( session );
 		try {
-			sink.accept( typeQueryLoader.uniquePropertyIsTheEntityId() ?
-					multiLoad( identifiers ) : queryByIds( identifiers ) );
+			sink.accept( typeQueryLoader.uniquePropertyIsTheEntityId() ? multiLoad( identifiers ) : queryByIds( identifiers ) );
 			session.clear();
 		}
 		catch (Exception e) {
@@ -57,12 +56,11 @@ public final class HibernateOrmMassEntityLoader<E, I> implements PojoMassEntityL
 		transactionHelper.commit( session );
 	}
 
-	@SuppressWarnings("unchecked") // We can assume identifiers are serializable
 	private List<E> multiLoad(List<I> identifiers) {
 		return typeQueryLoader.createMultiIdentifierLoadAccess( session )
 				.with( options.cacheMode() )
 				.with( LockOptions.NONE )
-				.multiLoad( (List<Serializable>) identifiers );
+				.multiLoad( identifiers );
 	}
 
 	private List<E> queryByIds(List<I> identifiers) {

@@ -10,8 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.Arrays;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -136,7 +137,8 @@ public class HibernateOrmEntryPointsIT {
 					Search.session( theSession );
 			// tag::searchScope-fromSearchSession[]
 			SearchScope<Book> bookScope = searchSession.scope( Book.class ); // <2>
-			SearchScope<Person> associateAndManagerScope = searchSession.scope( Arrays.asList( Associate.class, Manager.class ) ); // <3>
+			SearchScope<Person> associateAndManagerScope =
+					searchSession.scope( Arrays.asList( Associate.class, Manager.class ) ); // <3>
 			SearchScope<Person> personScope = searchSession.scope( Person.class ); // <4>
 			SearchScope<Person> personSubTypesScope = searchSession.scope( Person.class,
 					Arrays.asList( "Manager", "Associate" ) ); // <5>

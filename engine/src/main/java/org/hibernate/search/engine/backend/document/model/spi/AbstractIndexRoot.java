@@ -11,17 +11,17 @@ import java.util.List;
 import java.util.Map;
 
 import org.hibernate.search.engine.backend.types.spi.AbstractIndexCompositeNodeType;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
 import org.hibernate.search.engine.search.common.spi.SearchIndexSchemaElementContextHelper;
 import org.hibernate.search.engine.search.common.spi.SearchIndexScope;
 import org.hibernate.search.util.common.reporting.EventContext;
 
 public abstract class AbstractIndexRoot<
-				S extends AbstractIndexRoot<S, SC, NT, F>,
-				SC extends SearchIndexScope<?>,
-				NT extends AbstractIndexCompositeNodeType<SC, ? super S>,
-				F extends IndexField<SC, ?>
-		>
+		S extends AbstractIndexRoot<S, SC, NT, F>,
+		SC extends SearchIndexScope<?>,
+		NT extends AbstractIndexCompositeNodeType<SC, ? super S>,
+		F extends IndexField<SC, ?>>
 		extends AbstractIndexNode<S, SC, NT>
 		implements IndexCompositeNode<SC, NT, F> {
 
@@ -89,8 +89,8 @@ public abstract class AbstractIndexRoot<
 	}
 
 	@Override
-	public final IndexFieldInclusion inclusion() {
-		return IndexFieldInclusion.INCLUDED;
+	public final TreeNodeInclusion inclusion() {
+		return TreeNodeInclusion.INCLUDED;
 	}
 
 	@Override

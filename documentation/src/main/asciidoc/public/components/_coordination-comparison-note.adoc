@@ -1,0 +1,14 @@
+[NOTE]
+====
+Coordination is a complex topic,
+and the problems it solves may appear unclear at first sight.
+You may find it easier to approach coordination from a higher level.
+
+For a few example architectures involving different coordination strategies
+and a summary of the differences between each architecture,
+see <<architecture-examples>>.
+
+For a summary of the differences between coordination strategies
+specifically in the context of listener-triggered indexing,
+see <<listener-triggered-indexing-concepts>>.
+====

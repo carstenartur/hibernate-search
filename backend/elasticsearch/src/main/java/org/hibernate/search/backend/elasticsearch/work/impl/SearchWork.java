@@ -10,9 +10,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.hibernate.search.backend.elasticsearch.client.impl.Paths;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchRequest;
 import org.hibernate.search.backend.elasticsearch.client.spi.ElasticsearchResponse;
-import org.hibernate.search.backend.elasticsearch.client.impl.Paths;
 import org.hibernate.search.backend.elasticsearch.logging.impl.Log;
 import org.hibernate.search.backend.elasticsearch.util.spi.URLEncodedString;
 import org.hibernate.search.engine.common.timing.Deadline;
@@ -20,7 +20,6 @@ import org.hibernate.search.util.common.logging.impl.DefaultLogCategories;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 import com.google.gson.JsonObject;
-
 
 public class SearchWork<R> extends AbstractNonBulkableWork<R> {
 
@@ -38,12 +37,13 @@ public class SearchWork<R> extends AbstractNonBulkableWork<R> {
 	}
 
 	@Override
-	protected CompletableFuture<?> beforeExecute(ElasticsearchWorkExecutionContext executionContext, ElasticsearchRequest request) {
+	protected CompletableFuture<?> beforeExecute(ElasticsearchWorkExecutionContext executionContext,
+			ElasticsearchRequest request) {
 		queryLog.executingElasticsearchQuery(
 				request.path(),
 				request.parameters(),
 				executionContext.getGsonProvider().getLogHelper().toString( request.bodyParts() )
-				);
+		);
 		return super.beforeExecute( executionContext, request );
 	}
 
@@ -56,19 +56,7 @@ public class SearchWork<R> extends AbstractNonBulkableWork<R> {
 	public static class Builder<R>
 			extends AbstractBuilder<Builder<R>> {
 
-		public static <T> Builder<T> forElasticsearch62AndBelow(JsonObject payload, ElasticsearchSearchResultExtractor<T> resultExtractor) {
-			// No "track_total_hits": this parameter does not exist in ES6 and below, and total hits are always tracked
-			// No "allow_partial_search_results": this parameter does not exist in ES6 and below, and total hits are always tracked
-			// See https://github.com/elastic/elasticsearch/pull/27906
-			return new Builder<>( payload, resultExtractor, null, false );
-		}
-
-		public static <T> Builder<T> forElasticsearch63to68(JsonObject payload, ElasticsearchSearchResultExtractor<T> resultExtractor) {
-			// No "track_total_hits": this parameter does not exist in ES6 and below, and total hits are always tracked
-			return new Builder<>( payload, resultExtractor, null, false );
-		}
-
-		public static <T> Builder<T> forElasticsearch7AndAbove(JsonObject payload, ElasticsearchSearchResultExtractor<T> resultExtractor) {
+		public static <T> Builder<T> create(JsonObject payload, ElasticsearchSearchResultExtractor<T> resultExtractor) {
 			return new Builder<>( payload, resultExtractor, true, false );
 		}
 
@@ -89,7 +77,7 @@ public class SearchWork<R> extends AbstractNonBulkableWork<R> {
 
 		private Builder(JsonObject payload, ElasticsearchSearchResultExtractor<R> resultExtractor, Boolean trackTotalHits,
 				boolean allowPartialSearchResultsSupported) {
-			super( ElasticsearchRequestSuccessAssessor.DEFAULT_INSTANCE );
+			super( ElasticsearchRequestSuccessAssessor.SHARD_FAILURE_CHECKED_INSTANCE );
 			this.payload = payload;
 			this.resultExtractor = resultExtractor;
 			this.trackTotalHits = trackTotalHits;
@@ -133,6 +121,11 @@ public class SearchWork<R> extends AbstractNonBulkableWork<R> {
 			return this;
 		}
 
+		public Builder<R> ignoreShardFailures() {
+			resultAssessor = ElasticsearchRequestSuccessAssessor.DEFAULT_INSTANCE;
+			return this;
+		}
+
 		public Builder<R> totalHitCountThreshold(Long totalHitCountThreshold) {
 			// setting trackTotalHits to false only if this parameter was already set,
 			// the parameter is not supported by the older Elasticsearch server
@@ -146,9 +139,9 @@ public class SearchWork<R> extends AbstractNonBulkableWork<R> {
 		protected ElasticsearchRequest buildRequest() {
 			ElasticsearchRequest.Builder builder =
 					ElasticsearchRequest.post()
-					.multiValuedPathComponent( indexes )
-					.pathComponent( Paths._SEARCH )
-					.body( payload );
+							.multiValuedPathComponent( indexes )
+							.pathComponent( Paths._SEARCH )
+							.body( payload );
 
 			if ( from != null ) {
 				builder.param( "from", from );

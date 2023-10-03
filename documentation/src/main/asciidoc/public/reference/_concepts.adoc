@@ -1,0 +1,302 @@
+[[concepts]]
+= [[_concepts]] Concepts
+
+[[concepts-full-text]]
+== Full-text search
+
+Full-text search is a set of techniques for searching,
+in a corpus of text documents,
+the documents that best match a given query.
+
+The main difference with traditional search -- for example in an SQL database --
+is that the stored text is not considered as a single block of text,
+but as a collection of tokens (words).
+
+Hibernate Search relies on either http://lucene.apache.org/[Apache Lucene]
+or https://www.elastic.co/products/elasticsearch[Elasticsearch]
+to implement full-text search.
+Since Elasticsearch uses Lucene internally,
+they share a lot of characteristics and their general approach to full-text search.
+
+To simplify, these search engines are based on the concept of inverted indexes:
+a dictionary where the key is a token (word) found in a document,
+and the value is the list of identifiers of every document containing this token.
+
+Still simplifying, once all documents are indexed,
+searching for documents involves three steps:
+
+. extracting tokens (words) from the query;
+. looking up these tokens in the index to find matching documents;
+. aggregating the results of the lookups to produce a list of matching documents.
+
+[NOTE]
+====
+Lucene and Elasticsearch are not limited to just text search: numeric data is also supported,
+enabling support for integers, doubles, longs, dates, etc.
+These types are indexed and queried using a slightly different approach,
+which obviously does not involve text processing.
+====
+
+[[concepts-mapping]]
+== Mapping
+
+Applications targeted by Hibernate search generally use an entity-based model to represent data.
+In this model, each entity is a single object with a few properties of atomic type
+(`String`, `Integer`, `LocalDate`, ...).
+Each entity can have multiple associations to one or even many other entities.
+
+Entities are thus organized as a graph,
+where each node is an entity and each association is an edge.
+
+By contrast, Lucene and Elasticsearch work with documents.
+Each document is a collection of "fields",
+each field being assigned a name -- a unique string --
+and a value -- which can be text, but also numeric data such as an integer or a date.
+Fields also have a type, which not only determines the type of values (text/numeric),
+but more importantly the way this value will be stored: indexed, stored, with doc values, etc.
+It is possible to introduce nested documents, but not real associations.
+
+Documents are thus organized, at best, as a collection of trees,
+where each tree is a document, optionally with nested documents.
+
+There are multiple mismatches between the entity model and the document model:
+properties vs. fields, associations vs. nested documents, graph vs. collection of trees.
+
+The goal of _mapping_, in Hibernate search, is to resolve these mismatches
+by defining how to transform one or more entities into a document,
+and how to resolve a search hit back into the original entity.
+This is the main added value of Hibernate Search,
+the basis for everything else from <<architecture-hsearch-indexing,indexing>> to the various search DSLs.
+
+Mapping is usually configured using annotations in the entity model,
+but this can also be achieved using a programmatic API.
+To learn more about how to configure mapping, see <<mapping>>.
+
+To learn how to index the resulting documents, see <<indexing>>
+(hint: for the <<mapper-orm,Hibernate ORM integration>>, it's <<listener-triggered-indexing,automatic>>).
+
+To learn how to search with an API
+that takes advantage of the mapping to be closer to the entity model,
+in particular by returning hits as entities instead of just document identifiers,
+see <<search-dsl>>.
+
+[[concepts-binding]]
+== Binding
+
+While the <<concepts-mapping,mapping>> definition is declarative,
+these declarations need to be interpreted and actually applied to the domain model.
+
+That's what Hibernate Search calls "binding":
+during startup, a given mapping instruction (e.g. `@GenericField`) will result in a "binder"
+being instantiated and called, giving it an opportunity to inspect the part of the domain model it's applied to
+and to "bind" (assign) a component to that part of the model -- for example a "bridge",
+responsible for extracting data from an entity during indexing.
+
+Hibernate Search comes with binders and bridges for many common use cases,
+and also provides the ability to plug in custom binders and bridges.
+
+For more information, in particular on how to plug in custom binders and bridges,
+see <<binding>>.
+
+[[concepts-analysis]]
+== [[analyzer]] Analysis
+
+As mentioned in <<concepts-full-text>>,
+the full-text engine works on tokens,
+which means text has to be processed
+both when indexing (document processing, to build the token -> document index)
+and when searching (query processing, to generate a list of tokens to look up).
+
+However, the processing is not *just* about "tokenizing".
+Index lookups are *exact* lookups,
+which means that looking up `Great` (capitalized) will not return documents containing only `great` (all lowercase).
+An extra step is performed when processing text to address this caveat:
+token filtering, which normalizes tokens.
+Thanks to that "normalization",
+`Great` will be indexed as `great`,
+so that an index lookup for the query `great` will match as expected.
+
+In the Lucene world (Lucene, Elasticsearch, Solr, ...),
+text processing during both the indexing and searching phases
+is called "analysis" and is performed by an "analyzer".
+
+The analyzer is made up of three types of components,
+which will each process the text successively in the following order:
+
+. Character filter: transforms the input characters. Replaces, adds or removes characters.
+. Tokenizer: splits the text into several words, called "tokens".
+. Token filter: transforms the tokens. Replaces, add or removes characters in a token,
+derives new tokens from the existing ones, removes tokens based on some condition, ...
+
+The tokenizer usually splits on whitespaces (though there are other options).
+Token filters are usually where customization takes place.
+They can remove accented characters,
+remove meaningless suffixes (`-ing`, `-s`, ...)
+or tokens (`a`, `the`, ...),
+replace tokens with a chosen spelling (`wi-fi` => `wifi`),
+etc.
+
+[TIP]
+====
+Character filters, though useful, are rarely used,
+because they have no knowledge of token boundaries.
+
+Unless you know what you are doing,
+you should generally favor token filters.
+====
+
+In some cases, it is necessary to index text in one block,
+without any tokenization:
+
+* For some types of text, such as SKUs or other business codes,
+tokenization simply does not make sense: the text is a single "keyword".
+* For sorts by field value, tokenization is not necessary.
+It is also forbidden in Hibernate Search due to performance issues;
+only non-tokenized fields can be sorted on.
+
+To address these use cases,
+a special type of analyzer, called "normalizer", is available.
+Normalizers are simply analyzers that are guaranteed not to use a tokenizer:
+they can only use character filters and token filters.
+
+In Hibernate Search, analyzers and normalizers are referenced by their name,
+for example <<mapping-directfieldmapping-analyzer,when defining a full-text field>>.
+Analyzers and normalizers have two separate namespaces.
+
+Some names are already assigned to built-in analyzers (in Elasticsearch in particular),
+but it is possible (and recommended) to assign names to custom analyzers and normalizers,
+assembled using built-in components (tokenizers, filters) to address your specific needs.
+
+Each backend exposes its own APIs to define analyzers and normalizers,
+and generally to configure analysis.
+See the documentation of each backend for more information:
+
+* <<backend-lucene-analysis,Analysis for the Lucene backend>>
+* <<backend-elasticsearch-analysis,Analysis for the Elasticsearch backend>>
+
+[[concepts-commit-refresh]]
+== Commit and refresh
+
+In order to get the best throughput when indexing and when searching,
+both Elasticsearch and Lucene rely on "buffers" when writing to and reading from the index:
+
+* When writing, changes are not _directly_ written to the index,
+but to an "index writer" that buffers changes in-memory or in temporary files.
++
+The changes are "pushed" to the actual index when the writer is _committed_.
+Until the commit happens, uncommitted changes are in an "unsafe" state:
+if the application crashes or if the server suffers from a power loss,
+uncommitted changes will be lost.
+* When reading, e.g. when executing a search query,
+data is not read _directly_ from the index,
+but from an "index reader" that exposes a view of the index as it was at some point in the past.
++
+The view is updated when the reader is _refreshed_.
+Until the refresh happens, results of search queries might be slightly out of date:
+documents added since the last refresh will be missing,
+documents delete since the last refresh will still be there, etc.
+
+Unsafe changes and out-of-sync indexes are obviously undesirable,
+but they are a trade-off that improves performance.
+
+Different factors influence when refreshes and commit happen:
+
+* <<listener-triggered-indexing,Listener-triggered indexing>> and <<indexing-plan,explicit indexing>> will, by default,
+require that a commit of the index writer is performed after each set of changes,
+meaning the changes are safe after the Hibernate ORM transaction commit returns (for the <<mapper-orm,Hibernate ORM integration>>)
+or the ``SearchSession``'s `close()` method returns (for the <<mapper-pojo-standalone,Standalone POJO Mapper>>).
+However, no refresh is requested by default, meaning the changes may only be visible at a later time,
+when the backend decides to refresh the index reader.
+This behavior can be customized by setting a different <<indexing-plan-synchronization,synchronization strategy>>.
+* The <<indexing-massindexer,mass indexer>>
+will not require any commit or refresh until the very end of mass indexing,
+to maximize indexing throughput.
+* Whenever there are no particular commit or refresh requirements,
+backend defaults will apply:
+** See <<backend-elasticsearch-io,here for Elasticsearch>>.
+** See <<backend-lucene-io,here for Lucene>>.
+* A commit may be forced explicitly through the <<indexing-workspace-flush,`flush()` API>>.
+* A refresh may be forced explicitly though the <<indexing-workspace-flush,`refresh()` API>>.
+
+[NOTE]
+====
+Even though we use the word "commit",
+this is not the same concept as a commit in relational database transactions:
+there is no transaction and no "rollback" is possible.
+
+There is no concept of isolation, either.
+After a refresh, *all* changes to the index are taken into account:
+those committed to the index, but also those that are still buffered in the index writer.
+
+For this reason, commits and refreshes can be treated as completely orthogonal concepts:
+certain setups will occasionally lead to committed changes not being visible in search queries,
+while others will allow even uncommitted changes to be visible in search queries.
+====
+
+[[concepts-sharding-routing]]
+== Sharding and routing
+
+Sharding consists in splitting index data into multiple "smaller indexes", called shards,
+in order to improve performance when dealing with large amounts of data.
+
+In Hibernate Search, similarly to Elasticsearch,
+another concept is closely related to sharding: routing.
+Routing consists in resolving a document identifier,
+or generally any string called a "routing key",
+into the corresponding shard.
+
+When indexing:
+
+* A document identifier and optionally a routing key
+are generated from the indexed entity.
+* The document, along with its identifier and optionally its routing key,
+is passed to the backend.
+* The backend "routes" the document to the correct shard,
+and adds the routing key (if any) to a special field in the document (so that it's indexed).
+* The document is indexed in that shard.
+
+When searching:
+
+* The search query can optionally be passed one or more routing keys.
+* If no routing key is passed,
+the query will be executed on all shards.
+* If one or more routing keys are passed:
+** The backend resolves these routing keys into a set of shards,
+and the query will only be executed on all shards,
+ignoring the other shards.
+** A filter is added to the query so that only documents indexed with
+one of the given routing keys are matched.
+
+Sharding, then, can be leveraged to boost performance in two ways:
+
+* When indexing: a sharded index can spread the "stress" onto multiple shards,
+which can be located on different disks (Lucene)
+or different servers (Elasticsearch).
+* When searching: if one property, let's call it `category`,
+is often used to select a subset of documents,
+this property can be <<binding-routingbridge-routingkey,defined as a routing key in the mapping>>,
+so that it's used to route documents instead of the document ID.
+As a result, documents with the same value for `category` will be indexed in the same shard.
+Then when searching, if a query already filters documents so that it is known that the hits
+will all have the same value for `category`,
+the query can be manually <<search-dsl-query-routing,routed to the shards containing documents with this value>>,
+*and the other shards can be ignored*.
+
+To enable sharding, some configuration is required:
+
+* The backends require explicit configuration:
+see <<backend-lucene-configuration-sharding,here for Lucene>>
+and <<backend-elasticsearch-configuration-sharding,here for Elasticsearch>>.
+* In most cases, document IDs are used to route documents to shards by default.
+This does not allow taking advantage of routing when searching,
+which requires multiple documents to share the same routing key.
+Applying routing to a search query in that case will return at most one result.
+To explicitly define the routing key to assign to each document,
+assign <<binding-routingbridge-routingkey,routing bridges>> to your entities.
+
+[WARNING]
+====
+Sharding is static by nature: each index is expected to have the same shards, with the same identifiers,
+from one boot to the other.
+Changing the number of shards or their identifiers will require full reindexing.
+====

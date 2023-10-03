@@ -8,14 +8,16 @@ package org.hibernate.search.backend.elasticsearch.aws.impl;
 
 import java.lang.invoke.MethodHandles;
 
+import org.hibernate.search.backend.elasticsearch.ElasticsearchDistributionName;
+import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
 import org.hibernate.search.backend.elasticsearch.aws.cfg.ElasticsearchAwsBackendSettings;
 import org.hibernate.search.backend.elasticsearch.aws.cfg.ElasticsearchAwsCredentialsTypeNames;
 import org.hibernate.search.backend.elasticsearch.aws.logging.impl.Log;
 import org.hibernate.search.backend.elasticsearch.aws.spi.ElasticsearchAwsCredentialsProvider;
 import org.hibernate.search.backend.elasticsearch.client.ElasticsearchHttpClientConfigurationContext;
 import org.hibernate.search.backend.elasticsearch.client.ElasticsearchHttpClientConfigurer;
-import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
+import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.spi.OptionalConfigurationProperty;
 import org.hibernate.search.engine.environment.bean.BeanHolder;
 import org.hibernate.search.engine.environment.bean.BeanReference;
@@ -43,7 +45,8 @@ public class ElasticsearchAwsHttpClientConfigurer implements ElasticsearchHttpCl
 	private static final ConfigurationProperty<BeanReference<? extends ElasticsearchAwsCredentialsProvider>> CREDENTIALS_TYPE =
 			ConfigurationProperty.forKey( ElasticsearchAwsBackendSettings.CREDENTIALS_TYPE )
 					.asBeanReference( ElasticsearchAwsCredentialsProvider.class )
-					.withDefault( BeanReference.of( ElasticsearchAwsCredentialsProvider.class, ElasticsearchAwsBackendSettings.Defaults.CREDENTIALS_TYPE ) )
+					.withDefault( BeanReference.of( ElasticsearchAwsCredentialsProvider.class,
+							ElasticsearchAwsBackendSettings.Defaults.CREDENTIALS_TYPE ) )
 					.build();
 
 	private static final OptionalConfigurationProperty<String> LEGACY_ACCESS_KEY =
@@ -66,13 +69,25 @@ public class ElasticsearchAwsHttpClientConfigurer implements ElasticsearchHttpCl
 		}
 
 		Region region = REGION.getAndMapOrThrow( propertySource, Region::of, log::missingPropertyForSigning );
-
+		String service;
+		switch ( context.configuredVersion().map( ElasticsearchVersion::distribution )
+				.orElse( ElasticsearchDistributionName.OPENSEARCH ) ) {
+			case AMAZON_OPENSEARCH_SERVERLESS:
+				service = "aoss";
+				break;
+			case ELASTIC:
+			case OPENSEARCH:
+			default:
+				service = "es";
+				break;
+		}
 		AwsCredentialsProvider credentialsProvider = createCredentialsProvider( context.beanResolver(), propertySource );
 
-		log.debugf( "AWS request signing is enabled [region = '%s', credentialsProvider = '%s'].",
-				region, credentialsProvider );
+		log.debugf( "AWS request signing is enabled [region = '%s', service = '%s', credentialsProvider = '%s'].",
+				region, service, credentialsProvider );
 
-		AwsSigningRequestInterceptor signingInterceptor = new AwsSigningRequestInterceptor( region, credentialsProvider );
+		AwsSigningRequestInterceptor signingInterceptor =
+				new AwsSigningRequestInterceptor( region, service, credentialsProvider );
 
 		context.clientBuilder().addInterceptorLast( signingInterceptor );
 	}

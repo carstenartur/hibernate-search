@@ -18,8 +18,8 @@ import org.hibernate.search.backend.lucene.lowlevel.directory.FileSystemAccessSt
 import org.hibernate.search.backend.lucene.lowlevel.directory.spi.DirectoryCreationContext;
 import org.hibernate.search.backend.lucene.lowlevel.directory.spi.DirectoryHolder;
 import org.hibernate.search.backend.lucene.lowlevel.directory.spi.DirectoryProvider;
-import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.engine.cfg.ConfigurationPropertySource;
+import org.hibernate.search.engine.cfg.spi.ConfigurationProperty;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 import org.apache.lucene.store.FSLockFactory;
@@ -49,10 +49,6 @@ public class LocalFileSystemDirectoryProvider implements DirectoryProvider {
 		ConfigurationPropertySource propertySource = context.configurationPropertySource();
 		Path directoryRoot = ROOT.get( propertySource ).toAbsolutePath();
 		FileSystemAccessStrategyName accessStrategyName = FILESYSTEM_ACCESS_STRATEGY.get( propertySource );
-		if ( FileSystemAccessStrategyName.SIMPLE.equals( accessStrategyName ) ) {
-			log.deprecatedFileSystemAccessStrategy( accessStrategyName.externalRepresentation(),
-					context.eventContext() );
-		}
 		FileSystemAccessStrategy accessStrategy = FileSystemAccessStrategy.get( accessStrategyName );
 		Supplier<LockFactory> lockFactorySupplier = context.createConfiguredLockFactorySupplier()
 				.orElseGet( () -> FSLockFactory::getDefault );

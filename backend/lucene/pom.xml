@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-parent-public</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
+        <version>7.0.0-SNAPSHOT</version>
         <relativePath>../../build/parents/public</relativePath>
     </parent>
     <artifactId>hibernate-search-backend-lucene</artifactId>
@@ -15,6 +15,8 @@
     <description>Hibernate Search Backend relying on embedded instances of Lucene</description>
 
     <properties>
+        <!-- This is a publicly distributed module that should be published: -->
+        <deploy.skip>false</deploy.skip>
         <java.module.name>org.hibernate.search.backend.lucene</java.module.name>
     </properties>
 
@@ -30,7 +32,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-analyzers-common</artifactId>
+            <artifactId>lucene-analysis-common</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
@@ -44,11 +46,9 @@
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-facet</artifactId>
         </dependency>
-        <!-- DO NOT REMOVE and DO NOT MANAGE the version of this dependency. See the version property declaration. -->
         <dependency>
             <groupId>com.carrotsearch</groupId>
             <artifactId>hppc</artifactId>
-            <version>${version.com.carrotsearch.hppc}</version>
         </dependency>
 
         <dependency>

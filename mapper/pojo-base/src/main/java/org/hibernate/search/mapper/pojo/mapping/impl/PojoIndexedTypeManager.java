@@ -34,7 +34,7 @@ import org.hibernate.search.mapper.pojo.work.impl.PojoDocumentContributor;
 import org.hibernate.search.mapper.pojo.work.impl.PojoWorkIndexedTypeContext;
 import org.hibernate.search.mapper.pojo.work.spi.PojoWorkSessionContext;
 import org.hibernate.search.util.common.impl.Closer;
-import org.hibernate.search.util.common.impl.ToStringTreeBuilder;
+import org.hibernate.search.util.common.spi.ToStringTreeAppender;
 
 /**
  * @param <I> The identifier type for the mapped entity type.
@@ -42,7 +42,7 @@ import org.hibernate.search.util.common.impl.ToStringTreeBuilder;
  */
 public class PojoIndexedTypeManager<I, E> extends AbstractPojoTypeManager<I, E>
 		implements PojoWorkIndexedTypeContext<I, E>, PojoScopeIndexedTypeContext<I, E>,
-				PojoMassIndexingIndexedTypeContext<E> {
+		PojoMassIndexingIndexedTypeContext<E> {
 	private final DocumentRouter<? super E> documentRouter;
 	private final PojoIndexingProcessor<E> processor;
 	private final MappedIndexManager indexManager;
@@ -71,8 +71,8 @@ public class PojoIndexedTypeManager<I, E> extends AbstractPojoTypeManager<I, E>
 	}
 
 	@Override
-	public void appendTo(ToStringTreeBuilder builder) {
-		builder.attribute( "entityName", entityName )
+	public void appendTo(ToStringTreeAppender appender) {
+		appender.attribute( "entityName", entityName )
 				.attribute( "typeIdentifier", typeIdentifier )
 				.attribute( "indexManager", indexManager )
 				.attribute( "identifierMapping", identifierMapping )

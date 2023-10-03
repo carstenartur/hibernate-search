@@ -6,17 +6,18 @@
  */
 package org.hibernate.search.test.proxy;
 
+import java.util.Set;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+
 import org.hibernate.annotations.Proxy;
 import org.hibernate.search.annotations.DocumentId;
 import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.annotations.IndexedEmbedded;
-
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import java.util.Set;
 
 @Entity
 @Indexed
@@ -34,6 +35,7 @@ public class Profile implements IProfile {
 	public Integer getId() {
 		return id;
 	}
+
 	@Override
 	public void setId(Integer id) {
 		this.id = id;

@@ -13,7 +13,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -57,11 +58,11 @@ public class HighlightingDslIT {
 
 			List<List<String>> result = searchSession.search( Book.class ) // <2>
 					.select( f -> f.highlight( "title" ) ) // <3>
-					.where( f -> f.match().field( "title" ).matching( "scandal" ) ) // <4>
+					.where( f -> f.match().field( "title" ).matching( "mystery" ) ) // <4>
 					.fetchHits( 20 ); // <5>
 			// end::basics[]
 			assertThat( result ).containsExactlyInAnyOrder(
-					Collections.singletonList( "A <em>Scandal</em> in Bohemia" )
+					Collections.singletonList( "The Boscombe Valley <em>Mystery</em>" )
 			);
 		} );
 	}
@@ -129,7 +130,7 @@ public class HighlightingDslIT {
 					).asList() )
 					.where( f -> f.match().fields( "title", "description" ).matching( "scandal" ) )
 					.highlighter( f -> f.plain().tag( "<b>", "</b>" ) ) // <3>
-					.highlighter( "customized-plain-highlighter", f -> f.plain().noMatchSize( 100 ) )// <4>
+					.highlighter( "customized-plain-highlighter", f -> f.plain().noMatchSize( 100 ) ) // <4>
 					.fetchHits( 20 ); // <5>
 			// end::basic-config[]
 			assertThat( result ).containsExactlyInAnyOrder(
@@ -143,42 +144,56 @@ public class HighlightingDslIT {
 	}
 
 	@Test
-	public void variousHighlighterTypes() {
+	public void variousHighlighterTypesPlain() {
 		with( entityManagerFactory ).runInTransaction( entityManager -> {
 			SearchSession searchSession = Search.session( entityManager );
 
 			List<List<String>> result =
-					// tag::various-highlighter-types[]
+					// tag::various-highlighter-types-plain[]
 					searchSession.search( Book.class )
 							.select( f -> f.highlight( "title" ) )
 							.where( f -> f.match().fields( "title", "description" ).matching( "scandal" ) )
 							.highlighter( f -> f.plain() /* ... */ ) // <1>
 							.fetchHits( 20 );
-			// end::various-highlighter-types[]
+			// end::various-highlighter-types-plain[]
 			assertThat( result ).containsExactlyInAnyOrder(
 					Collections.singletonList( "A <em>Scandal</em> in Bohemia" )
 			);
+		} );
+	}
 
-			result =
-					// tag::various-highlighter-types[]
+	@Test
+	public void variousHighlighterTypesUnified() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			List<List<String>> result =
+					// tag::various-highlighter-types-unified[]
 					searchSession.search( Book.class )
 							.select( f -> f.highlight( "title" ) )
 							.where( f -> f.match().fields( "title", "description" ).matching( "scandal" ) )
-							.highlighter( f -> f.unified() /* ... */ ) // <2>
+							.highlighter( f -> f.unified() /* ... */ ) // <1>
 							.fetchHits( 20 );
-			// end::various-highlighter-types[]
+			// end::various-highlighter-types-unified[]
 			assertThat( result ).containsExactlyInAnyOrder(
 					Collections.singletonList( "A <em>Scandal</em> in Bohemia" )
 			);
+		} );
+	}
 
-			result =
-					// tag::various-highlighter-types[]
+	@Test
+	public void variousHighlighterTypesFvh() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			List<List<String>> result =
+					// tag::various-highlighter-types-fvh[]
 					searchSession.search( Book.class )
 							.select( f -> f.highlight( "description" ) )
 							.where( f -> f.match().fields( "title", "description" ).matching( "scandal" ) )
-							.highlighter( f -> f.fastVector() /* ... */ ) // <3>
+							.highlighter( f -> f.fastVector() /* ... */ ) // <1>
 							.fetchHits( 20 );
-			// end::various-highlighter-types[]
+			// end::various-highlighter-types-fvh[]
 			assertThat( result ).containsExactlyInAnyOrder(
 					Collections.emptyList()
 			);
@@ -406,12 +421,13 @@ public class HighlightingDslIT {
 		with( entityManagerFactory ).runInTransaction( entityManager -> {
 			SearchSession searchSession = Search.session( entityManager );
 
+			// @formatter:off
 			// tag::scanner-dsl[]
 			List<List<String>> result = searchSession.search( Book.class )
 					.select( f -> f.highlight( "description" ) )
 					.where( f -> f.match().fields( "description" ).matching( "king" ) )
 					.highlighter( f -> f.fastVector()
-									.boundaryScanner() // <1>
+							.boundaryScanner() // <1>
 									.word() // <2>
 									.locale( Locale.ENGLISH ) // <3>
 									.end() // <4>
@@ -419,6 +435,7 @@ public class HighlightingDslIT {
 					)
 					.fetchHits( 20 );
 			// end::scanner-dsl[]
+			// @formatter:on
 			assertThat( result ).containsExactlyInAnyOrder(
 					Arrays.asList(
 							"The <em>King</em> of Bohemia engages Holmes to recover an indiscreet photograph showing him with the renowned ",
@@ -435,18 +452,20 @@ public class HighlightingDslIT {
 		with( entityManagerFactory ).runInTransaction( entityManager -> {
 			SearchSession searchSession = Search.session( entityManager );
 
+			// @formatter:off
 			// tag::scanner-lambda[]
 			List<List<String>> result = searchSession.search( Book.class )
 					.select( f -> f.highlight( "description" ) )
 					.where( f -> f.match().fields( "description" ).matching( "king" ) )
 					.highlighter( f -> f.fastVector()
-									.boundaryScanner(
-											bs -> bs.word() // <1>
-									)
+							.boundaryScanner(
+									bs -> bs.word() // <1>
+							)
 							/* ... */ // <2>
 					)
 					.fetchHits( 20 );
 			// end::scanner-lambda[]
+			// @formatter:on
 			assertThat( result ).containsExactlyInAnyOrder(
 					Arrays.asList(
 							"The <em>King</em> of Bohemia engages Holmes to recover an indiscreet photograph showing him with the renowned ",
@@ -463,12 +482,13 @@ public class HighlightingDslIT {
 		with( entityManagerFactory ).runInTransaction( entityManager -> {
 			SearchSession searchSession = Search.session( entityManager );
 
+			// @formatter:off
 			// tag::scanner-char[]
 			List<List<String>> result = searchSession.search( Book.class )
 					.select( f -> f.highlight( "description" ) )
 					.where( f -> f.match().fields( "description" ).matching( "scene" ) )
 					.highlighter( f -> f.fastVector()
-									.boundaryScanner() // <1>
+							.boundaryScanner() // <1>
 									.chars() // <2>
 									.boundaryChars( "\n" ) // <3>
 									.boundaryMaxScan( 1000 ) // <4>
@@ -477,6 +497,7 @@ public class HighlightingDslIT {
 					)
 					.fetchHits( 20 );
 			// end::scanner-char[]
+			// @formatter:on
 			assertThat( result ).containsExactlyInAnyOrder(
 					Arrays.asList(
 							"McCarthy, and another local landowner, John Turner, are both Australian expatriates, and Lestrade was originally engaged by Turner's daughter, Alice, who believes James is innocent. Holmes interviews James, and then inspects the <em>scene</em> of the murder, deducing a third man was present."
@@ -515,45 +536,45 @@ public class HighlightingDslIT {
 			book1.setId( BOOK1_ID );
 			book1.setTitle( "A Scandal in Bohemia" );
 			book1.setDescription(
-					"The King of Bohemia engages Holmes to recover an indiscreet photograph showing him with the renowned beauty, " +
-							"adventuress and opera singer Irene Adler - the revelation of which would derail his marriage to a daughter of " +
-							"the King of Scandinavia. In disguise, Holmes witnesses Adler marry the man she truly loves," +
-							" then by means of an elaborate stratagem discovers the photograph's hiding place. " +
-							"But when Holmes and the king return to retrieve the photo, they find Adler has fled the country with it, " +
-							"leaving behind a letter for Holmes and a portrait of herself for the King. " +
-							"The king allows Holmes to retain the portrait as a souvenir." );
+					"The King of Bohemia engages Holmes to recover an indiscreet photograph showing him with the renowned beauty, "
+							+ "adventuress and opera singer Irene Adler - the revelation of which would derail his marriage to a daughter of "
+							+ "the King of Scandinavia. In disguise, Holmes witnesses Adler marry the man she truly loves,"
+							+ " then by means of an elaborate stratagem discovers the photograph's hiding place. "
+							+ "But when Holmes and the king return to retrieve the photo, they find Adler has fled the country with it, "
+							+ "leaving behind a letter for Holmes and a portrait of herself for the King. "
+							+ "The king allows Holmes to retain the portrait as a souvenir." );
 
 			Book book2 = new Book();
 			book2.setId( BOOK2_ID );
 			book2.setTitle( "The Red-Headed League" );
 			book2.setDescription(
-					"Jabez Wilson, a pawnbroker, consults Holmes about a job, gained only because of his red hair, " +
-							"which took him away from his shop for long periods each day; the job for to simply copy the Encyclopædia Britannica. " +
-							"After eight weeks, he was suddenly informed that the job ended. " +
-							"After some investigation at Wilson's shop, Holmes contacts a police inspector and the manager of a nearby bank. " +
-							"With Watson, they hide in the bank vault and catch two thieves who had dug a tunnel from the shop " +
-							"while Wilson was at the decoy copying job." );
+					"Jabez Wilson, a pawnbroker, consults Holmes about a job, gained only because of his red hair, "
+							+ "which took him away from his shop for long periods each day; the job for to simply copy the Encyclopædia Britannica. "
+							+ "After eight weeks, he was suddenly informed that the job ended. "
+							+ "After some investigation at Wilson's shop, Holmes contacts a police inspector and the manager of a nearby bank. "
+							+ "With Watson, they hide in the bank vault and catch two thieves who had dug a tunnel from the shop "
+							+ "while Wilson was at the decoy copying job." );
 
 			Book book3 = new Book();
 			book3.setId( BOOK3_ID );
 			book3.setTitle( "A Case of Identity" );
 			book3.setDescription(
-					"Against the wishes of her stepfather, Mary Sutherland has become engaged to Hosmer Angel. " +
-							"On the morning of their wedding Hosmer elicits a promise that Mary will remain faithful to him " +
-							"\"even if something quite unforeseen\" occurs, then mysteriously disappears en route to the church. " +
-							"Holmes deduces that Hosmer was Mary's stepfather in disguise, the charade a bid to keep Mary a spinster " +
-							"and thus maintain access to her inheritance." );
+					"Against the wishes of her stepfather, Mary Sutherland has become engaged to Hosmer Angel. "
+							+ "On the morning of their wedding Hosmer elicits a promise that Mary will remain faithful to him "
+							+ "\"even if something quite unforeseen\" occurs, then mysteriously disappears en route to the church. "
+							+ "Holmes deduces that Hosmer was Mary's stepfather in disguise, the charade a bid to keep "
+							+ "Mary a spinster and thus maintain access to her inheritance." );
 
 			Book book4 = new Book();
 			book4.setId( BOOK4_ID );
 			book4.setTitle( "The Boscombe Valley Mystery" );
 			book4.setDescription(
-					"Inspector Lestrade asks for Holmes's help after Charles McCarthy is murdered, and his son, James, is implicated.\n" +
-							"McCarthy, and another local landowner, John Turner, are both Australian expatriates, " +
-							"and Lestrade was originally engaged by Turner's daughter, Alice, who believes James is innocent. " +
-							"Holmes interviews James, and then inspects the scene of the murder, deducing a third man was present.\n" +
-							"Realising Holmes has solved the case, Turner confesses to the crime, " +
-							"revealing that McCarthy was blackmailing him due to Turner's criminal past.\n" );
+					"Inspector Lestrade asks for Holmes's help after Charles McCarthy is murdered, and his son, James, is implicated.\n"
+							+ "McCarthy, and another local landowner, John Turner, are both Australian expatriates, "
+							+ "and Lestrade was originally engaged by Turner's daughter, Alice, who believes James is innocent. "
+							+ "Holmes interviews James, and then inspects the scene of the murder, deducing a third man was present.\n"
+							+ "Realising Holmes has solved the case, Turner confesses to the crime, "
+							+ "revealing that McCarthy was blackmailing him due to Turner's criminal past.\n" );
 
 			entityManager.persist( book1 );
 			entityManager.persist( book2 );

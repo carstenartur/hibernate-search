@@ -32,7 +32,11 @@ import org.hibernate.search.util.impl.integrationtest.common.stub.backend.Backen
 import org.hibernate.search.util.impl.integrationtest.mapper.orm.multitenancy.impl.MultitenancyTestHelper;
 
 public final class OrmSetupHelper
-		extends MappingSetupHelper<OrmSetupHelper.SetupContext, SimpleSessionFactoryBuilder, SimpleSessionFactoryBuilder, SessionFactory> {
+		extends
+		MappingSetupHelper<OrmSetupHelper.SetupContext,
+				SimpleSessionFactoryBuilder,
+				SimpleSessionFactoryBuilder,
+				SessionFactory> {
 
 	private static final CoordinationStrategyExpectations DEFAULT_COORDINATION_STRATEGY_EXPECTATIONS;
 	private static final Map<String, Object> DEFAULT_PROPERTIES;
@@ -100,6 +104,7 @@ public final class OrmSetupHelper
 
 	private final Collection<BackendMock> backendMocks;
 	private final SchemaManagementStrategyName schemaManagementStrategyName;
+	private final OrmAssertionHelper assertionHelper;
 	private CoordinationStrategyExpectations coordinationStrategyExpectations =
 			DEFAULT_COORDINATION_STRATEGY_EXPECTATIONS;
 
@@ -108,11 +113,17 @@ public final class OrmSetupHelper
 		super( backendSetupStrategy );
 		this.backendMocks = backendMocks;
 		this.schemaManagementStrategyName = schemaManagementStrategyName;
+		this.assertionHelper = new OrmAssertionHelper( backendSetupStrategy );
 	}
 
 	public OrmSetupHelper coordinationStrategy(CoordinationStrategyExpectations coordinationStrategyExpectations) {
 		this.coordinationStrategyExpectations = coordinationStrategyExpectations;
 		return this;
+	}
+
+	@Override
+	public OrmAssertionHelper assertions() {
+		return assertionHelper;
 	}
 
 	public boolean areEntitiesProcessedInSession() {
@@ -139,7 +150,11 @@ public final class OrmSetupHelper
 	}
 
 	public final class SetupContext
-			extends MappingSetupHelper<SetupContext, SimpleSessionFactoryBuilder, SimpleSessionFactoryBuilder, SessionFactory>.AbstractSetupContext {
+			extends
+			MappingSetupHelper<SetupContext,
+					SimpleSessionFactoryBuilder,
+					SimpleSessionFactoryBuilder,
+					SessionFactory>.AbstractSetupContext {
 
 		// Use a LinkedHashMap for deterministic iteration
 		private final Map<String, Object> overriddenProperties = new LinkedHashMap<>();
@@ -149,7 +164,7 @@ public final class OrmSetupHelper
 			withProperties( DEFAULT_PROPERTIES );
 			// Override the schema management strategy according to our needs for testing
 			withProperty( HibernateOrmMapperSettings.SCHEMA_MANAGEMENT_STRATEGY, schemaManagementStrategyName );
-			// Set the automatic indexing strategy according to the expectations
+			// Set the coordination strategy according to the expectations
 			withProperty( "hibernate.search.coordination.strategy", coordinationStrategyExpectations.strategyName );
 			// Ensure we don't build Jandex indexes needlessly:
 			// discovery based on Jandex ought to be tested in real projects that don't use this setup helper.
@@ -170,10 +185,15 @@ public final class OrmSetupHelper
 		}
 
 		public SetupContext tenants(String... tenants) {
-			withConfiguration( b -> MultitenancyTestHelper.enable( b, tenants ) );
+			return tenants( true, tenants );
+		}
+
+		public SetupContext tenants(boolean enableMultitenancyHelper, String... tenants) {
+			if ( enableMultitenancyHelper ) {
+				withConfiguration( b -> MultitenancyTestHelper.enable( b, tenants ) );
+			}
 			if ( coordinationStrategyExpectations.requiresTenantIds ) {
-				withProperty( HibernateOrmMapperSettings.MULTI_TENANCY_TENANT_IDS,
-						String.join( ",", tenants ) );
+				withProperty( HibernateOrmMapperSettings.MULTI_TENANCY_TENANT_IDS, String.join( ",", tenants ) );
 			}
 			return thisAsC();
 		}

@@ -10,9 +10,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.lucene.index.Term;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.TermQuery;
 import org.hibernate.ScrollableResults;
 import org.hibernate.Transaction;
 import org.hibernate.search.FullTextQuery;
@@ -23,6 +20,10 @@ import org.hibernate.search.test.util.FullTextSessionBuilder;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.TermQuery;
 
 /**
  * Test for org.hibernate.search.query.ScrollableResultsImpl
@@ -40,18 +41,18 @@ public class ScrollableResultsTest {
 	@Before
 	public void setUp() {
 		builder
-			.addAnnotatedClass( AlternateBook.class )
-			.addAnnotatedClass( Employee.class )
-			.setProperty( "hibernate.default_batch_fetch_size", "10" )
-			.build();
+				.addAnnotatedClass( AlternateBook.class )
+				.addAnnotatedClass( Employee.class )
+				.setProperty( "hibernate.default_batch_fetch_size", "10" )
+				.build();
 		sess = builder.openFullTextSession();
 		Transaction tx = sess.beginTransaction();
 		//create some entities to query:
 		for ( int i = 0; i < 324; i++ ) {
-			sess.persist( new AlternateBook( i , "book about the number " + i ) );
+			sess.persist( new AlternateBook( i, "book about the number " + i ) );
 		}
 		for ( int i = 0; i < 133; i++ ) {
-			sess.persist( new Employee( i , "Rossi", "dept. num. " + i ) );
+			sess.persist( new Employee( i, "Rossi", "dept. num. " + i ) );
 		}
 		tx.commit();
 	}
@@ -83,7 +84,7 @@ public class ScrollableResultsTest {
 			position++;
 			int bookId = position;
 			assertEquals( position, scrollableResults.getRowNumber() );
-			AlternateBook book = (AlternateBook) scrollableResults.get()[0];
+			AlternateBook book = (AlternateBook) ( (Object[]) scrollableResults.get() )[0];
 			assertEquals( bookId, book.getId().intValue() );
 			assertEquals( "book about the number " + bookId, book.getSummary() );
 			assertTrue( sess.contains( book ) );
@@ -104,14 +105,14 @@ public class ScrollableResultsTest {
 		TermQuery tq = new TermQuery( new Term( "summary", "number" ) );
 		Sort sort = qb.sort().byField( "id" ).createSort();
 		ScrollableResults scrollableResults = sess
-			.createFullTextQuery( tq, AlternateBook.class )
-			.setSort( sort )
-			.setFetchSize( 10 )
-			.scroll();
+				.createFullTextQuery( tq, AlternateBook.class )
+				.setSort( sort )
+				.setFetchSize( 10 )
+				.scroll();
 		int position = -1;
 		while ( scrollableResults.next() ) {
 			position++;
-			AlternateBook book = (AlternateBook) scrollableResults.get()[0];
+			AlternateBook book = (AlternateBook) ( (Object[]) scrollableResults.get() )[0];
 			assertTrue( sess.contains( book ) );
 			// evict some entities:
 			if ( position % 3 == 0 ) {
@@ -158,7 +159,7 @@ public class ScrollableResultsTest {
 		int position = scrollableResults.getRowNumber();
 		while ( scrollableResults.next() ) {
 			position++;
-			Object[] objs = scrollableResults.get();
+			Object[] objs = (Object[]) scrollableResults.get();
 			assertEquals( Employee.class, objs[0] );
 			assertEquals( position, objs[1] );
 			assertTrue( objs[2] instanceof Employee );

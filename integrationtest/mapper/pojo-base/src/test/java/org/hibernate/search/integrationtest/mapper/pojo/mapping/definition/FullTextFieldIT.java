@@ -17,24 +17,24 @@ import org.hibernate.search.engine.backend.types.Norms;
 import org.hibernate.search.engine.backend.types.Searchable;
 import org.hibernate.search.engine.backend.types.TermVector;
 import org.hibernate.search.engine.backend.types.dsl.StringIndexFieldTypeOptionsStep;
-import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
-import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
-import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.mapper.pojo.bridge.ValueBridge;
 import org.hibernate.search.mapper.pojo.bridge.binding.ValueBindingContext;
-import org.hibernate.search.mapper.pojo.common.annotation.Param;
 import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.ValueBinderRef;
 import org.hibernate.search.mapper.pojo.bridge.mapping.annotation.ValueBridgeRef;
 import org.hibernate.search.mapper.pojo.bridge.mapping.programmatic.ValueBinder;
 import org.hibernate.search.mapper.pojo.bridge.runtime.ValueBridgeToIndexedValueContext;
+import org.hibernate.search.mapper.pojo.common.annotation.Param;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.DocumentId;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.ProgrammaticMappingConfigurationContext;
 import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.TypeMappingStep;
+import org.hibernate.search.mapper.pojo.standalone.mapping.SearchMapping;
+import org.hibernate.search.mapper.pojo.standalone.session.SearchSession;
 import org.hibernate.search.util.common.SearchException;
 import org.hibernate.search.util.impl.integrationtest.common.reporting.FailureReportUtils;
 import org.hibernate.search.util.impl.integrationtest.common.rule.BackendMock;
+import org.hibernate.search.util.impl.integrationtest.mapper.pojo.standalone.StandalonePojoMappingSetupHelper;
 import org.hibernate.search.util.impl.test.annotation.TestForIssue;
 
 import org.junit.Rule;
@@ -58,12 +58,13 @@ public class FullTextFieldIT {
 	public BackendMock backendMock = new BackendMock();
 
 	@Rule
-	public StandalonePojoMappingSetupHelper setupHelper = StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
+	public StandalonePojoMappingSetupHelper setupHelper =
+			StandalonePojoMappingSetupHelper.withBackendMock( MethodHandles.lookup(), backendMock );
 
 	@Test
 	public void defaultAttributes() {
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField
@@ -102,7 +103,7 @@ public class FullTextFieldIT {
 	@Test
 	public void name() {
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(name = "explicitName")
@@ -119,7 +120,7 @@ public class FullTextFieldIT {
 	@Test
 	public void name_invalid_dot() {
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(name = "invalid.withdot")
@@ -145,6 +146,7 @@ public class FullTextFieldIT {
 			Integer id;
 			@FullTextField
 			String myProperty;
+
 			IndexedEntity(int id, String myProperty) {
 				this.id = id;
 				this.myProperty = myProperty;
@@ -162,7 +164,7 @@ public class FullTextFieldIT {
 	@Test
 	public void norms() {
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(norms = Norms.YES)
@@ -188,7 +190,7 @@ public class FullTextFieldIT {
 	@Test
 	public void searchable() {
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(searchable = Searchable.YES)
@@ -214,7 +216,7 @@ public class FullTextFieldIT {
 	@Test
 	public void termVector() {
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(termVector = TermVector.YES)
@@ -232,7 +234,8 @@ public class FullTextFieldIT {
 		backendMock.expectSchema( INDEX_NAME, b -> b
 				.field( "termVector", String.class, f -> f.analyzerName( AnalyzerNames.DEFAULT ).termVector( TermVector.YES ) )
 				.field( "noTermVector", String.class, f -> f.analyzerName( AnalyzerNames.DEFAULT ).termVector( TermVector.NO ) )
-				.field( "moreOptions", String.class, f -> f.analyzerName( AnalyzerNames.DEFAULT ).termVector( TermVector.WITH_POSITIONS_OFFSETS ) )
+				.field( "moreOptions", String.class,
+						f -> f.analyzerName( AnalyzerNames.DEFAULT ).termVector( TermVector.WITH_POSITIONS_OFFSETS ) )
 				.field( "useDefault", String.class, f -> f.analyzerName( AnalyzerNames.DEFAULT ) )
 				.field( "implicit", String.class, f -> f.analyzerName( AnalyzerNames.DEFAULT ) )
 		);
@@ -244,7 +247,7 @@ public class FullTextFieldIT {
 	public void analyzer() {
 		final String analyzerName = "analyzerName";
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(analyzer = analyzerName)
@@ -262,7 +265,7 @@ public class FullTextFieldIT {
 	public void searchAnalyzer() {
 		final String searchAnalyzerName = "searchAnalyzerName";
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(searchAnalyzer = searchAnalyzerName)
@@ -282,7 +285,7 @@ public class FullTextFieldIT {
 		final String analyzerName = "analyzerName";
 		final String searchAnalyzerName = "searchAnalyzerName";
 		@Indexed(index = INDEX_NAME)
-		class IndexedEntity	{
+		class IndexedEntity {
 			@DocumentId
 			Integer id;
 			@FullTextField(analyzer = analyzerName, searchAnalyzer = searchAnalyzerName)
@@ -343,6 +346,7 @@ public class FullTextFieldIT {
 
 			IndexedEntity() {
 			}
+
 			IndexedEntity(Integer id, WrappedValue wrap) {
 				this.id = id;
 				this.wrap = wrap;
@@ -372,6 +376,7 @@ public class FullTextFieldIT {
 
 			IndexedEntity() {
 			}
+
 			IndexedEntity(Integer id, WrappedValue wrap) {
 				this.id = id;
 				this.wrap = wrap;
@@ -597,9 +602,8 @@ public class FullTextFieldIT {
 			}
 		}
 
-		@SuppressWarnings("uncheked")
 		private static String extractFixedPrefix(ValueBindingContext<?> context) {
-			return (String) context.param( "fixedPrefix" );
+			return context.param( "fixedPrefix", String.class );
 		}
 	}
 

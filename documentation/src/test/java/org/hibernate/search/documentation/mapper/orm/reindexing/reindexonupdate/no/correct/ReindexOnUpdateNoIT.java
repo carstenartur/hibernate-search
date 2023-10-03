@@ -10,8 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.List;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
@@ -61,7 +62,7 @@ public class ReindexOnUpdateNoIT {
 	@Test
 	public void reindexOnUpdateNo() {
 		with( entityManagerFactory ).runInTransaction( entityManager -> {
-			for ( int i = 0 ; i < 2000 ; ++i ) {
+			for ( int i = 0; i < 2000; ++i ) {
 				Sensor sensor = new Sensor();
 				sensor.setId( i );
 				sensor.setName( "Sensor " + i );

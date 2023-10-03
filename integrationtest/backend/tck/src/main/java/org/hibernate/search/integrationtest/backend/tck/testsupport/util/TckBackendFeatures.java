@@ -7,17 +7,9 @@
 package org.hibernate.search.integrationtest.backend.tck.testsupport.util;
 
 import org.hibernate.search.engine.backend.types.ObjectStructure;
-import org.hibernate.search.engine.search.common.SortMode;
+import org.hibernate.search.util.impl.integrationtest.mapper.stub.StubMappingBackendFeatures;
 
-public abstract class TckBackendFeatures {
-
-	public boolean geoPointIndexNullAs() {
-		return true;
-	}
-
-	public boolean worksFineWithStrictAboveRangedQueriesOnDecimalScaledField() {
-		return true;
-	}
+public abstract class TckBackendFeatures implements StubMappingBackendFeatures {
 
 	public boolean normalizesStringMissingValues() {
 		return true;
@@ -31,10 +23,6 @@ public abstract class TckBackendFeatures {
 		return true;
 	}
 
-	public boolean zonedDateTimeDocValueHasUTCZoneId() {
-		return false;
-	}
-
 	public boolean nonCanonicalRangeInAggregations() {
 		return true;
 	}
@@ -43,23 +31,11 @@ public abstract class TckBackendFeatures {
 		return true;
 	}
 
-	public boolean sortByFieldValue(TestedFieldStructure fieldStructure, Class<?> fieldType, SortMode sortMode) {
-		return true;
-	}
-
-	public boolean supportsValuesForDynamicField(Class<?> javaType) {
-		return true;
-	}
-
 	public boolean projectionPreservesNulls() {
 		return true;
 	}
 
 	public abstract boolean fieldsProjectableByDefault();
-
-	public boolean supportsTotalHitsThresholdForSearch() {
-		return true;
-	}
 
 	public boolean supportsTotalHitsThresholdForScroll() {
 		return true;
@@ -85,23 +61,11 @@ public abstract class TckBackendFeatures {
 		return false;
 	}
 
-	public boolean supportMoreThan1024TermsOnMatchingAny() {
-		return true;
-	}
-
-	public boolean supportsDistanceSortWhenFieldMissingInSomeTargetIndexes() {
-		return true;
-	}
-
 	public boolean supportsDistanceSortWhenNestedFieldMissingInSomeTargetIndexes() {
 		return true;
 	}
 
 	public boolean supportsFieldSortWhenFieldMissingInSomeTargetIndexes(Class<?> fieldType) {
-		return true;
-	}
-
-	public boolean supportsFieldSortWhenNestedFieldMissingInSomeTargetIndexes() {
 		return true;
 	}
 
@@ -131,10 +95,6 @@ public abstract class TckBackendFeatures {
 		return true;
 	}
 
-	public boolean supportsHighlighterUnifiedTypeMultipleFragmentsAsSeparateItems() {
-		return true;
-	}
-
 	public boolean supportsHighlighterUnifiedTypeFragmentSize() {
 		return true;
 	}
@@ -146,4 +106,26 @@ public abstract class TckBackendFeatures {
 	public boolean supportsHighlighterPlainOrderByScoreMultivaluedField() {
 		return true;
 	}
+
+	public boolean supportsHighlighterUnifiedPhraseMatching() {
+		return false;
+	}
+
+	public boolean supportsExplicitMergeSegments() {
+		return true;
+	}
+
+	public boolean supportsExplicitPurge() {
+		return true;
+	}
+
+	public boolean supportsExplicitFlush() {
+		return true;
+	}
+
+	@Override
+	public boolean supportsExplicitRefresh() {
+		return true;
+	}
+
 }

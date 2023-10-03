@@ -9,9 +9,7 @@ package org.hibernate.search.integrationtest.backend.elasticsearch.schema.manage
 import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchIndexMetadataTestUtils.defaultPrimaryName;
 import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchIndexMetadataTestUtils.defaultReadAlias;
 import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchIndexMetadataTestUtils.defaultWriteAlias;
-import static org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect.ElasticsearchTestDialect.isActualVersion;
 import static org.hibernate.search.util.impl.test.JsonHelper.assertJsonEquals;
-import static org.junit.Assume.assumeFalse;
 
 import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurationContext;
 import org.hibernate.search.backend.elasticsearch.analysis.ElasticsearchAnalysisConfigurer;
@@ -53,13 +51,15 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 		assertJsonEquals(
 				"{"
-						+ "'" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleReadAliasDefinition() + ", "
-						+ "'somePreExistingAlias': {"
-						+ "}"
-				+ "}",
+						+ "  '" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleWriteAliasDefinition()
+						+ ", "
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleReadAliasDefinition()
+						+ ", "
+						+ "  'somePreExistingAlias': {"
+						+ "  }"
+						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
 	}
@@ -76,8 +76,8 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 		assertJsonEquals(
 				"{"
-						+ "'somePreExistingAlias': {"
-						+ "}"
+						+ "  'somePreExistingAlias': {"
+						+ "  }"
 						+ "}",
 				elasticsearchClient.indexNoAlias( index.name() ).aliases().get()
 		);
@@ -95,13 +95,15 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 		assertJsonEquals(
 				"{"
-						+ "'" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleReadAliasDefinition() + ", "
-						+ "'somePreExistingAlias': {"
-						+ "}"
-				+ "}",
+						+ "  '" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleWriteAliasDefinition()
+						+ ", "
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleReadAliasDefinition()
+						+ ", "
+						+ "  'somePreExistingAlias': {"
+						+ "  }"
+						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
 	}
@@ -120,11 +122,13 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 		assertJsonEquals(
 				"{"
-						+ "'" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleReadAliasDefinition() + ", "
-						+ "'somePreExistingAlias': {}"
+						+ "  '" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleWriteAliasDefinition()
+						+ ", "
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleReadAliasDefinition()
+						+ ", "
+						+ "  'somePreExistingAlias': {}"
 						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
@@ -132,15 +136,6 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 	@Test
 	public void writeAlias_invalid_isWriteIndex() {
-		assumeFalse(
-				"This test only is only relevant for Elasticsearch versions supporting the is_write_index" +
-						" attribute in alias definitions." +
-						" These operations are not available on ES 6.3 and below in particular.",
-				isActualVersion(
-						esVersion -> esVersion.isAtMost( "6.3" ),
-						osVersion -> false
-				)
-		);
 		elasticsearchClient.index( index.name() )
 				.deleteAndCreate()
 				.type().putMapping( ElasticsearchIndexSchemaManagerTestUtils.simpleMappingForInitialization( "" ) );
@@ -154,12 +149,14 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 		assertJsonEquals(
 				"{"
-						+ "'" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleReadAliasDefinition() + ", "
-						+ "'somePreExistingAlias': {}"
-				+ "}",
+						+ "  '" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleWriteAliasDefinition()
+						+ ", "
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleReadAliasDefinition()
+						+ ", "
+						+ "  'somePreExistingAlias': {}"
+						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
 	}
@@ -176,12 +173,14 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 		assertJsonEquals(
 				"{"
-						+ "'" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleReadAliasDefinition() + ", "
-						+ "'somePreExistingAlias': {}"
-				+ "}",
+						+ "  '" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleWriteAliasDefinition()
+						+ ", "
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleReadAliasDefinition()
+						+ ", "
+						+ "  'somePreExistingAlias': {}"
+						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
 	}
@@ -200,12 +199,14 @@ public class ElasticsearchIndexSchemaManagerUpdateAliasesIT {
 
 		assertJsonEquals(
 				"{"
-						+ "'" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleWriteAliasDefinition() + ", "
-						+ "'" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
-						.simpleReadAliasDefinition() + ", "
-						+ "'somePreExistingAlias': {}"
-				+ "}",
+						+ "  '" + defaultWriteAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleWriteAliasDefinition()
+						+ ", "
+						+ "  '" + defaultReadAlias( index.name() ) + "': " + ElasticsearchIndexSchemaManagerTestUtils
+								.simpleReadAliasDefinition()
+						+ ", "
+						+ "  'somePreExistingAlias': {}"
+						+ "}",
 				elasticsearchClient.index( index.name() ).aliases().get()
 		);
 	}

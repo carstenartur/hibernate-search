@@ -14,19 +14,37 @@ import java.time.Month;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManagerFactory;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.Session;
 import org.hibernate.search.documentation.testsupport.BackendConfigurations;
 import org.hibernate.search.documentation.testsupport.DocumentationSetupHelper;
+import org.hibernate.search.engine.backend.types.ObjectStructure;
+import org.hibernate.search.engine.backend.types.Projectable;
 import org.hibernate.search.mapper.orm.Search;
 import org.hibernate.search.mapper.orm.session.SearchSession;
+import org.hibernate.search.mapper.pojo.common.spi.PojoEntityReference;
+import org.hibernate.search.mapper.pojo.mapping.definition.programmatic.TypeMappingStep;
+import org.hibernate.search.mapper.pojo.model.path.PojoModelPath;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.CompositeProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.DocumentReferenceProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.EntityProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.EntityReferenceProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.FieldProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.HighlightProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.IdProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.ObjectProjectionBinder;
+import org.hibernate.search.mapper.pojo.search.definition.binding.builtin.ScoreProjectionBinder;
 import org.hibernate.search.util.common.impl.CollectionHelper;
+import org.hibernate.search.util.impl.integrationtest.common.NormalizationUtils;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class ProjectionDslJava17IT {
 
 	private static final int ASIMOV_ID = 1;
@@ -37,14 +55,159 @@ public class ProjectionDslJava17IT {
 	private static final int BOOK3_ID = 3;
 	private static final int BOOK4_ID = 4;
 
+	@Parameterized.Parameters(name = "{0}")
+	public static List<?> params() {
+		return DocumentationSetupHelper.testParamsForBothAnnotationsAndProgrammatic(
+				BackendConfigurations.simple(),
+				// Since we disable classpath scanning in tests for performance reasons,
+				// we need to register annotated projection types explicitly.
+				// This wouldn't be needed in a typical application.
+				CollectionHelper.asSet( MyBookProjection.class, MyBookProjection.Author.class, MyAuthorProjection.class,
+						MyBookIdAndTitleProjection.class, MyBookTitleAndAuthorNamesProjection.class,
+						MyBookTitleAndAuthorsProjection.class,
+						MyBookIdAndTitleProjection.class, MyBookTitleAndAuthorNamesProjection.class,
+						MyBookScoreAndTitleProjection.class,
+						MyBookDocRefAndTitleProjection.class,
+						MyBookEntityAndTitleProjection.class,
+						MyBookEntityRefAndTitleProjection.class,
+						MyBookMiscInfoAndTitleProjection.class, MyBookMiscInfoAndTitleProjection.MiscInfo.class,
+						MyBookTitleAndHighlightedDescriptionProjection.class ),
+				mapping -> {
+					var bookMapping = mapping.type( Book.class );
+					bookMapping.indexed();
+					bookMapping.property( "title" )
+							.fullTextField()
+							.analyzer( "english" ).projectable( Projectable.YES );
+					bookMapping.property( "description" )
+							.fullTextField()
+							.analyzer( "english" ).projectable( Projectable.YES );
+					bookMapping.property( "genre" )
+							.keywordField().projectable( Projectable.YES );
+					bookMapping.property( "pageCount" )
+							.genericField().projectable( Projectable.YES );
+					bookMapping.property( "authors" )
+							.indexedEmbedded()
+							.structure( ObjectStructure.NESTED );
+					bookMapping.property( "mainAuthor" )
+							.indexedEmbedded()
+							.structure( ObjectStructure.NESTED )
+							.indexingDependency().derivedFrom( PojoModelPath.ofValue( "authors" ) )
+							.associationInverseSide( PojoModelPath.ofValue( "books" ) );
+					var authorMapping = mapping.type( Author.class );
+					authorMapping.indexed();
+					authorMapping.property( "firstName" )
+							.fullTextField()
+							.analyzer( "name" ).projectable( Projectable.YES );
+					authorMapping.property( "lastName" )
+							.fullTextField()
+							.analyzer( "name" ).projectable( Projectable.YES );
+
+					var myBookProjectionMapping = mapping.type( MyBookProjection.class );
+					myBookProjectionMapping.mainConstructor()
+							.projectionConstructor();
+					myBookProjectionMapping.mainConstructor().parameter( 0 )
+							.projection( IdProjectionBinder.create() );
+					var myBookAuthorProjectionMapping = mapping.type( MyBookProjection.Author.class );
+					myBookAuthorProjectionMapping.mainConstructor()
+							.projectionConstructor();
+					var myAuthorProjectionMapping = mapping.type( MyAuthorProjection.class );
+					myAuthorProjectionMapping.mainConstructor()
+							.projectionConstructor();
+
+					//tag::programmatic-id-projection[]
+					TypeMappingStep myBookIdAndTitleProjectionMapping =
+							mapping.type( MyBookIdAndTitleProjection.class );
+					myBookIdAndTitleProjectionMapping.mainConstructor()
+							.projectionConstructor();
+					myBookIdAndTitleProjectionMapping.mainConstructor().parameter( 0 )
+							.projection( IdProjectionBinder.create() );
+					//end::programmatic-id-projection[]
+
+					//tag::programmatic-field-projection[]
+					TypeMappingStep myBookTitleAndAuthorNamesProjectionMapping =
+							mapping.type( MyBookTitleAndAuthorNamesProjection.class );
+					myBookTitleAndAuthorNamesProjectionMapping.mainConstructor()
+							.projectionConstructor();
+					myBookTitleAndAuthorNamesProjectionMapping.mainConstructor().parameter( 0 )
+							.projection( FieldProjectionBinder.create() );
+					myBookTitleAndAuthorNamesProjectionMapping.mainConstructor().parameter( 1 )
+							.projection( FieldProjectionBinder.create( "authors.lastName" ) );
+					//end::programmatic-field-projection[]
+
+					//tag::programmatic-score-projection[]
+					TypeMappingStep myBookScoreAndTitleProjection =
+							mapping.type( MyBookScoreAndTitleProjection.class );
+					myBookScoreAndTitleProjection.mainConstructor()
+							.projectionConstructor();
+					myBookScoreAndTitleProjection.mainConstructor().parameter( 0 )
+							.projection( ScoreProjectionBinder.create() );
+					//end::programmatic-score-projection[]
+
+					//tag::programmatic-document-reference-projection[]
+					TypeMappingStep myBookDocRefAndTitleProjection =
+							mapping.type( MyBookDocRefAndTitleProjection.class );
+					myBookDocRefAndTitleProjection.mainConstructor()
+							.projectionConstructor();
+					myBookDocRefAndTitleProjection.mainConstructor().parameter( 0 )
+							.projection( DocumentReferenceProjectionBinder.create() );
+					//end::programmatic-document-reference-projection[]
+
+					//tag::programmatic-entity-projection[]
+					TypeMappingStep myBookEntityAndTitleProjection =
+							mapping.type( MyBookEntityAndTitleProjection.class );
+					myBookEntityAndTitleProjection.mainConstructor()
+							.projectionConstructor();
+					myBookEntityAndTitleProjection.mainConstructor().parameter( 0 )
+							.projection( EntityProjectionBinder.create() );
+					//end::programmatic-entity-projection[]
+
+					//tag::programmatic-entity-reference-projection[]
+					TypeMappingStep myBookEntityRefAndTitleProjection =
+							mapping.type( MyBookEntityRefAndTitleProjection.class );
+					myBookEntityRefAndTitleProjection.mainConstructor()
+							.projectionConstructor();
+					myBookEntityRefAndTitleProjection.mainConstructor().parameter( 0 )
+							.projection( EntityReferenceProjectionBinder.create() );
+					//end::programmatic-entity-reference-projection[]
+
+					//tag::programmatic-object-projection[]
+					TypeMappingStep myBookTitleAndAuthorsProjection =
+							mapping.type( MyBookTitleAndAuthorsProjection.class );
+					myBookTitleAndAuthorsProjection.mainConstructor()
+							.projectionConstructor();
+					myBookTitleAndAuthorsProjection.mainConstructor().parameter( 0 )
+							.projection( ObjectProjectionBinder.create() );
+					myBookTitleAndAuthorsProjection.mainConstructor().parameter( 1 )
+							.projection( ObjectProjectionBinder.create( "mainAuthor" ) );
+					//end::programmatic-object-projection[]
+
+					//tag::programmatic-composite-projection[]
+					TypeMappingStep myBookMiscInfoAndTitleProjection =
+							mapping.type( MyBookMiscInfoAndTitleProjection.class );
+					myBookMiscInfoAndTitleProjection.mainConstructor()
+							.projectionConstructor();
+					myBookMiscInfoAndTitleProjection.mainConstructor().parameter( 0 )
+							.projection( CompositeProjectionBinder.create() );
+					TypeMappingStep miscInfoProjection =
+							mapping.type( MyBookMiscInfoAndTitleProjection.MiscInfo.class );
+					miscInfoProjection.mainConstructor().projectionConstructor();
+					//end::programmatic-composite-projection[]
+
+					//tag::programmatic-highlight-projection[]
+					TypeMappingStep myBookIdAndHighlightedTitleProjection =
+							mapping.type( MyBookTitleAndHighlightedDescriptionProjection.class );
+					myBookIdAndHighlightedTitleProjection.mainConstructor()
+							.projectionConstructor();
+					myBookIdAndHighlightedTitleProjection.mainConstructor().parameter( 0 )
+							.projection( HighlightProjectionBinder.create() );
+					//end::programmatic-highlight-projection[]
+				}
+		);
+	}
+
+	@Parameterized.Parameter
 	@Rule
-	public DocumentationSetupHelper setupHelper = DocumentationSetupHelper.withSingleBackend(
-			BackendConfigurations.simple(), true,
-			// Since we disable classpath scanning in tests for performance reasons,
-			// we need to register annotated projection types explicitly.
-			// This wouldn't be needed in a typical application.
-			context -> context.annotationMapping().add( CollectionHelper.asSet(
-					MyBookProjection.class, MyBookProjection.Author.class, MyAuthorProjection.class ) ) );
+	public DocumentationSetupHelper setupHelper;
 
 	private EntityManagerFactory entityManagerFactory;
 
@@ -57,9 +220,9 @@ public class ProjectionDslJava17IT {
 	@Test
 	public void entryPoint_mapped_record() {
 		with( entityManagerFactory ).runInTransaction( entityManager -> {
-			// tag::entryPoint-mapped-record[]
 			SearchSession searchSession = Search.session( entityManager );
 
+			// tag::entryPoint-mapped-record[]
 			List<MyBookProjection> hits = searchSession.search( Book.class )
 					.select( MyBookProjection.class )// <1>
 					.where( f -> f.matchAll() )
@@ -68,6 +231,7 @@ public class ProjectionDslJava17IT {
 			assertThat( hits ).containsExactlyInAnyOrderElementsOf(
 					entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
 							.map( book -> new MyBookProjection(
+									book.getId(),
 									book.getTitle(),
 									book.getAuthors().stream()
 											.map( author -> new MyBookProjection.Author(
@@ -93,6 +257,7 @@ public class ProjectionDslJava17IT {
 			assertThat( hits ).containsExactlyInAnyOrderElementsOf(
 					session.createQuery( "select b from Book b", Book.class ).list().stream()
 							.map( book -> new MyBookProjection(
+									book.getId(),
 									book.getTitle(),
 									book.getAuthors().stream()
 											.map( author -> new MyBookProjection.Author( author.getFirstName(), author.getLastName() ) )
@@ -121,6 +286,215 @@ public class ProjectionDslJava17IT {
 									.map( author -> new MyAuthorProjection( author.getFirstName(), author.getLastName() ) )
 									.collect( Collectors.toList() ) )
 							.collect( Collectors.toList() )
+			);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_id() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-id[]
+			List<MyBookIdAndTitleProjection> hits = searchSession.search( Book.class )
+					.select( MyBookIdAndTitleProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-id[]
+			assertThat( hits ).containsExactlyInAnyOrderElementsOf(
+					entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+							.map( book -> new MyBookIdAndTitleProjection(
+									book.getId(),
+									book.getTitle()
+							) )
+							.collect( Collectors.toList() )
+			);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_field() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-field[]
+			List<MyBookTitleAndAuthorNamesProjection> hits = searchSession.search( Book.class )
+					.select( MyBookTitleAndAuthorNamesProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-field[]
+			assertThat( hits ).containsExactlyInAnyOrderElementsOf(
+					entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+							.map( book -> new MyBookTitleAndAuthorNamesProjection(
+									book.getTitle(),
+									book.getAuthors().stream()
+											.map( Author::getLastName )
+											.collect( Collectors.toList() )
+							) )
+							.collect( Collectors.toList() )
+			);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_score() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-score[]
+			List<MyBookScoreAndTitleProjection> hits = searchSession.search( Book.class )
+					.select( MyBookScoreAndTitleProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-score[]
+			assertThat( hits )
+					// Ignore scores, we can't guess their value
+					.usingRecursiveFieldByFieldElementComparatorIgnoringFields( "score" )
+					.containsExactlyInAnyOrderElementsOf(
+							entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+									.map( book -> new MyBookScoreAndTitleProjection(
+											0f,
+											book.getTitle()
+									) )
+									.collect( Collectors.toList() )
+					);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_documentReference() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-document-reference[]
+			List<MyBookDocRefAndTitleProjection> hits = searchSession.search( Book.class )
+					.select( MyBookDocRefAndTitleProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-document-reference[]
+			assertThat( hits )
+					.usingRecursiveFieldByFieldElementComparator()
+					.containsExactlyInAnyOrderElementsOf(
+							entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+									.map( book -> new MyBookDocRefAndTitleProjection(
+											NormalizationUtils.reference( Book.NAME, book.getId().toString() ),
+											book.getTitle()
+									) )
+									.collect( Collectors.toList() )
+					);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_entity() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-entity[]
+			List<MyBookEntityAndTitleProjection> hits = searchSession.search( Book.class )
+					.select( MyBookEntityAndTitleProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-entity[]
+			assertThat( hits )
+					.usingRecursiveFieldByFieldElementComparator()
+					.containsExactlyInAnyOrderElementsOf(
+							entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+									.map( book -> new MyBookEntityAndTitleProjection(
+											book,
+											book.getTitle()
+									) )
+									.collect( Collectors.toList() )
+					);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_entityReference() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-entity-reference[]
+			List<MyBookEntityRefAndTitleProjection> hits = searchSession.search( Book.class )
+					.select( MyBookEntityRefAndTitleProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-entity-reference[]
+			assertThat( hits )
+					.containsExactlyInAnyOrderElementsOf(
+							entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+									.map( book -> new MyBookEntityRefAndTitleProjection(
+											PojoEntityReference.withName( Book.class, Book.NAME, book.getId() ),
+											book.getTitle()
+									) )
+									.collect( Collectors.toList() )
+					);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_object() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-object[]
+			List<MyBookTitleAndAuthorsProjection> hits = searchSession.search( Book.class )
+					.select( MyBookTitleAndAuthorsProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-object[]
+			assertThat( hits ).containsExactlyInAnyOrderElementsOf(
+					entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+							.map( book -> new MyBookTitleAndAuthorsProjection(
+									book.getAuthors().stream()
+											.map( a -> new MyAuthorProjection( a.getFirstName(), a.getLastName() ) )
+											.collect( Collectors.toList() ),
+									new MyAuthorProjection( book.getMainAuthor().getFirstName(), book.getMainAuthor().getLastName() ),
+									book.getTitle()
+							) )
+							.collect( Collectors.toList() )
+			);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_composite() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-composite[]
+			List<MyBookMiscInfoAndTitleProjection> hits = searchSession.search( Book.class )
+					.select( MyBookMiscInfoAndTitleProjection.class )// <1>
+					.where( f -> f.matchAll() )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-composite[]
+			assertThat( hits ).containsExactlyInAnyOrderElementsOf(
+					entityManager.createQuery( "select b from Book b", Book.class ).getResultList().stream()
+							.map( book -> new MyBookMiscInfoAndTitleProjection(
+									new MyBookMiscInfoAndTitleProjection.MiscInfo( book.getGenre(), book.getPageCount() ),
+									book.getTitle()
+							) )
+							.collect( Collectors.toList() )
+			);
+		} );
+	}
+
+	@Test
+	public void projectionConstructor_highlight() {
+		with( entityManagerFactory ).runInTransaction( entityManager -> {
+			SearchSession searchSession = Search.session( entityManager );
+
+			// tag::projection-constructor-highlight[]
+			List<MyBookTitleAndHighlightedDescriptionProjection> hits = searchSession.search( Book.class )
+					.select( MyBookTitleAndHighlightedDescriptionProjection.class )// <1>
+					.where( f -> f.match().field( "description" ).matching( "self-aware" ) )
+					.fetchHits( 20 ); // <2>
+			// end::projection-constructor-highlight[]
+			assertThat( hits ).containsExactlyInAnyOrder(
+					new MyBookTitleAndHighlightedDescriptionProjection(
+							List.of( "A robot becomes <em>self</em>-<em>aware</em>." ),
+							"I, Robot"
+					)
 			);
 		} );
 	}

@@ -21,19 +21,20 @@ import org.hibernate.search.engine.search.projection.spi.ProjectionMappedTypeCon
 import org.hibernate.search.engine.search.projection.spi.SearchProjectionIndexScope;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
-
 public final class EntityProjectionOptionsStepImpl<E>
 		implements EntityProjectionOptionsStep<EntityProjectionOptionsStepImpl<E>, E> {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
 	private final SearchProjectionIndexScope<?> scope;
-	private final SearchProjectionFactory<?, E> projectionFactory;
+	private final SearchProjectionFactory<?, ?> projectionFactory;
+	private final Class<E> requestedEntityType;
 
 	public EntityProjectionOptionsStepImpl(SearchProjectionDslContext<?> dslContext,
-			SearchProjectionFactory<?, E> projectionFactory) {
+			SearchProjectionFactory<?, ?> projectionFactory, Class<E> requestedEntityType) {
 		this.scope = dslContext.scope();
 		this.projectionFactory = projectionFactory;
+		this.requestedEntityType = requestedEntityType;
 	}
 
 	@Override
@@ -42,7 +43,8 @@ public final class EntityProjectionOptionsStepImpl<E>
 		boolean canUseProjectionFromFirst = true;
 		ProjectionMappedTypeContext first = mappedTypeContexts.get( 0 );
 		for ( ProjectionMappedTypeContext mappedTypeContext : mappedTypeContexts ) {
-			boolean willYieldSameProjectionAsFirst = first.loadingAvailable() ? mappedTypeContext.loadingAvailable()
+			boolean willYieldSameProjectionAsFirst = first.loadingAvailable()
+					? mappedTypeContext.loadingAvailable()
 					: first.javaClass().equals( mappedTypeContext.javaClass() );
 			if ( !willYieldSameProjectionAsFirst ) {
 				canUseProjectionFromFirst = false;
@@ -62,6 +64,11 @@ public final class EntityProjectionOptionsStepImpl<E>
 	// The casts are safe because a query making use of this projection can only target entity types extending E
 	@SuppressWarnings({ "unchecked" })
 	private SearchProjection<E> toProjection(ProjectionMappedTypeContext mappedTypeContext) {
+		if ( requestedEntityType != null && !requestedEntityType.isAssignableFrom( mappedTypeContext.javaClass() ) ) {
+			throw log.invalidTypeForEntityProjection( mappedTypeContext.name(), mappedTypeContext.javaClass(),
+					requestedEntityType
+			);
+		}
 		if ( mappedTypeContext.loadingAvailable() ) {
 			return scope.projectionBuilders().entityLoading();
 		}

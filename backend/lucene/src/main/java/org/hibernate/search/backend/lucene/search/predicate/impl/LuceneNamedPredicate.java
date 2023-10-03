@@ -17,14 +17,14 @@ import org.hibernate.search.backend.lucene.search.common.impl.LuceneSearchIndexC
 import org.hibernate.search.backend.lucene.search.common.impl.LuceneSearchIndexScope;
 import org.hibernate.search.engine.search.common.spi.SearchQueryElementFactory;
 import org.hibernate.search.engine.search.predicate.SearchPredicate;
-
-import org.apache.lucene.search.Query;
-import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
-import org.hibernate.search.engine.search.predicate.definition.PredicateDefinitionContext;
 import org.hibernate.search.engine.search.predicate.definition.PredicateDefinition;
+import org.hibernate.search.engine.search.predicate.definition.PredicateDefinitionContext;
+import org.hibernate.search.engine.search.predicate.dsl.SearchPredicateFactory;
 import org.hibernate.search.engine.search.predicate.spi.NamedPredicateBuilder;
 import org.hibernate.search.util.common.impl.Contracts;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
+
+import org.apache.lucene.search.Query;
 
 public class LuceneNamedPredicate extends AbstractLuceneSingleFieldPredicate {
 
@@ -132,20 +132,23 @@ public class LuceneNamedPredicate extends AbstractLuceneSingleFieldPredicate {
 		}
 
 		@Override
-		public Object param(String name) {
+		public <T> T param(String name, Class<T> paramType) {
 			Contracts.assertNotNull( name, "name" );
+			Contracts.assertNotNull( paramType, "paramType" );
 
 			Object value = params.get( name );
 			if ( value == null ) {
 				throw log.paramNotDefined( name, predicateName, field.eventContext() );
 			}
-			return value;
+			return paramType.cast( value );
 		}
 
 		@Override
-		public Optional<Object> paramOptional(String name) {
+		public <T> Optional<T> paramOptional(String name, Class<T> paramType) {
 			Contracts.assertNotNull( name, "name" );
-			return Optional.ofNullable( params.get( name ) );
+			Contracts.assertNotNull( paramType, "paramType" );
+
+			return Optional.ofNullable( params.get( name ) ).map( paramType::cast );
 		}
 	}
 }

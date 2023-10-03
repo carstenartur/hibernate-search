@@ -6,9 +6,8 @@
  */
 package org.hibernate.search.integrationtest.mapper.orm.realbackend.limitations;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxPollingOutboxEventAdditionalJaxbMappingProducer.ENTITY_NAME;
+import static org.hibernate.search.mapper.orm.outboxpolling.event.impl.OutboxPollingOutboxEventAdditionalJaxbMappingProducer.ENTITY_NAME;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.ArrayList;
@@ -16,22 +15,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.hibernate.dialect.CockroachDB192Dialect;
+import org.hibernate.dialect.CockroachDialect;
 import org.hibernate.dialect.SQLServerDialect;
 import org.hibernate.search.integrationtest.mapper.orm.realbackend.testsupport.BackendConfigurations;
 import org.hibernate.search.mapper.orm.Search;
 import org.hibernate.search.mapper.orm.cfg.HibernateOrmMapperSettings;
-import org.hibernate.search.mapper.orm.coordination.outboxpolling.event.impl.OutboxEvent;
+import org.hibernate.search.mapper.orm.outboxpolling.event.impl.OutboxEvent;
 import org.hibernate.search.mapper.orm.session.SearchSession;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
 import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
@@ -66,10 +66,10 @@ public class ConcurrentEmbeddedUpdateLimitationIT {
 						IndexingPlanSynchronizationStrategyNames.SYNC )
 				.skipTestForDialect( SQLServerDialect.class,
 						"The execution could provoke a failure caused by a deadlock on SQLServer, "
-						+ "which will abort our requests and will make the tests fail." )
-				.skipTestForDialect( CockroachDB192Dialect.class,
+								+ "which will abort our requests and will make the tests fail." )
+				.skipTestForDialect( CockroachDialect.class,
 						"The execution could provoke a 'failed preemptive refresh due to a conflict' on CockroachDB,"
-						+ " which will abort our requests and will make the tests fail." )
+								+ " which will abort our requests and will make the tests fail." )
 				.setup( Book.class, Author.class, BookEdition.class );
 
 		reproducer();
@@ -94,7 +94,7 @@ public class ConcurrentEmbeddedUpdateLimitationIT {
 		reproducer();
 
 		Awaitility.await()
-				.timeout( 5, TimeUnit.SECONDS )
+				.timeout( 20, TimeUnit.SECONDS )
 				.until( () -> noMoreOutboxEvents( sessionFactory ) );
 
 		verify( () -> assertThat( countByEditionAndAuthor( "12th", "asimov" ) ).isEqualTo( 0L ) );

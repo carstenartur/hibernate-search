@@ -7,10 +7,11 @@
 package org.hibernate.search.engine.search.projection.dsl.impl;
 
 import org.hibernate.search.engine.search.projection.SearchProjection;
-import org.hibernate.search.engine.search.projection.dsl.CompositeProjectionFromAsStep;
+import org.hibernate.search.engine.search.projection.definition.impl.DefaultProjectionDefinitionContext;
 import org.hibernate.search.engine.search.projection.dsl.CompositeProjectionFrom1AsStep;
 import org.hibernate.search.engine.search.projection.dsl.CompositeProjectionFrom2AsStep;
 import org.hibernate.search.engine.search.projection.dsl.CompositeProjectionFrom3AsStep;
+import org.hibernate.search.engine.search.projection.dsl.CompositeProjectionFromAsStep;
 import org.hibernate.search.engine.search.projection.dsl.CompositeProjectionInnerStep;
 import org.hibernate.search.engine.search.projection.dsl.CompositeProjectionValueStep;
 import org.hibernate.search.engine.search.projection.dsl.ProjectionFinalStep;
@@ -46,9 +47,12 @@ public class CompositeProjectionInnerStepImpl implements CompositeProjectionInne
 	@Override
 	public <V> CompositeProjectionValueStep<?, V> as(Class<V> objectClass) {
 		SearchProjectionFactory<?, ?> projectionFactoryWithCorrectRoot = objectFieldPath == null
-				? projectionFactory : projectionFactory.withRoot( objectFieldPath );
+				? projectionFactory
+				: projectionFactory.withRoot( objectFieldPath );
 		return dslContext.scope().projectionRegistry().composite( objectClass )
-				.apply( projectionFactoryWithCorrectRoot, this );
+				.apply( projectionFactoryWithCorrectRoot, this,
+						// TODO HSEARCH-4806/HSEARCH-4807 pass an actual context with parameters
+						DefaultProjectionDefinitionContext.INSTANCE );
 	}
 
 	@Override

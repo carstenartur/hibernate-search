@@ -9,9 +9,9 @@ package org.hibernate.search.integrationtest.mapper.orm.massindexing;
 import static org.assertj.core.api.Fail.fail;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.search.engine.backend.work.execution.DocumentCommitStrategy;
@@ -45,7 +45,7 @@ public class MassIndexingPrimitiveIdIT {
 		backendMock.expectAnySchema( EntityWithPrimitiveId.INDEX );
 
 		sessionFactory = ormSetupHelper.start()
-				.withPropertyRadical( HibernateOrmMapperSettings.Radicals.AUTOMATIC_INDEXING_ENABLED, false )
+				.withPropertyRadical( HibernateOrmMapperSettings.Radicals.INDEXING_LISTENERS_ENABLED, false )
 				.setup( EntityWithPrimitiveId.class );
 
 		backendMock.verifyExpectationsMet();
@@ -64,9 +64,9 @@ public class MassIndexingPrimitiveIdIT {
 			backendMock.expectWorks(
 					EntityWithPrimitiveId.INDEX, DocumentCommitStrategy.NONE, DocumentRefreshStrategy.NONE
 			)
-					.add( "1", b -> { } )
-					.add( "2", b -> { } )
-					.add( "3", b -> { } );
+					.add( "1", b -> {} )
+					.add( "2", b -> {} )
+					.add( "3", b -> {} );
 
 			// purgeAtStart and mergeSegmentsAfterPurge are enabled by default,
 			// so we expect 1 purge, 1 mergeSegments and 1 flush calls in this order:

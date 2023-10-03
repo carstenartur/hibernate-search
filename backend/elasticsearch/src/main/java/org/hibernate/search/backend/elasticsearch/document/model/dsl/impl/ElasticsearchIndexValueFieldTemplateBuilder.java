@@ -6,23 +6,23 @@
  */
 package org.hibernate.search.backend.elasticsearch.document.model.dsl.impl;
 
-import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexValueFieldTemplate;
 import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexCompositeNode;
+import org.hibernate.search.backend.elasticsearch.document.model.impl.ElasticsearchIndexValueFieldTemplate;
 import org.hibernate.search.backend.elasticsearch.lowlevel.index.mapping.impl.DynamicTemplate;
 import org.hibernate.search.backend.elasticsearch.lowlevel.index.mapping.impl.NamedDynamicTemplate;
 import org.hibernate.search.backend.elasticsearch.types.impl.ElasticsearchIndexValueFieldType;
-import org.hibernate.search.engine.backend.document.model.spi.IndexFieldInclusion;
+import org.hibernate.search.engine.common.tree.spi.TreeNodeInclusion;
 import org.hibernate.search.util.common.pattern.spi.SimpleGlobPattern;
 
 class ElasticsearchIndexValueFieldTemplateBuilder
 		extends AbstractElasticsearchIndexFieldTemplateBuilder<
-						ElasticsearchIndexValueFieldTemplateBuilder, ElasticsearchIndexValueFieldTemplate
-				> {
+				ElasticsearchIndexValueFieldTemplateBuilder,
+				ElasticsearchIndexValueFieldTemplate> {
 
 	private final ElasticsearchIndexValueFieldType<?> type;
 
 	ElasticsearchIndexValueFieldTemplateBuilder(AbstractElasticsearchIndexCompositeNodeBuilder parent,
-			String templateName, IndexFieldInclusion inclusion, ElasticsearchIndexValueFieldType<?> type, String prefix) {
+			String templateName, TreeNodeInclusion inclusion, ElasticsearchIndexValueFieldType<?> type, String prefix) {
 		super( parent, templateName, inclusion, prefix );
 		this.type = type;
 	}
@@ -34,7 +34,7 @@ class ElasticsearchIndexValueFieldTemplateBuilder
 
 	@Override
 	protected void doContribute(ElasticsearchIndexNodeCollector collector,
-			ElasticsearchIndexCompositeNode parentNode, IndexFieldInclusion inclusion,
+			ElasticsearchIndexCompositeNode parentNode, TreeNodeInclusion inclusion,
 			SimpleGlobPattern absolutePathGlob, boolean multiValued) {
 		ElasticsearchIndexValueFieldTemplate fieldTemplate = new ElasticsearchIndexValueFieldTemplate(
 				parentNode, absolutePathGlob, inclusion, multiValued, type
@@ -42,7 +42,7 @@ class ElasticsearchIndexValueFieldTemplateBuilder
 
 		collector.collect( fieldTemplate );
 
-		if ( IndexFieldInclusion.INCLUDED.equals( fieldTemplate.inclusion() ) ) {
+		if ( TreeNodeInclusion.INCLUDED.equals( fieldTemplate.inclusion() ) ) {
 			DynamicTemplate dynamicTemplate = new DynamicTemplate();
 			dynamicTemplate.setPathMatch( absolutePathGlob.toPatternString() );
 			dynamicTemplate.setMapping( type.mapping() );

@@ -6,8 +6,8 @@
  */
 package org.hibernate.search.test.spatial;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.annotations.Latitude;
@@ -50,7 +50,7 @@ public class UserEx {
 		return homeLatitude;
 	}
 
-	public void setHomeLatitude( Double homeLatitude ) {
+	public void setHomeLatitude(Double homeLatitude) {
 		this.homeLatitude = homeLatitude;
 	}
 
@@ -58,7 +58,7 @@ public class UserEx {
 		return homeLongitude;
 	}
 
-	public void setHomeLongitude( Double homeLongitude ) {
+	public void setHomeLongitude(Double homeLongitude) {
 		this.homeLongitude = homeLongitude;
 	}
 
@@ -66,7 +66,7 @@ public class UserEx {
 		return workLatitude;
 	}
 
-	public void setWorkLatitude( Double workLatitude ) {
+	public void setWorkLatitude(Double workLatitude) {
 		this.workLatitude = workLatitude;
 	}
 
@@ -74,7 +74,7 @@ public class UserEx {
 		return workLongitude;
 	}
 
-	public void setWorkLongitude( Double workLongitude ) {
+	public void setWorkLongitude(Double workLongitude) {
 		this.workLongitude = workLongitude;
 	}
 

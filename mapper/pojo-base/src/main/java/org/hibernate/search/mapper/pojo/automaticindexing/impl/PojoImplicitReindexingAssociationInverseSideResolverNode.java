@@ -13,8 +13,7 @@ import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPathProper
 import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPathTypeNode;
 import org.hibernate.search.mapper.pojo.model.path.impl.BoundPojoModelPathValueNode;
 import org.hibernate.search.util.common.impl.SuppressingCloser;
-import org.hibernate.search.util.common.impl.ToStringTreeAppendable;
-import org.hibernate.search.util.common.impl.ToStringTreeBuilder;
+import org.hibernate.search.util.common.spi.ToStringTreeAppendable;
 
 /**
  * A resolver of the inverse side of an association based on an "association state".
@@ -46,8 +45,10 @@ public abstract class PojoImplicitReindexingAssociationInverseSideResolverNode<T
 		}
 	}
 
-	private static <T, P> PojoImplicitReindexingAssociationInverseSideResolverNode<Object> bind(ContainerExtractorBinder extractorBinder,
-			BoundPojoModelPathPropertyNode<T, P> path, PojoImplicitReindexingAssociationInverseSideResolverNode<? super P> nested) {
+	private static <T, P> PojoImplicitReindexingAssociationInverseSideResolverNode<Object> bind(
+			ContainerExtractorBinder extractorBinder,
+			BoundPojoModelPathPropertyNode<T, P> path,
+			PojoImplicitReindexingAssociationInverseSideResolverNode<? super P> nested) {
 		try {
 			return bind( extractorBinder, path.getParent(),
 					new PojoImplicitReindexingAssociationInverseSideResolverPropertyNode<>(
@@ -60,7 +61,8 @@ public abstract class PojoImplicitReindexingAssociationInverseSideResolverNode<T
 		}
 	}
 
-	private static <T> PojoImplicitReindexingAssociationInverseSideResolverNode<Object> bind(ContainerExtractorBinder extractorBinder,
+	private static <T> PojoImplicitReindexingAssociationInverseSideResolverNode<Object> bind(
+			ContainerExtractorBinder extractorBinder,
 			BoundPojoModelPathTypeNode<T> path,
 			PojoImplicitReindexingAssociationInverseSideResolverNode<? super T> nested) {
 		try {
@@ -83,7 +85,7 @@ public abstract class PojoImplicitReindexingAssociationInverseSideResolverNode<T
 
 	@Override
 	public final String toString() {
-		return new ToStringTreeBuilder().value( this ).toString();
+		return toStringTree();
 	}
 
 	@Override

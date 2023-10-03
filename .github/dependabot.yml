@@ -9,10 +9,57 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "tuesday"
     assignees: ["yrodiere"]
     # We don't trigger Jenkins or GitHub Actions builds on pull requests from dependabot,
     # so we can safely use a high limit here.
     open-pull-requests-limit: 20
+    groups:
+      # This group combines all build-only dependencies. Published artifacts do not depend on them.
+      # Grouping such dependencies will make Dependabot create PRs with a branch name
+      # following the pattern (`dependabot/maven/build-dependencies-.*`)
+      # and with a title like `Bump the build-dependencies group with 8 updates` that we can easily
+      # use for Hibernate Bot rules.
+      build-dependencies:
+        patterns:
+          # Maven plugin patterns:
+          - "*maven*plugin*"
+          - "org.apache.maven*:*"
+          - "*surefire*"
+          - "*forbiddenapis*"
+          - "*owasp*"
+          - "io.github.gitflow-incremental-builder:*"
+          # DB drivers:
+          - "com.h2database:h2"
+          - "org.apache.derby:derby"
+          - "org.postgresql:postgresql"
+          - "org.mariadb.jdbc:mariadb-java-client"
+          - "com.mysql:mysql-connector-j"
+          - "com.ibm.db2:jcc"
+          - "com.oracle.database.jdbc:ojdbc*"
+          - "com.microsoft.sqlserver:mssql-jdbc"
+          # Other test dependencies
+          - "org.apache.groovy:groovy-jsr223" # used for scripting maven plugin
+          - "org.apache.commons:commons-lang3" # used in hibernate-search-util-common tests
+          - "org.apache.commons:commons-math3" # used to solve dependency convergence for Wiremock
+          - "org.openjdk.jmh:*" # performance testing dependency
+          - "com.google.guava:guava" # Guava is used in our test utils
+          - "org.asciidoctor:*" # Asciidoctor is used for rendering the documentation
+          # Eclipse compiler
+          - "org.codehaus.plexus:*"
+          - "org.eclipse.jdt:*"
+          - "org.jboss.marshalling:jboss-marshalling" # JBeret IT dependency
+          - "org.wildfly.security:wildfly-security-manager" # JBeret IT dependency
+          - "org.springframework.boot:*" # Spring is only for ITs
+          - "org.mockito:*"
+          - "org.hamcrest:*"
+          - "org.apache.logging.log4j:*"
+          - "org.assertj:*"
+          - "org.awaitility:*"
+          - "org.skyscreamer:*"
+          - "com.github.tomakehurst:*"
+          - "org.jsoup:*"
+          - "org.ow2.asm:*" # for Surefire/Failsafe plugins to support builds on latest JDKs
     ignore:
       # These dependencies are updated manually
       - dependency-name: "org.hibernate:*"
@@ -20,40 +67,19 @@ updates:
       # AWS SDK releases way too often (every week?); ignore all patch updates
       - dependency-name: "software.amazon.awssdk:*"
         update-types: ["version-update:semver-patch"]
-      # JRuby releases way too often (every two weeks?) and is only used during the build; ignore all patch updates
-      - dependency-name: "org.jruby:jruby-complete"
-        update-types: ["version-update:semver-patch"]
+      # Groovy is only used during the build; ignore all patch updates
+      - dependency-name: "org.apache.groovy:groovy-jsr223"
+        update-types: [ "version-update:semver-patch" ]
       # We don't care that much about being on the very latest version of some integration test dependencies
       - dependency-name: "org.springframework.boot:*"
         update-types: [ "version-update:semver-patch" ]
-        # ignore spring boot 3+ for now as some required dependencies are not compatible with this version yet:
-        versions: ["[3.0.0,)"]
-      # Upgrading to asciidoctorj-pdf 1.5.0 or later won't work for
-      # some reason; we're getting strange errors that led me to think the
-      # font-size has the wrong type (string instead of number).
-      # See b8f044eea92d6f2dd3421779f54b8923e00a26b7
-      - dependency-name: org.asciidoctor:asciidoctorj-pdf
       # We strictly align these dependencies on the version used in Hibernate ORM.
-      - dependency-name: "org.jboss:jandex"
-      - dependency-name: "javax.persistence:javax.persistence-api"
-      - dependency-name: "javax.enterprise:cdi-api"
+      - dependency-name: "io.smallrye:jandex"
       - dependency-name: "jakarta.persistence:jakarta.persistence-api"
       - dependency-name: "jakarta.enterprise:jakarta.enterprise.cdi-api"
       - dependency-name: "jakarta.xml.bind:jakarta.xml.bind-api"
       - dependency-name: "net.bytebuddy:*"
-      # Newer majors of the following artifacts comply with the Jakarta specification (jakarta.* packages),
-      # but we comply with Java EE (javax.* packages) for now.
-      # TODO HSEARCH-4394 Remove these when switching to Jakarta EE as the default standard
-      - dependency-name: "org.jboss.weld.se:*"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "org.jberet:*"
-        update-types: ["version-update:semver-major"]
-      # Newer minors of the following artifacts are only compatible with JDK 11+,
-      # but we strive for JDK 8 compatibility (still).
-      # TODO HSEARCH-4556 / HSEARCH-4555 Remove this when making JDK 11 our baseline
-      - dependency-name: "org.jboss.logging:*"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      # Sticking to Derby 10.14 for now since later versions require JDK 9+, and we need to test with JDK 8.
+      # Sticking to Derby 10.15 for now since later versions require JDK 17+, and we need to test with JDK 11.
       # See https://db.apache.org/derby/derby_downloads.html
       - dependency-name: "org.apache.derby:*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
@@ -67,9 +93,9 @@ updates:
       # (see https://search.maven.org/artifact/software.amazon.awssdk/aws-sdk-java-pom/2.17.257/pom)
       - dependency-name: "org.slf4j:*"
         update-types: ["version-update:semver-major"]
-      # Mockito 5 requires Java 11 which is not possible with Hibernate Search 6 series.
-      # https://github.com/mockito/mockito/releases/tag/v5.0.0
-      - dependency-name: "org.mockito:*"
-        versions: ["[5.0.0,)"]
-      # We strictly align this dependency on the version used in Lucene.
-      - dependency-name: "com.carrotsearch:hppc"
+      # We only define a maven's minimum version, so we don't need it to be updated to the latest:
+      - dependency-name: "org.apache.maven:maven-core"
+      # This dependency uses classifiers (-jdk8, ...) in its version, and dependabot can't decide which versions are relevant.
+      # See https://github.com/dependabot/dependabot-core/issues/4028
+      # And, additionally, it is only for performance testing.
+      - dependency-name: "org.bsc.maven:maven-processor-plugin"

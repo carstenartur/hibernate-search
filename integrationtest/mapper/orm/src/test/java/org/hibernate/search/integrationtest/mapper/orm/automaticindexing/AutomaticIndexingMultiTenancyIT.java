@@ -9,8 +9,9 @@ package org.hibernate.search.integrationtest.mapper.orm.automaticindexing;
 import static org.hibernate.search.util.impl.integrationtest.mapper.orm.OrmUtils.with;
 
 import java.util.concurrent.atomic.AtomicReference;
-import javax.persistence.Entity;
-import javax.persistence.Id;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.search.engine.backend.analysis.AnalyzerNames;
@@ -75,7 +76,7 @@ public class AutomaticIndexingMultiTenancyIT {
 
 		static final String NAME = "IndexedEntity";
 
-		static volatile AtomicReference<Runnable> getTextConcurrentOperation = new AtomicReference<>( () -> { } );
+		static volatile AtomicReference<Runnable> getTextConcurrentOperation = new AtomicReference<>( () -> {} );
 
 		private Integer id;
 		private String text;

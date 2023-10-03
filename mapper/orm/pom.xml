@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.hibernate.search</groupId>
         <artifactId>hibernate-search-parent-public</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
+        <version>7.0.0-SNAPSHOT</version>
         <relativePath>../../build/parents/public</relativePath>
     </parent>
     <artifactId>hibernate-search-mapper-orm</artifactId>
@@ -15,6 +15,8 @@
     <description>Hibernate Search integration to Hibernate ORM</description>
 
     <properties>
+        <!-- This is a publicly distributed module that should be published: -->
+        <deploy.skip>false</deploy.skip>
         <java.module.name>org.hibernate.search.mapper.orm</java.module.name>
     </properties>
 
@@ -32,27 +34,31 @@
             <artifactId>hibernate-search-util-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.hibernate</groupId>
+            <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>javax.persistence</groupId>
-            <artifactId>javax.persistence-api</artifactId>
-            <!-- DO NOT REMOVE and DO NOT MANAGE the version of this dependency. See the version property declaration. -->
-            <version>${version.javax.persistence}</version>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>javax.enterprise</groupId>
-            <artifactId>cdi-api</artifactId>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
             <!-- DO NOT REMOVE and DO NOT MANAGE the version of this dependency. See the version property declaration. -->
-            <version>${version.javax.enterprise}</version>
+            <version>${version.jakarta.enterprise}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hibernate.common</groupId>
             <artifactId>hibernate-commons-annotations</artifactId>
-            <!-- DO NOT REMOVE and DO NOT MANAGE the version of this dependency. See the version property declaration. -->
-            <version>${version.org.hibernate.commons.annotations}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.smallrye</groupId>
+            <artifactId>jandex</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss.logging</groupId>
@@ -63,6 +69,15 @@
             <artifactId>jboss-logging-annotations</artifactId>
         </dependency>
 
+        <!--
+            Without this dependency we get: Compilation failure: [ERROR] unknown enum constant XmlAccessType.FIELD
+            And if we only have it as <scope>provided</scope> - we will fail to generate the Javadocs.
+         -->
+        <dependency>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.hibernate.search</groupId>
             <artifactId>hibernate-search-util-internal-test-orm</artifactId>
@@ -71,8 +86,6 @@
         <dependency>
             <groupId>net.bytebuddy</groupId>
             <artifactId>byte-buddy</artifactId>
-            <!-- DO NOT REMOVE and DO NOT MANAGE the version of this dependency. See the version property declaration. -->
-            <version>${version.net.bytebuddy}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -85,12 +98,21 @@
                 <executions>
                     <execution>
                         <id>add-module-infos</id>
-                        <!--
-                        This module depends on some packages of unnamed module jar: cdi-api*.jar.
-                        It seems that it is not possible to use directly unnamed modules from an explicit module,
-                        but we need an automatic module that acts as a bridge.
-                        -->
-                        <phase>none</phase>
+                        <configuration>
+                            <module>
+                                <moduleInfo>
+                                    <requires>
+                                        static jakarta.cdi;
+                                        org.hibernate.*.impl;
+                                        org.hibernate.*.internal;
+                                        org.hibernate.*.impl.*;
+                                        org.hibernate.*.internal.*;
+                                        transitive org.hibernate.*;
+                                        *;
+                                    </requires>
+                                </moduleInfo>
+                            </module>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -15,10 +15,9 @@ import org.hibernate.search.mapper.pojo.bridge.runtime.spi.BridgeMappingContext;
 import org.hibernate.search.mapper.pojo.bridge.runtime.spi.BridgeSessionContext;
 import org.hibernate.search.mapper.pojo.logging.impl.Log;
 import org.hibernate.search.mapper.pojo.model.spi.PojoCaster;
+import org.hibernate.search.util.common.impl.Closer;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 import org.hibernate.search.util.common.reflect.spi.ValueReadHandle;
-import org.hibernate.search.util.common.impl.Closer;
-
 
 public final class PropertyIdentifierMapping<I, E> implements IdentifierMappingImplementor<I, E> {
 
@@ -52,7 +51,7 @@ public final class PropertyIdentifierMapping<I, E> implements IdentifierMappingI
 	}
 
 	@Override
-	@SuppressWarnings( "unchecked" ) // We can only cast to the raw type, if I is generic we need an unchecked cast
+	@SuppressWarnings("unchecked") // We can only cast to the raw type, if I is generic we need an unchecked cast
 	public I getIdentifier(Object providedId, Supplier<? extends E> entitySupplierOrNull) {
 		if ( providedId != null ) {
 			return (I) caster.cast( providedId );

@@ -8,6 +8,7 @@ package org.hibernate.search.engine.environment.bean.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -34,7 +35,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -54,7 +54,7 @@ public class BeanResolverImplRetrievalConstructorTest {
 	@Mock
 	private BeanProvider beanManagerBeanProviderMock;
 
-	@Mock(answer = Answers.CALLS_REAL_METHODS)
+	@Mock
 	private ConfigurationPropertySource configurationSourceMock;
 
 	@Mock
@@ -84,7 +84,11 @@ public class BeanResolverImplRetrievalConstructorTest {
 
 		when( serviceResolverMock.loadJavaServices( BeanConfigurer.class ) )
 				.thenReturn( Collections.singletonList( beanConfigurer1 ) );
-		when( configurationSourceMock.get( EngineSpiSettings.Radicals.BEAN_CONFIGURERS ) )
+		when( configurationSourceMock.withMask( any() ) )
+				.thenCallRealMethod();
+		when( configurationSourceMock.withFallback( any() ) )
+				.thenCallRealMethod();
+		when( configurationSourceMock.get( EngineSpiSettings.BEAN_CONFIGURERS ) )
 				.thenReturn( (Optional) Optional.of( Collections.singletonList( beanConfigurer2 ) ) );
 		beanResolver = BeanResolverImpl.create( classResolverMock, serviceResolverMock, beanManagerBeanProviderMock,
 				configurationSourceMock );
@@ -111,7 +115,8 @@ public class BeanResolverImplRetrievalConstructorTest {
 
 		// resolve(Class, String) through BeanReference
 		doReturn( ReflectionType2.class ).when( classResolverMock ).classForName( ReflectionType2.class.getName() );
-		assertThat( beanResolver.resolve( BeanReference.of( Object.class, ReflectionType2.class.getName(), BeanRetrieval.CONSTRUCTOR ) ) )
+		assertThat( beanResolver
+				.resolve( BeanReference.of( Object.class, ReflectionType2.class.getName(), BeanRetrieval.CONSTRUCTOR ) ) )
 				.extracting( BeanHolder::get ).isInstanceOf( ReflectionType2.class );
 		verifyNoOtherInteractionsAndReset();
 
@@ -151,16 +156,17 @@ public class BeanResolverImplRetrievalConstructorTest {
 		assertThatThrownBy( () -> beanResolver.resolve( InvalidType.class, "someName", BeanRetrieval.CONSTRUCTOR ) )
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll( "Unable to resolve bean reference to type '" + InvalidType.class.getName()
-								+ "' and name 'someName'",
+						+ "' and name 'someName'",
 						classNotFoundException.getMessage() );
 		verifyNoOtherInteractionsAndReset();
 
 		// resolve(Class, String) => Missing constructor
 		doReturn( InvalidType.class ).when( classResolverMock ).classForName( InvalidType.class.getName() );
-		assertThatThrownBy( () -> beanResolver.resolve( InvalidType.class, InvalidType.class.getName(), BeanRetrieval.CONSTRUCTOR ) )
+		assertThatThrownBy(
+				() -> beanResolver.resolve( InvalidType.class, InvalidType.class.getName(), BeanRetrieval.CONSTRUCTOR ) )
 				.isInstanceOf( SearchException.class )
 				.hasMessageContainingAll( "Unable to resolve bean reference to type '" + InvalidType.class.getName()
-								+ "' and name '" + InvalidType.class.getName() + "'",
+						+ "' and name '" + InvalidType.class.getName() + "'",
 						"missing constructor" );
 		verifyNoOtherInteractionsAndReset();
 

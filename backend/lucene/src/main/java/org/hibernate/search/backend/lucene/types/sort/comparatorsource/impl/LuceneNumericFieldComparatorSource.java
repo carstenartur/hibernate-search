@@ -6,11 +6,11 @@
  */
 package org.hibernate.search.backend.lucene.types.sort.comparatorsource.impl;
 
+import org.hibernate.search.backend.lucene.lowlevel.docvalues.impl.MultiValueMode;
 import org.hibernate.search.backend.lucene.types.lowlevel.impl.LuceneNumericDomain;
 
 import org.apache.lucene.search.FieldComparator;
 import org.apache.lucene.search.Query;
-import org.hibernate.search.backend.lucene.lowlevel.docvalues.impl.MultiValueMode;
 
 public class LuceneNumericFieldComparatorSource<E extends Number> extends LuceneFieldComparatorSource {
 
@@ -18,7 +18,8 @@ public class LuceneNumericFieldComparatorSource<E extends Number> extends Lucene
 	private final LuceneNumericDomain<E> numericDomain;
 	private final MultiValueMode sortMode;
 
-	public LuceneNumericFieldComparatorSource(String nestedDocumentPath, LuceneNumericDomain<E> numericDomain, E missingValue, MultiValueMode sortMode, Query filter) {
+	public LuceneNumericFieldComparatorSource(String nestedDocumentPath, LuceneNumericDomain<E> numericDomain, E missingValue,
+			MultiValueMode sortMode, Query filter) {
 		super( nestedDocumentPath, filter );
 		this.numericDomain = numericDomain;
 		this.missingValue = missingValue;
@@ -26,8 +27,8 @@ public class LuceneNumericFieldComparatorSource<E extends Number> extends Lucene
 	}
 
 	@Override
-	public FieldComparator<?> newComparator(String fieldname, int numHits, int sortPos, boolean reversed) {
-		return numericDomain.createFieldComparator( fieldname, numHits, missingValue, reversed, sortPos,
+	public FieldComparator<?> newComparator(String fieldname, int numHits, boolean enableSkipping, boolean reversed) {
+		return numericDomain.createFieldComparator( fieldname, numHits, missingValue, reversed, enableSkipping,
 				sortMode, nestedDocsProvider );
 	}
 }

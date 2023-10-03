@@ -74,6 +74,7 @@ public class ElasticsearchAnalysisConfigurerIT {
 
 	public static class FailingConfigurer implements ElasticsearchAnalysisConfigurer {
 		private static final String FAILURE_MESSAGE = "Simulated failure for " + FailingConfigurer.class.getName();
+
 		@Override
 		public void configure(ElasticsearchAnalysisConfigurationContext context) {
 			throw new SimulatedFailure( FAILURE_MESSAGE );
@@ -268,17 +269,17 @@ public class ElasticsearchAnalysisConfigurerIT {
 
 		assertJsonEquals(
 				"{"
-					+ "'analyzer': {"
-							+ "'analyzer1': {"
-									+ "'type': 'custom',"
-									+ "'tokenizer': 'whitespace'"
-							+ "},"
-							+ "'analyzer2': {"
-									+ "'type': 'custom',"
-									+ "'tokenizer': 'whitespace'"
-							+ "}"
-					+ "}"
-				+ "}",
+						+ " 'analyzer': {"
+						+ "   'analyzer1': {"
+						+ "     'type': 'custom',"
+						+ "     'tokenizer': 'whitespace'"
+						+ "   },"
+						+ "   'analyzer2': {"
+						+ "     'type': 'custom',"
+						+ "     'tokenizer': 'whitespace'"
+						+ "   }"
+						+ " }"
+						+ "}",
 				client.index( index.name() ).settings( "index.analysis" ).get()
 		);
 	}
@@ -300,7 +301,7 @@ public class ElasticsearchAnalysisConfigurerIT {
 	}
 
 	private StubMappedIndex setup(String analysisConfigurer) {
-		return setup( analysisConfigurer, c -> { } );
+		return setup( analysisConfigurer, c -> {} );
 	}
 
 	private StubMappedIndex setup(String analysisConfigurer, Consumer<IndexBindingContext> mappingContributor) {

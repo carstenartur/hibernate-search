@@ -6,102 +6,101 @@
  */
 package org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.dialect;
 
-import java.util.Arrays;
-import java.util.Collections;
+import java.io.IOException;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import org.hibernate.search.backend.elasticsearch.ElasticsearchDistributionName;
 import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
-import org.hibernate.search.backend.elasticsearch.client.impl.Paths;
-import org.hibernate.search.backend.elasticsearch.util.spi.URLEncodedString;
 import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.ElasticsearchTestHostConnectionConfiguration;
+import org.hibernate.search.util.impl.integrationtest.backend.elasticsearch.rule.TestElasticsearchClient;
+import org.hibernate.search.util.impl.integrationtest.common.TestConfigurationProvider;
 
 public class ElasticsearchTestDialect {
 
-	private static final ElasticsearchVersion ACTUAL_VERSION = ElasticsearchVersion.of(
-			System.getProperty( "org.hibernate.search.integrationtest.backend.elasticsearch.version" )
-	);
+	private static ElasticsearchVersion actualVersion;
 
 	private static final ElasticsearchTestDialect INSTANCE = new ElasticsearchTestDialect();
+	private static final String LOCAL_DATE_DEFAULT_FORMAT = "uuuu-MM-dd";
 
 	public static ElasticsearchTestDialect get() {
 		return INSTANCE;
 	}
 
 	public static ElasticsearchVersion getActualVersion() {
-		return ACTUAL_VERSION;
+		if ( actualVersion == null ) {
+			ElasticsearchDistributionName distribution =
+					ElasticsearchDistributionName.of( System.getProperty(
+							"org.hibernate.search.integrationtest.backend.elasticsearch.distribution" ) );
+			String versionString = "";
+
+			if ( distribution != ElasticsearchDistributionName.AMAZON_OPENSEARCH_SERVERLESS ) {
+				try ( TestElasticsearchClient client = new TestElasticsearchClient() ) {
+					client.open( new TestConfigurationProvider(), Optional.empty() );
+					versionString = client.getActualVersion();
+					if ( versionString != null ) {
+						// If we got a snapshot version back from the actual cluster we want to drop that qualifier part of version.
+						// Qualifiers are not allowed when comparing versions with a comparator from this class
+						// (see this#compare(ElasticsearchVersion a, ElasticsearchVersion b, int defaultInt)).
+						int dashIndex = versionString.indexOf( '-' );
+						if ( dashIndex > -1 ) {
+							versionString = versionString.substring( 0, dashIndex );
+						}
+					}
+				}
+				catch (IOException e) {
+					throw new IllegalStateException(
+							"Wasn't able to detect the actual version of " + distribution.toString() + "cluster", e );
+				}
+			}
+
+			actualVersion = ElasticsearchVersion.of( distribution, versionString.isBlank() ? null : versionString );
+		}
+		return actualVersion;
 	}
 
-	public boolean isEmptyMappingPossible() {
+	public String getLocalDateDefaultMappingFormat() {
+		return LOCAL_DATE_DEFAULT_FORMAT;
+	}
+
+	public boolean supportsExplicitPurge() {
 		return isActualVersion(
-				esVersion -> esVersion.isAtMost( "6.8" ),
-				osVersion -> false
+				es -> true,
+				os -> true,
+				aoss -> false
 		);
-	}
-
-	@SuppressWarnings("deprecation")
-	public Optional<URLEncodedString> getTypeNameForMappingAndBulkApi() {
-		if ( isActualVersion(
-				esVersion -> esVersion.isAtMost( "6.8" ),
-				osVersion -> false
-		) ) {
-			return Optional.of( Paths.DOC );
-		}
-		return Optional.empty();
-	}
-
-	public Boolean getIncludeTypeNameParameterForMappingApi() {
-		if ( isActualVersion(
-				esVersion -> esVersion.isBetween( "6.7", "6.8" ),
-				osVersion -> false
-		) ) {
-			return Boolean.TRUE;
-		}
-		return null;
-	}
-
-	public List<String> getAllLocalDateDefaultMappingFormats() {
-		if ( isActualVersion(
-				esVersion -> esVersion.isAtMost( "6.8" ),
-				osVersion -> false
-		) ) {
-			return Arrays.asList( "yyyy-MM-dd", "yyyyyyyyy-MM-dd" );
-		}
-		return Collections.singletonList( "uuuu-MM-dd" );
-	}
-
-	public boolean supportsIsWriteIndex() {
-		return isActualVersion(
-				esVersion -> !esVersion.isLessThan( "6.4.0" ),
-				osVersion -> true
-		);
-	}
-
-	public String getFirstLocalDateDefaultMappingFormat() {
-		return getAllLocalDateDefaultMappingFormats().get( 0 );
-	}
-
-	public String getConcatenatedLocalDateDefaultMappingFormats() {
-		return String.join( "||", getAllLocalDateDefaultMappingFormats() );
 	}
 
 	public static boolean isActualVersion(
 			Predicate<ElasticsearchVersionCondition> elasticsearchPredicate,
-			Predicate<ElasticsearchVersionCondition> opensearchPredicate
+			Predicate<ElasticsearchVersionCondition> openSearchPredicate
+	) {
+		return isActualVersion(
+				elasticsearchPredicate,
+				openSearchPredicate,
+				null
+		);
+	}
+
+	public static boolean isActualVersion(
+			Predicate<ElasticsearchVersionCondition> elasticsearchPredicate,
+			Predicate<ElasticsearchVersionCondition> openSearchPredicate,
+			Predicate<ElasticsearchVersionCondition> amazonOpenSearchServerlessPredicate
 	) {
 		return isVersion(
-				ACTUAL_VERSION,
+				getActualVersion(),
 				elasticsearchPredicate,
-				opensearchPredicate
+				openSearchPredicate,
+				amazonOpenSearchServerlessPredicate
 		);
 	}
 
 	static boolean isVersion(
 			ElasticsearchVersion version,
 			Predicate<ElasticsearchVersionCondition> elasticsearchPredicate,
-			Predicate<ElasticsearchVersionCondition> opensearchPredicate
+			Predicate<ElasticsearchVersionCondition> openSearchPredicate,
+			Predicate<ElasticsearchVersionCondition> amazonOpenSearchServerlessPredicate
 	) {
 		ElasticsearchVersionCondition condition = new ElasticsearchVersionCondition( version );
 
@@ -109,7 +108,16 @@ public class ElasticsearchTestDialect {
 			case ELASTIC:
 				return elasticsearchPredicate.test( condition );
 			case OPENSEARCH:
-				return opensearchPredicate.test( condition );
+				return openSearchPredicate.test( condition );
+			case AMAZON_OPENSEARCH_SERVERLESS:
+				if ( amazonOpenSearchServerlessPredicate != null ) {
+					return amazonOpenSearchServerlessPredicate.test( condition );
+				}
+				else {
+					// The caller doesn't handle AOSS; let's behave as if we were on the latest OpenSearch version.
+					condition = new ElasticsearchVersionCondition( ElasticsearchVersion.of( "opensearch:999.999" ) );
+					return openSearchPredicate.test( condition );
+				}
 			default:
 				throw new IllegalStateException( "Unknown distribution" );
 		}
@@ -164,7 +172,7 @@ public class ElasticsearchTestDialect {
 				throw new IllegalArgumentException( "Qualifiers are ignored for version ranges." );
 			}
 
-			return Comparator.comparing( ElasticsearchVersion::major )
+			return Comparator.comparing( (ElasticsearchVersion version) -> version.majorOptional().orElse( defaultInt ) )
 					.thenComparing( version -> version.minor().orElse( defaultInt ) )
 					.thenComparing( version -> version.micro().orElse( defaultInt ) )
 					.compare( a, b );

@@ -22,7 +22,7 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing
 
 /**
  * Given a property, defines how a dependency of the indexing process to this property
- * should affect automatic indexing.
+ * should affect its reindexing.
  * <p>
  * This annotation is generally not needed, as the default behavior is to consider all properties
  * that are actually used in the indexing process as dependencies that trigger reindexing when they are updated.
@@ -53,7 +53,8 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.processing
 @Target({ ElementType.METHOD, ElementType.FIELD })
 @Retention(RetentionPolicy.RUNTIME)
 @Repeatable(IndexingDependency.List.class)
-@PropertyMapping(processor = @PropertyMappingAnnotationProcessorRef(type = IndexingDependencyProcessor.class, retrieval = BeanRetrieval.CONSTRUCTOR))
+@PropertyMapping(processor = @PropertyMappingAnnotationProcessorRef(type = IndexingDependencyProcessor.class,
+		retrieval = BeanRetrieval.CONSTRUCTOR))
 public @interface IndexingDependency {
 
 	/**
@@ -72,7 +73,7 @@ public @interface IndexingDependency {
 	 * it allows Hibernate Search to know that whenever these other properties are changed,
 	 * this property may change too and thus should be reindexed.
 	 */
-	ObjectPath[] derivedFrom() default {};
+	ObjectPath[] derivedFrom() default { };
 
 	/**
 	 * @return A definition of container extractors to be applied to the property,

@@ -9,23 +9,19 @@ package org.hibernate.search.backend.elasticsearch.dialect.impl;
 import java.lang.invoke.MethodHandles;
 import java.util.OptionalInt;
 
+import org.hibernate.search.backend.elasticsearch.ElasticsearchDistributionName;
 import org.hibernate.search.backend.elasticsearch.ElasticsearchVersion;
-import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch56ModelDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch6ModelDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch7ModelDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.model.impl.Elasticsearch8ModelDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.model.impl.ElasticsearchModelDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch56ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch60ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch63ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch64ProtocolDialect;
-import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch67ProtocolDialect;
+import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.AmazonOpenSearchServerlessProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch70ProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch80ProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.Elasticsearch81ProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.dialect.protocol.impl.ElasticsearchProtocolDialect;
 import org.hibernate.search.backend.elasticsearch.logging.impl.Log;
 import org.hibernate.search.util.common.AssertionFailure;
+import org.hibernate.search.util.common.annotation.Incubating;
 import org.hibernate.search.util.common.logging.impl.LoggerFactory;
 
 /**
@@ -35,28 +31,65 @@ public class ElasticsearchDialectFactory {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
+	@Incubating
+	public static final ElasticsearchVersion AMAZON_OPENSEARCH_SERVERLESS =
+			ElasticsearchVersion.of( ElasticsearchDistributionName.AMAZON_OPENSEARCH_SERVERLESS, null );
+
+	public static boolean isPreciseEnoughForModelDialect(ElasticsearchVersion version) {
+		switch ( version.distribution() ) {
+			case ELASTIC:
+			case OPENSEARCH:
+				return version.majorOptional().isPresent();
+			case AMAZON_OPENSEARCH_SERVERLESS:
+				return true;
+			default:
+				throw new AssertionFailure( "Unrecognized Elasticsearch distribution: " + version.distribution() );
+		}
+	}
+
+	public static boolean isPreciseEnoughForProtocolDialect(ElasticsearchVersion version) {
+		switch ( version.distribution() ) {
+			case ELASTIC:
+			case OPENSEARCH:
+				return version.majorOptional().isPresent() && version.minor().isPresent();
+			case AMAZON_OPENSEARCH_SERVERLESS:
+				return true;
+			default:
+				throw new AssertionFailure( "Unrecognized Elasticsearch distribution: " + version.distribution() );
+		}
+	}
+
+	public static boolean isVersionCheckImpossible(ElasticsearchVersion version) {
+		return version.distribution().equals( ElasticsearchDistributionName.AMAZON_OPENSEARCH_SERVERLESS );
+	}
+
 	public ElasticsearchModelDialect createModelDialect(ElasticsearchVersion version) {
 		switch ( version.distribution() ) {
 			case ELASTIC:
 				return createModelDialectElastic( version );
 			case OPENSEARCH:
 				return createModelDialectOpenSearch( version );
+			case AMAZON_OPENSEARCH_SERVERLESS:
+				return createModelDialectAmazonOpenSearchServerless( version );
 			default:
 				throw new AssertionFailure( "Unrecognized Elasticsearch distribution: " + version.distribution() );
 		}
 	}
 
 	private ElasticsearchModelDialect createModelDialectElastic(ElasticsearchVersion version) {
-		int major = version.major();
+		OptionalInt majorOptional = version.majorOptional();
+		OptionalInt minorOptional = version.minor();
+		// The major/minor version numbers should be set at this point,
+		// because `isPreciseEnoughForModelDialect` was called
+		// to decide whether to retrieve the version from the cluster or not.
+		if ( majorOptional.isEmpty() ) {
+			// The version is supposed to be fetched from the cluster itself, so it should be complete
+			throw new AssertionFailure( "Cannot create the Elasticsearch model dialect because the version is incomplete." );
+		}
+		int major = majorOptional.getAsInt();
 
-		if ( major < 5 ) {
+		if ( major < 7 || ( major == 7 && minorOptional.isPresent() && minorOptional.getAsInt() < 10 ) ) {
 			throw log.unsupportedElasticsearchVersion( version );
-		}
-		else if ( major == 5 ) {
-			return createModelDialectElasticV5( version );
-		}
-		else if ( major == 6 ) {
-			return new Elasticsearch6ModelDialect();
 		}
 		else if ( major == 7 ) {
 			return new Elasticsearch7ModelDialect();
@@ -66,27 +99,31 @@ public class ElasticsearchDialectFactory {
 		}
 	}
 
-	private ElasticsearchModelDialect createModelDialectElasticV5(ElasticsearchVersion version) {
-		OptionalInt minorOptional = version.minor();
-		if ( !minorOptional.isPresent() ) {
-			throw log.ambiguousElasticsearchVersion( version );
-		}
-		int minor = minorOptional.getAsInt();
-		if ( minor < 6 ) {
-			throw log.unsupportedElasticsearchVersion( version );
-		}
-		return new Elasticsearch56ModelDialect();
-	}
-
 	private ElasticsearchModelDialect createModelDialectOpenSearch(ElasticsearchVersion version) {
-		int major = version.major();
+		OptionalInt majorOptional = version.majorOptional();
+		OptionalInt minorOptional = version.minor();
+		// The major/minor version numbers should be set at this point,
+		// because `isPreciseEnoughForModelDialect` was called
+		// to decide whether to retrieve the version from the cluster or not.
+		if ( majorOptional.isEmpty() ) {
+			// The version is supposed to be fetched from the cluster itself, so it should be complete
+			throw new AssertionFailure( "Cannot create the OpenSearch model dialect because the version is incomplete." );
+		}
+		int major = majorOptional.getAsInt();
 
-		if ( major < 1 ) {
+		if ( major < 1 || ( major == 1 && minorOptional.isPresent() && minorOptional.getAsInt() < 3 ) ) {
 			throw log.unsupportedElasticsearchVersion( version );
 		}
 		else {
 			return new Elasticsearch7ModelDialect();
 		}
+	}
+
+	private ElasticsearchModelDialect createModelDialectAmazonOpenSearchServerless(ElasticsearchVersion version) {
+		if ( !AMAZON_OPENSEARCH_SERVERLESS.equals( version ) ) {
+			throw log.unexpectedAwsOpenSearchServerlessVersion( version, AMAZON_OPENSEARCH_SERVERLESS );
+		}
+		return new Elasticsearch7ModelDialect();
 	}
 
 	public ElasticsearchProtocolDialect createProtocolDialect(ElasticsearchVersion version) {
@@ -95,28 +132,28 @@ public class ElasticsearchDialectFactory {
 				return createProtocolDialectElastic( version );
 			case OPENSEARCH:
 				return createProtocolDialectOpenSearch( version );
+			case AMAZON_OPENSEARCH_SERVERLESS:
+				return createProtocolDialectAmazonOpenSearchServerless( version );
 			default:
 				throw new AssertionFailure( "Unrecognized Elasticsearch distribution: " + version.distribution() );
 		}
 	}
 
 	private ElasticsearchProtocolDialect createProtocolDialectElastic(ElasticsearchVersion version) {
-		int major = version.major();
+		OptionalInt majorOptional = version.majorOptional();
 		OptionalInt minorOptional = version.minor();
-		if ( !minorOptional.isPresent() ) {
+		// The major/minor version numbers should be set at this point,
+		// because `isPreciseEnoughForProtocolDialect` was called
+		// to decide whether to retrieve the version from the cluster or not.
+		if ( majorOptional.isEmpty() || minorOptional.isEmpty() ) {
 			// The version is supposed to be fetched from the cluster itself, so it should be complete
-			throw new AssertionFailure( "The Elasticsearch version is incomplete when creating the protocol dialect." );
+			throw new AssertionFailure( "Cannot create the Elasticsearch protocol dialect because the version is incomplete." );
 		}
+		int major = majorOptional.getAsInt();
 		int minor = minorOptional.getAsInt();
 
-		if ( major < 5 ) {
+		if ( major < 7 || ( major == 7 && minor < 10 ) ) {
 			throw log.unsupportedElasticsearchVersion( version );
-		}
-		else if ( major == 5 ) {
-			return createProtocolDialectElasticV5( version, minor );
-		}
-		else if ( major == 6 ) {
-			return createProtocolDialectElasticV6( version, minor );
 		}
 		else if ( major == 7 ) {
 			return createProtocolDialectElasticV7( version, minor );
@@ -130,34 +167,6 @@ public class ElasticsearchDialectFactory {
 		}
 	}
 
-	private ElasticsearchProtocolDialect createProtocolDialectElasticV5(ElasticsearchVersion version, int minor) {
-		if ( minor < 6 ) {
-			throw log.unsupportedElasticsearchVersion( version );
-		}
-		// Either the latest supported version, or a newer/unknown one
-		if ( minor != 6 ) {
-			log.unknownElasticsearchVersion( version );
-		}
-		return new Elasticsearch56ProtocolDialect();
-	}
-
-	private ElasticsearchProtocolDialect createProtocolDialectElasticV6(ElasticsearchVersion version, int minor) {
-		if ( minor < 3 ) {
-			return new Elasticsearch60ProtocolDialect();
-		}
-		if ( minor < 4 ) {
-			return new Elasticsearch63ProtocolDialect();
-		}
-		if ( minor < 7 ) {
-			return new Elasticsearch64ProtocolDialect();
-		}
-		// Either the latest supported version, or a newer/unknown one
-		if ( minor > 8 ) {
-			log.unknownElasticsearchVersion( version );
-		}
-		return new Elasticsearch67ProtocolDialect();
-	}
-
 	private ElasticsearchProtocolDialect createProtocolDialectElasticV7(ElasticsearchVersion version, int minor) {
 		if ( minor > 17 ) {
 			log.unknownElasticsearchVersion( version );
@@ -166,7 +175,7 @@ public class ElasticsearchDialectFactory {
 	}
 
 	private ElasticsearchProtocolDialect createProtocolDialectElasticV8(ElasticsearchVersion version, int minor) {
-		if ( minor > 7 ) {
+		if ( minor > 9 ) {
 			log.unknownElasticsearchVersion( version );
 		}
 		else if ( minor == 0 ) {
@@ -176,14 +185,19 @@ public class ElasticsearchDialectFactory {
 	}
 
 	private ElasticsearchProtocolDialect createProtocolDialectOpenSearch(ElasticsearchVersion version) {
-		int major = version.major();
+		OptionalInt majorOptional = version.majorOptional();
 		OptionalInt minorOptional = version.minor();
-		if ( !minorOptional.isPresent() ) {
+		// The major/minor version numbers should be set at this point,
+		// because `isPreciseEnoughForProtocolDialect` was called
+		// to decide whether to retrieve the version from the cluster or not.
+		if ( majorOptional.isEmpty() || minorOptional.isEmpty() ) {
 			// The version is supposed to be fetched from the cluster itself, so it should be complete
-			throw new AssertionFailure( "The Elasticsearch version is incomplete when creating the protocol dialect." );
+			throw new AssertionFailure( "Cannot create the OpenSearch protocol dialect because the version is incomplete." );
 		}
+		int major = majorOptional.getAsInt();
 		int minor = minorOptional.getAsInt();
-		if ( major < 1 ) {
+
+		if ( major < 1 || ( major == 1 && minor < 3 ) ) {
 			throw log.unsupportedElasticsearchVersion( version );
 		}
 		else if ( major == 1 ) {
@@ -206,10 +220,16 @@ public class ElasticsearchDialectFactory {
 	}
 
 	private ElasticsearchProtocolDialect createProtocolDialectOpenSearchV2(ElasticsearchVersion version, int minor) {
-		if ( minor > 7 ) {
+		if ( minor > 10 ) {
 			log.unknownElasticsearchVersion( version );
 		}
 		return new Elasticsearch70ProtocolDialect();
 	}
 
+	private ElasticsearchProtocolDialect createProtocolDialectAmazonOpenSearchServerless(ElasticsearchVersion version) {
+		if ( !AMAZON_OPENSEARCH_SERVERLESS.equals( version ) ) {
+			throw log.unexpectedAwsOpenSearchServerlessVersion( version, AMAZON_OPENSEARCH_SERVERLESS );
+		}
+		return new AmazonOpenSearchServerlessProtocolDialect();
+	}
 }
