@@ -157,7 +157,7 @@
         <!-- >>> Spring integration tests -->
         <version.org.springframework.boot>3.1.1</version.org.springframework.boot>
         <!-- Spring Boot 3 Atomikos starter and related libs version: -->
-        <version.com.atomikos>6.0.0</version.com.atomikos>
+        <version.com.atomikos>6.0.1</version.com.atomikos>
 
         <version.jsoup>1.15.3</version.jsoup>
 
