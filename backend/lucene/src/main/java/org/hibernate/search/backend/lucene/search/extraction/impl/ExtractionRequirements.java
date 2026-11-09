@@ -52,7 +52,7 @@ public final class ExtractionRequirements {
 
 	public LuceneCollectors createCollectors(IndexSearcher indexSearcher, Query originalLuceneQuery, Sort sort,
 			IndexReaderMetadataResolver metadataResolver, int maxDocs, int offset, TimeoutManager timeoutManager,
-			int requestedTotalHitCountThreshold)
+			int requestedTotalHitCountThreshold, ScoreDoc after)
 			throws IOException {
 		// Necessary to unwrap boolean queries with a single clause, in particular:
 		// we have optimizations in place when there is a single query and this query is a MatchAllDocsQuery.
@@ -81,7 +81,7 @@ public final class ExtractionRequirements {
 
 		if ( maxDocs > 0 ) {
 			if ( sort == null || isDescendingScoreSort( sort ) ) {
-				topDocsCollectorManager = new HibernateSearchTopScoreDocCollectorManager( offset, maxDocs, null,
+				topDocsCollectorManager = new HibernateSearchTopScoreDocCollectorManager( offset, maxDocs, after,
 						totalHitCountThreshold, true );
 			}
 			else {
@@ -93,7 +93,7 @@ public final class ExtractionRequirements {
 					// If there's a SCORE sort field, make sure we remember that, so that later we can optimize rescoring
 					scoreSortFieldIndexForRescoring = getScoreSortFieldIndexOrNull( sort );
 				}
-				topDocsCollectorManager = new HibernateSearchTopFieldCollectorManager( offset, sort, maxDocs, null,
+				topDocsCollectorManager = new HibernateSearchTopFieldCollectorManager( offset, sort, maxDocs, (FieldDoc) after,
 						totalHitCountThreshold, true );
 			}
 			collectorsForAllMatchingDocsBuilder.add( LuceneCollectors.TOP_DOCS_KEY, topDocsCollectorManager );

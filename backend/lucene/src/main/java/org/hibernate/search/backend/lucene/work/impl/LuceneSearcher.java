@@ -12,6 +12,7 @@ import org.hibernate.search.engine.search.timeout.spi.TimeoutManager;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
 
 public interface LuceneSearcher<R, ER> {
 
@@ -20,7 +21,7 @@ public interface LuceneSearcher<R, ER> {
 			throws IOException;
 
 	ER scroll(IndexSearcher indexSearcher, IndexReaderMetadataResolver metadataResolver,
-			int offset, int limit, int totalHitCountThreshold)
+			ScoreDoc after, int limit, int totalHitCountThreshold)
 			throws IOException;
 
 	int count(IndexSearcher indexSearcher) throws IOException;

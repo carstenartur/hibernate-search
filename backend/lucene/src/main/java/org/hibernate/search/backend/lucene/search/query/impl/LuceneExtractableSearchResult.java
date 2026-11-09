@@ -95,6 +95,11 @@ public class LuceneExtractableSearchResult<H> {
 		return ( topDocs == null ) ? 0 : topDocs.scoreDocs.length;
 	}
 
+	ScoreDoc lastScoreDoc() {
+		TopDocs topDocs = luceneCollectors.getTopDocs();
+		return topDocs == null || topDocs.scoreDocs.length == 0 ? null : topDocs.scoreDocs[topDocs.scoreDocs.length - 1];
+	}
+
 	SearchResultTotal total() {
 		return luceneCollectors.getResultTotal();
 	}

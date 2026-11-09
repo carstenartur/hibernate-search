@@ -19,7 +19,11 @@ import org.hibernate.search.backend.lucene.work.impl.LuceneSearcher;
 import org.hibernate.search.backend.lucene.work.impl.LuceneWorkFactory;
 import org.hibernate.search.backend.lucene.work.impl.ReadWork;
 import org.hibernate.search.engine.reporting.spi.EventContexts;
+import org.hibernate.search.engine.search.query.SearchResultTotal;
+import org.hibernate.search.engine.search.query.spi.SimpleSearchResultTotal;
 import org.hibernate.search.engine.search.timeout.spi.TimeoutManager;
+
+import org.apache.lucene.search.ScoreDoc;
 
 public class LuceneSearchScrollImpl<H> implements LuceneSearchScroll<H> {
 
@@ -36,10 +40,10 @@ public class LuceneSearchScrollImpl<H> implements LuceneSearchScroll<H> {
 	private final HibernateSearchMultiReader indexReader;
 	private final int chunkSize;
 
-	private int nextChunkOffset = 0;
-	private int currentPageLimit;
+	private final int currentPageLimit;
 	private LuceneExtractableSearchResult<H> currentPage;
-	private int currentPageOffset = 0;
+	private int nextChunkStartIndexInPage = 0;
+	private long hitCountSoFar = 0;
 
 	public LuceneSearchScrollImpl(LuceneSyncWorkOrchestrator queryOrchestrator,
 			LuceneWorkFactory workFactory, LuceneSearchQueryIndexScope<?, ?> scope,
@@ -57,7 +61,7 @@ public class LuceneSearchScrollImpl<H> implements LuceneSearchScroll<H> {
 		this.totalHitCountThreshold = totalHitCountThreshold;
 		this.indexReader = indexReader;
 		this.chunkSize = chunkSize;
-		this.currentPageLimit = chunkSize * 4; // Will fetch the topdocs for the first 4 pages initially
+		this.currentPageLimit = (int) Math.min( (long) chunkSize * 4, Integer.MAX_VALUE );
 	}
 
 	@Override
@@ -69,6 +73,9 @@ public class LuceneSearchScrollImpl<H> implements LuceneSearchScroll<H> {
 			LuceneMiscLog.INSTANCE.unableToCloseIndexReader(
 					EventContexts.fromIndexNames( scope.hibernateSearchIndexNames() ),
 					e );
+		}
+		finally {
+			currentPage = null;
 		}
 	}
 
@@ -84,25 +91,21 @@ public class LuceneSearchScrollImpl<H> implements LuceneSearchScroll<H> {
 	}
 
 	private LuceneSearchScrollResult<H> doNext() {
-		if ( currentPage == null || nextChunkOffset + chunkSize > currentPageLimit + currentPageOffset ) {
-			if ( currentPage != null ) {
-				currentPageLimit *= 2;
-			}
-			currentPageOffset = nextChunkOffset;
+		if ( currentPage == null || nextChunkStartIndexInPage >= currentPageLimit ) {
+			ScoreDoc after = currentPage == null ? null : currentPage.lastScoreDoc();
 			currentPage = doSubmitWithIndexReader(
-					workFactory.scroll( searcher, currentPageOffset, currentPageLimit, totalHitCountThreshold ),
+					workFactory.scroll( searcher, after, currentPageLimit, totalHitCountThreshold ),
 					indexReader );
+			nextChunkStartIndexInPage = 0;
 		}
-
-		int nextChunkStartIndexInPage = nextChunkOffset - currentPageOffset;
 
 		// no more results check
 		if ( nextChunkStartIndexInPage >= currentPage.hitSize() ) {
-			return new LuceneSearchScrollResultImpl<>( currentPage.total(), false, Collections.emptyList(),
+			return new LuceneSearchScrollResultImpl<>( total(), false, Collections.emptyList(),
 					timeoutManager.tookTime(), timeoutManager.isTimedOut() );
 		}
 
-		int nextChunkEndIndexInPage = nextChunkStartIndexInPage + chunkSize;
+		int nextChunkEndIndexInPage = (int) Math.min( (long) nextChunkStartIndexInPage + chunkSize, currentPage.hitSize() );
 
 		LuceneLoadableSearchResult<H> loadableSearchResult;
 		try {
@@ -123,9 +126,18 @@ public class LuceneSearchScrollImpl<H> implements LuceneSearchScroll<H> {
 		LuceneSearchResult<H> result = loadableSearchResult.loadBlocking();
 
 		// increasing the index for further next(s)
-		nextChunkOffset += chunkSize;
-		return new LuceneSearchScrollResultImpl<>( currentPage.total(), true, result.hits(),
+		hitCountSoFar += nextChunkEndIndexInPage - nextChunkStartIndexInPage;
+		nextChunkStartIndexInPage = nextChunkEndIndexInPage;
+		return new LuceneSearchScrollResultImpl<>( total(), true, result.hits(),
 				result.took(), result.timedOut() );
+	}
+
+	private SearchResultTotal total() {
+		SearchResultTotal total = currentPage.total();
+		// A search-after collector may stop counting before reaching the number of hits already returned.
+		return total.isHitCountLowerBound() && total.hitCountLowerBound() < hitCountSoFar
+				? SimpleSearchResultTotal.lowerBound( hitCountSoFar )
+				: total;
 	}
 
 	private <T> T doSubmitWithIndexReader(ReadWork<T> work, HibernateSearchMultiReader indexReader) {
