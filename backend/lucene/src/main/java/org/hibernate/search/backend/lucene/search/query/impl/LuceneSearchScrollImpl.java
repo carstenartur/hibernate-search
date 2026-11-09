@@ -61,7 +61,11 @@ public class LuceneSearchScrollImpl<H> implements LuceneSearchScroll<H> {
 		this.totalHitCountThreshold = totalHitCountThreshold;
 		this.indexReader = indexReader;
 		this.chunkSize = chunkSize;
-		this.currentPageLimit = (int) Math.min( (long) chunkSize * 4, Integer.MAX_VALUE );
+		// Benchmark-only opt-in. Keep the original whole-chunk page sizing by default.
+		int chunksPerPage = Boolean.getBoolean( "ranked.scroll.experimental-large-page" )
+				? Math.max( 4, 16_384 / chunkSize )
+				: 4;
+		this.currentPageLimit = (int) Math.min( (long) chunkSize * chunksPerPage, Integer.MAX_VALUE );
 	}
 
 	@Override
