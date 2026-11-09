@@ -16,6 +16,7 @@ import org.hibernate.search.backend.lucene.multitenancy.impl.MultiTenancyStrateg
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
 
 public final class LuceneWorkFactory {
 
@@ -89,8 +90,8 @@ public final class LuceneWorkFactory {
 		return new SearchWork<>( searcher, offset, limit, totalHitCountThreshold );
 	}
 
-	public <ER> ReadWork<ER> scroll(LuceneSearcher<?, ER> searcher, int offset, int limit, int totalHitCountThreshold) {
-		return new ScrollWork<>( searcher, offset, limit, totalHitCountThreshold );
+	public <ER> ReadWork<ER> scroll(LuceneSearcher<?, ER> searcher, ScoreDoc after, int limit, int totalHitCountThreshold) {
+		return new ScrollWork<>( searcher, after, limit, totalHitCountThreshold );
 	}
 
 	public ReadWork<Integer> count(LuceneSearcher<?, ?> searcher) {
